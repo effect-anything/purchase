@@ -695,7 +695,8 @@ const generateFields = (key: string, table: Table, options: PrismaGenerateOption
     const dbType = columnConfig.db?.type
 
     if (options.database?.useNativeTypes || dbType) {
-      const inferredDbType = getDbType(columnType as PrismaType)
+      const nativeColumnType = isJsonColumn ? "Json" : columnType
+      const inferredDbType = getDbType(nativeColumnType as PrismaType)
       fieldDef += ` @db.${dbType || inferredDbType}`
     }
 

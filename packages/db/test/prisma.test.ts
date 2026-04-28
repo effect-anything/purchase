@@ -99,6 +99,39 @@ describe("Prisma schema generate", () => {
     expect(result).not.toContain('dbgenerated("{}")')
   })
 
+  it("emits provider-specific postgres and mysql schemas", () => {
+    const JsonRecord = Database.Json(Schema.Record({ key: Schema.String, value: Schema.Unknown }))
+
+    class Settings extends Database.Class<Settings>("settings")({
+      id: Database.id.string,
+      payload: JsonRecord
+    }) {}
+
+    const postgres = Prisma.generate(
+      {
+        provider: "postgresql",
+        database: {
+          useNativeTypes: true
+        }
+      },
+      { settings: Settings }
+    )
+    const mysql = Prisma.generate(
+      {
+        provider: "mysql",
+        database: {
+          useNativeTypes: true
+        }
+      },
+      { settings: Settings }
+    )
+
+    expect(postgres).toContain('provider = "postgresql"')
+    expect(postgres).toContain("payload Json @db.JsonB")
+    expect(mysql).toContain('provider = "mysql"')
+    expect(mysql).toContain("payload Json @db.Json")
+  })
+
   it("supports composite primary keys in model config", () => {
     class Membership extends Database.Class<Membership>("membership")(
       {
