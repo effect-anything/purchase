@@ -28,17 +28,19 @@ const mysql = mysqlRequire("mysql2/promise") as {
     readonly end: () => Promise<void>
   }>
 }
+type StartedMySqlContainer = {
+  readonly getHost: () => string
+  readonly getMappedPort: (port: number) => number
+  readonly stop: () => Promise<unknown>
+}
+type MySqlContainerBuilder = {
+  readonly withEnvironment: (environment: Record<string, string>) => MySqlContainerBuilder
+  readonly withExposedPorts: (port: number) => MySqlContainerBuilder
+  readonly withWaitStrategy: (strategy: unknown) => MySqlContainerBuilder
+  readonly start: () => Promise<StartedMySqlContainer>
+}
 const { GenericContainer, Wait } = testcontainersRequire("testcontainers") as {
-  readonly GenericContainer: new (image: string) => {
-    readonly withEnvironment: (environment: Record<string, string>) => any
-    readonly withExposedPorts: (port: number) => any
-    readonly withWaitStrategy: (strategy: unknown) => any
-    readonly start: () => Promise<{
-      readonly getHost: () => string
-      readonly getMappedPort: (port: number) => number
-      readonly stop: () => Promise<unknown>
-    }>
-  }
+  readonly GenericContainer: new (image: string) => MySqlContainerBuilder
   readonly Wait: {
     readonly forLogMessage: (message: RegExp) => unknown
   }
@@ -76,7 +78,7 @@ const linkWorkspaceNodeModules = Effect.fnUntraced(function* (cwd: string) {
 })
 
 const queryPostgres = Effect.fnUntraced(function* (url: string, sql: string) {
-  const result = yield* Effect.tryPromise({
+  const result = yield* Effect.tryPromise<{ rows: ReadonlyArray<Record<string, unknown>> }, unknown>({
     try: () => {
       const client = new Client({ connectionString: url })
       return client
@@ -91,7 +93,7 @@ const queryPostgres = Effect.fnUntraced(function* (url: string, sql: string) {
 })
 
 const queryMySql = Effect.fnUntraced(function* (url: string, sql: string) {
-  const rows = yield* Effect.tryPromise({
+  const rows = yield* Effect.tryPromise<ReadonlyArray<Record<string, unknown>>, unknown>({
     try: () => {
       let connection: Awaited<ReturnType<typeof mysql.createConnection>> | undefined
       return mysql
@@ -216,7 +218,7 @@ const makePostgresContainer = Effect.acquireRelease(
 )
 
 const makeMySqlContainer = Effect.acquireRelease(
-  Effect.tryPromise({
+  Effect.tryPromise<StartedMySqlContainer, unknown>({
     try: () =>
       new GenericContainer(mysqlImage)
         .withEnvironment({

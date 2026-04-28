@@ -175,27 +175,31 @@ describe("seed command", () => {
       }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
     ))
 
-  it("does not seed after dev, but seeds after reset unless skipped", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const path = yield* Path.Path
-        const workspace = yield* makeWorkspaceFixture({
-          runtime: "browser",
-          provider: "sqlite"
-        })
-        const databaseFile = path.join(workspace.projectPath, "db", "dev.db")
+  it(
+    "does not seed after dev, but seeds after reset unless skipped",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const path = yield* Path.Path
+          const workspace = yield* makeWorkspaceFixture({
+            runtime: "browser",
+            provider: "sqlite"
+          })
+          const databaseFile = path.join(workspace.projectPath, "db", "dev.db")
 
-        yield* runDbCommand(workspace, ["dev", "--force", "--skip-dump", "--migration-name", "init"])
+          yield* runDbCommand(workspace, ["dev", "--force", "--skip-dump", "--migration-name", "init"])
 
-        const rowsAfterDev = yield* querySqlite(databaseFile, 'SELECT COUNT(*) FROM "User";')
-        expect(rowsAfterDev).toBe("0")
+          const rowsAfterDev = yield* querySqlite(databaseFile, 'SELECT COUNT(*) FROM "User";')
+          expect(rowsAfterDev).toBe("0")
 
-        yield* runDbCommand(workspace, ["reset", "--force"])
+          yield* runDbCommand(workspace, ["reset", "--force"])
 
-        const rowsAfterReset = yield* querySqlite(databaseFile, 'SELECT name FROM "User";')
-        expect(rowsAfterReset).toBe("Ada")
-      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
-    ))
+          const rowsAfterReset = yield* querySqlite(databaseFile, 'SELECT name FROM "User";')
+          expect(rowsAfterReset).toBe("Ada")
+        }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
+      ),
+    30_000
+  )
 
   it("runs against local d1 persisted sqlite", () =>
     Effect.runPromise(

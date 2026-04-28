@@ -46,8 +46,13 @@ const isNativeSqlite = (
   config: Shared.DatabaseConfig
 ): config is
   | Extract<Shared.DatabaseConfig, { runtime: "browser" }>
-  | Extract<Shared.DatabaseConfig, { runtime: "server" }> =>
+  | (Extract<Shared.DatabaseConfig, { runtime: "server" }> & { provider: "sqlite" }) =>
   config.provider === "sqlite" && (config.runtime === "browser" || config.runtime === "server")
+
+const isExternalServer = (
+  config: Shared.DatabaseConfig
+): config is Extract<Shared.DatabaseConfig, { runtime: "server" }> & { provider: "postgresql" | "mysql" } =>
+  config.runtime === "server" && (config.provider === "postgresql" || config.provider === "mysql")
 
 const ensureDiffOutput = (output: ReadonlyArray<unknown>) =>
   output.filter((line): line is string => {
@@ -383,7 +388,7 @@ export const dump = Effect.fn("db.dump")(function* (
   } else if (isNativeSqlite(config)) {
     const result = yield* SQLite.dump(dbDir, config)
     yield* logSchemaDumpResult(result)
-  } else if (config.runtime === "server" && (config.provider === "postgresql" || config.provider === "mysql")) {
+  } else if (isExternalServer(config)) {
     const result = yield* Server.dump(workspace, dbDir, config)
     yield* logSchemaDumpResult(result)
   } else {

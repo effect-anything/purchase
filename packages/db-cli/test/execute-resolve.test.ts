@@ -17,7 +17,6 @@ import {
 } from "../src/domain.ts"
 import * as Server from "../src/server.ts"
 import type { DatabaseConfig } from "../src/shared.ts"
-import * as SQLite from "../src/sqlite.ts"
 import * as Workspace from "../src/workspace.ts"
 
 const execFileAsync = promisify(execFile)

@@ -2,7 +2,12 @@ import * as SyncStorageProxy from "../../../src/cloudflare/SyncStorageProxy.ts"
 
 import { Config } from "../config.ts"
 
-export class SyncStorageProxyDurableObject extends SyncStorageProxy.makeDurableObject({}) {
+const SyncStorageProxyDurableObjectBase = SyncStorageProxy.makeDurableObject({}) as new (
+  ctx: DurableObjectState,
+  env: any
+) => DurableObject
+
+export class SyncStorageProxyDurableObject extends SyncStorageProxyDurableObjectBase {
   async onInitialize(): Promise<void> {}
 }
 

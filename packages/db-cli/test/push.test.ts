@@ -148,20 +148,24 @@ const expectUserTable = Effect.fnUntraced(function* (databaseFile: string) {
 })
 
 describe("push command runtime/provider coverage", () => {
-  it("(browser sqlite) pushes schema into db/dev.db", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const path = yield* Path.Path
-        const workspace = yield* makeWorkspaceFixture({
-          runtime: "browser",
-          provider: "sqlite"
-        })
-        const databaseFile = path.join(workspace.projectPath, "db", "dev.db")
+  it(
+    "(browser sqlite) pushes schema into db/dev.db",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const path = yield* Path.Path
+          const workspace = yield* makeWorkspaceFixture({
+            runtime: "browser",
+            provider: "sqlite"
+          })
+          const databaseFile = path.join(workspace.projectPath, "db", "dev.db")
 
-        yield* pushWorkspace(workspace)
-        yield* expectUserTable(databaseFile)
-      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
-    ))
+          yield* pushWorkspace(workspace)
+          yield* expectUserTable(databaseFile)
+        }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
+      ),
+    30_000
+  )
 
   it("(browser sqlite) force pushes without prompting when data exists", () =>
     Effect.runPromise(

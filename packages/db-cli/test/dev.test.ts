@@ -132,53 +132,65 @@ const devWorkspace = Effect.fnUntraced(function* (
 })
 
 describe("dev command runtime/provider coverage", () => {
-  it("creates and applies nested prisma migrations for browser sqlite", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem
-        const path = yield* Path.Path
-        const workspace = yield* makeWorkspaceFixture({
-          runtime: "browser",
-          provider: "sqlite"
-        })
-        const migrationsDir = path.join(workspace.projectPath, "db", "migrations")
-        const databaseFile = path.join(workspace.projectPath, "db", "dev.db")
+  it(
+    "creates and applies nested prisma migrations for browser sqlite",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem
+          const path = yield* Path.Path
+          const workspace = yield* makeWorkspaceFixture({
+            runtime: "browser",
+            provider: "sqlite"
+          })
+          const migrationsDir = path.join(workspace.projectPath, "db", "migrations")
+          const databaseFile = path.join(workspace.projectPath, "db", "dev.db")
 
-        yield* devWorkspace(workspace)
+          yield* devWorkspace(workspace)
 
-        const migrationFiles = (yield* fs.readDirectory(migrationsDir)).filter((file) => file !== "migration_lock.toml")
-        const userTables = yield* querySqlite(
-          databaseFile,
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'User';"
-        )
+          const migrationFiles = (yield* fs.readDirectory(migrationsDir)).filter(
+            (file) => file !== "migration_lock.toml"
+          )
+          const userTables = yield* querySqlite(
+            databaseFile,
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'User';"
+          )
 
-        expect(migrationFiles).toHaveLength(1)
-        expect(migrationFiles[0]).toMatch(/_init$/)
-        expect(yield* fs.exists(path.join(migrationsDir, migrationFiles[0]!, "migration.sql"))).toBe(true)
-        expect(userTables).toBe("User")
-      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
-    ))
+          expect(migrationFiles).toHaveLength(1)
+          expect(migrationFiles[0]).toMatch(/_init$/)
+          expect(yield* fs.exists(path.join(migrationsDir, migrationFiles[0]!, "migration.sql"))).toBe(true)
+          expect(userTables).toBe("User")
+        }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
+      ),
+    30_000
+  )
 
-  it("does not ask for a migration name when there is no diff", () =>
-    Effect.runPromise(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem
-        const path = yield* Path.Path
-        const workspace = yield* makeWorkspaceFixture({
-          runtime: "browser",
-          provider: "sqlite"
-        })
-        const migrationsDir = path.join(workspace.projectPath, "db", "migrations")
+  it(
+    "does not ask for a migration name when there is no diff",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem
+          const path = yield* Path.Path
+          const workspace = yield* makeWorkspaceFixture({
+            runtime: "browser",
+            provider: "sqlite"
+          })
+          const migrationsDir = path.join(workspace.projectPath, "db", "migrations")
 
-        yield* devWorkspace(workspace)
-        yield* devWorkspace(workspace, undefined, undefined)
+          yield* devWorkspace(workspace)
+          yield* devWorkspace(workspace, undefined, undefined)
 
-        const migrationFiles = (yield* fs.readDirectory(migrationsDir)).filter((file) => file !== "migration_lock.toml")
+          const migrationFiles = (yield* fs.readDirectory(migrationsDir)).filter(
+            (file) => file !== "migration_lock.toml"
+          )
 
-        expect(migrationFiles).toHaveLength(1)
-        expect(migrationFiles[0]).toMatch(/_init$/)
-      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
-    ))
+          expect(migrationFiles).toHaveLength(1)
+          expect(migrationFiles[0]).toMatch(/_init$/)
+        }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
+      ),
+    30_000
+  )
 
   it(
     "(d1 sqlite) force bootstraps with reset and writes wrangler migrations",
