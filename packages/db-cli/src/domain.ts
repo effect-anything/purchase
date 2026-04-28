@@ -48,6 +48,14 @@ export class DatabaseConfigurationError extends Data.TaggedError("DatabaseConfig
   }
 }
 
+export class DatabaseSeedError extends Data.TaggedError("DatabaseSeedError")<{
+  readonly description: string
+}> {
+  override get message() {
+    return this.description
+  }
+}
+
 export class DatabaseExecuteInputError extends Data.TaggedError("DatabaseExecuteInputError")<{
   readonly reason: "MissingInput" | "ConflictingInput" | "EmptyInput"
 }> {

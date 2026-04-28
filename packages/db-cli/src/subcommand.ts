@@ -23,6 +23,8 @@ import {
   type SchemaDumpResult
 } from "./domain.ts"
 import * as D1 from "./d1.ts"
+import * as Seed from "./seed.ts"
+import * as Server from "./server.ts"
 import * as Shared from "./shared.ts"
 import * as SQLite from "./sqlite.ts"
 import * as CliLog from "./utils/log.ts"
@@ -349,16 +351,22 @@ export const seed = Effect.fn("db.seed")(function* (
   workspace: Workspace.Workspace,
   subcommand: DatabaseSeedSubcommand
 ) {
-  const { config } = yield* Shared.detectDatabase(workspace, {
+  const { config, dbDir, tsconfigPath } = yield* Shared.detectDatabase(workspace, {
     databaseName: subcommand.database
   })
+  const result = yield* Seed.run(workspace, {
+    dbDir,
+    tsconfigPath,
+    config,
+    subcommand
+  })
 
-  if (config.runtime === "browser") {
-    yield* CliLog.info("Seed skipped: browser database")
+  if (result._tag === "Skipped") {
+    yield* CliLog.info(`Seed skipped: no seed file configured (${result.path})`)
     return
   }
 
-  yield* CliLog.info("Seed skipped: no seed command configured")
+  yield* CliLog.info(`Seed complete (${config.runtime}/${config.provider}): ${result.path}`)
 })
 
 export const dump = Effect.fn("db.dump")(function* (
@@ -412,6 +420,8 @@ export const push = Effect.fn("db.push")(function* (
     })
   } else if (isNativeSqlite(config)) {
     yield* SQLite.push(workspace, { dbDir })
+  } else if (config.runtime === "server") {
+    yield* Server.push(workspace, { dbDir })
   } else {
     yield* CliLog.error("Database push is not supported for this provider")
   }
@@ -437,7 +447,7 @@ export const execute = Effect.fn("db.execute")(function* (
 ) {
   yield* validateExecuteInput(workspace, subcommand)
 
-  const { config, dbDir } = yield* Shared.detectDatabase(workspace, {
+  const { config, tables, dbDir } = yield* Shared.detectDatabase(workspace, {
     databaseName: subcommand.database
   })
 
@@ -445,6 +455,9 @@ export const execute = Effect.fn("db.execute")(function* (
     yield* D1.execute(workspace, subcommand)
   } else if (isNativeSqlite(config)) {
     yield* SQLite.execute(workspace, dbDir, config, subcommand)
+  } else if (config.runtime === "server") {
+    yield* Shared.syncPrismaSchema(workspace, { dbDir }, config, tables)
+    yield* Server.execute(workspace, dbDir, subcommand)
   } else {
     yield* CliLog.error("Database execute is not supported for this provider")
   }
@@ -526,6 +539,13 @@ export const dev = Effect.fn("db.dev")(function* (
       migrationsDir,
       migrations: migrationsToApply
     })
+  } else if (config.runtime === "server") {
+    yield* Server.applyPrismaMigrations(workspace, {
+      datasource: { url: config.url },
+      dbDir,
+      migrationsDir,
+      migrations: migrationsToApply
+    })
   }
 
   yield* CliLog.info(`Migrate complete (${config.runtime}/${config.provider})`)
@@ -538,19 +558,6 @@ export const dev = Effect.fn("db.dev")(function* (
         stage: subcommand.stage,
         workspace,
         database: subcommand.database
-      })
-    )
-  }
-
-  if (!subcommand.skipSeed) {
-    yield* seed(
-      workspace,
-      new DatabaseSeedSubcommand({
-        workspace,
-        env: subcommand.env,
-        stage: subcommand.stage,
-        database: subcommand.database,
-        file: undefined
       })
     )
   }
@@ -580,6 +587,16 @@ export const reset = Effect.fn("db.reset")(function* (
       dbDir,
       migrationsDir,
       datasource,
+      migrations,
+      reset: true
+    })
+  } else if (config.runtime === "server") {
+    const migrations = yield* Shared.getMigrations(migrationsDir)
+
+    yield* Server.applyPrismaMigrations(workspace, {
+      dbDir,
+      migrationsDir,
+      datasource: { url: config.url },
       migrations,
       reset: true
     })
@@ -640,7 +657,7 @@ export const deploy = Effect.fn("db.deploy")(function* (
   } else if (config.runtime === "server") {
     yield* Shared.syncPrismaSchema(workspace, { dbDir }, config, tables)
 
-    yield* SQLite.applyPrismaMigrations(workspace, {
+    yield* Server.applyPrismaMigrations(workspace, {
       dbDir,
       migrationsDir,
       datasource: { url: config.url },
@@ -672,6 +689,8 @@ export const resolve = Effect.fn("resolve")(function* (
 
   if (config.runtime === "d1") {
     yield* D1.resolveMigration(workspace, subcommand)
+  } else if (config.runtime === "server" && config.provider !== "sqlite") {
+    yield* Server.resolvePrismaMigration(workspace, dbDir, subcommand)
   } else {
     yield* SQLite.resolvePrismaMigration(workspace, dbDir, subcommand)
   }

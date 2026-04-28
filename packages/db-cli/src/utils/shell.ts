@@ -76,7 +76,9 @@ const commandOutputLabels: Record<string, string> = {
   "prisma.migrate-reset": "Prisma migrate reset",
   "prisma.migrate-deploy": "Prisma migrate deploy",
   "prisma.db-push": "Prisma db push",
+  "prisma.db-execute": "Prisma db execute",
   "prisma.migrate-resolve": "Prisma migrate resolve",
+  "db.seed": "Seed",
   "sqlite.execute": "SQLite execute",
   "wrangler.d1-migrations-apply": "D1 migrations"
 }

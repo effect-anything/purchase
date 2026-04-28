@@ -9,8 +9,8 @@
 | `browser` | `sqlite`     | supported | Generate SQL migrations and schema files for browser-side SQLite runtimes.                                              |
 | `d1`      | `sqlite`     | supported | Manage Cloudflare D1. Local mode uses Miniflare persisted SQLite files; remote mode uses `wrangler` against Cloudflare. |
 | `server`  | `sqlite`     | supported | Manage regular server-side SQLite through a file URL or absolute file path.                                             |
-| `server`  | `postgresql` | planned   | Regular server database via URL. Schema generation is valid, command execution needs provider-specific implementation.  |
-| `server`  | `mysql`      | planned   | Regular server database via URL. Schema generation is valid, command execution needs provider-specific implementation.  |
+| `server`  | `postgresql` | supported | Regular server PostgreSQL via URL. Local integration uses a disposable Testcontainers database.                         |
+| `server`  | `mysql`      | partial   | Regular server MySQL via URL. Prisma command paths are shared with PostgreSQL; container coverage still needs adding.   |
 
 `server` means an external or Node-accessible database runtime. If that name becomes too broad, `node` or `external` are better candidates, but the current CLI keeps `server` for compatibility.
 
@@ -26,6 +26,7 @@ These tests should run in normal CI with no Cloudflare account and no persistent
 | Matrix detection         | `detectDatabase` accepts every supported runtime/provider config and creates `db/migrations`.                                                        |
 | Dump command             | `dump` runs through the CLI command layer for `browser/sqlite`, `server/sqlite`, and local `d1/sqlite`, then asserts deterministic schema output.    |
 | Push command             | `push --skip-dump` runs through the CLI command layer for `browser/sqlite`, `server/sqlite`, and local `d1/sqlite`, then asserts real SQLite tables. |
+| Seed command             | `seed` runs project `db/seed.ts` with the project Effect v3 runtime for `browser/sqlite`, local `d1/sqlite`, and `server/postgresql`.                |
 | Migration file discovery | Flat SQL migrations and Prisma directory migrations are sorted and read consistently.                                                                |
 | SQL generation           | Prisma schema generation and migration diff output filtering for SQLite-compatible providers.                                                        |
 
@@ -33,13 +34,14 @@ These tests should run in normal CI with no Cloudflare account and no persistent
 
 These tests can run locally or in an opt-in CI job with required binaries installed:
 
-| Runtime    | Provider | Commands                                                                                |
-| ---------- | -------- | --------------------------------------------------------------------------------------- |
-| `browser`  | `sqlite` | `dev`, `dump`; `deploy` is a no-op; `seed` is skipped.                                  |
-| `server`   | `sqlite` | `push`, `dump`, `execute`, `dev`, `reset`, `deploy`, `resolve`.                         |
-| `d1` local | `sqlite` | `push`, `dump`, `execute`, `dev`, `reset`, `deploy` against Miniflare persisted SQLite. |
+| Runtime    | Provider     | Commands                                                                              |
+| ---------- | ------------ | ------------------------------------------------------------------------------------- |
+| `browser`  | `sqlite`     | `dev`, `dump`, `seed`; `deploy` is a no-op.                                           |
+| `server`   | `sqlite`     | `push`, `dump`, `execute`, `dev`, `reset`, `deploy`, `resolve`, `seed`.               |
+| `server`   | `postgresql` | `push`, `execute`, `dev`, `reset`, `deploy`, `resolve`, `seed`.                       |
+| `d1` local | `sqlite`     | `push`, `dump`, `execute`, `dev`, `reset`, `deploy`, `seed` against Miniflare SQLite. |
 
-Required binaries: `prisma`, `sqlite3`, and `wrangler` for D1 local tests.
+Required binaries: `prisma`, `sqlite3`, and `wrangler` for D1 local tests. PostgreSQL integration tests require Docker and use `public.ecr.aws/docker/library/postgres:17-alpine` by default; set `DB_CLI_POSTGRES_IMAGE` to override or `DB_CLI_SKIP_TESTCONTAINERS=1` to skip them.
 
 ## Remote D1 Coverage
 
@@ -62,8 +64,8 @@ Remote tests should create disposable D1 databases or target preview databases o
 
 ## Gaps To Close
 
-| Gap                                                     | Reason                                                                                    |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Provider-specific server execution for PostgreSQL/MySQL | Current command implementation only has native SQLite execution paths.                    |
-| Real seed execution                                     | `seed` is intentionally stubbed during the Effect v4 migration.                           |
-| D1 remote safety harness                                | Needs disposable database provisioning or a strict preview-only policy before automation. |
+| Gap                                     | Reason                                                                                    |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| MySQL container coverage                | MySQL uses the shared server Prisma command path, but still needs a real database e2e.    |
+| Stable schema dump for PostgreSQL/MySQL | Current deterministic `dump` implementation is SQLite/D1-specific.                        |
+| D1 remote safety harness                | Needs disposable database provisioning or a strict preview-only policy before automation. |

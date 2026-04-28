@@ -13,6 +13,7 @@ import {
   DatabaseMigrateResetSubcommand,
   DatabaseMigrateResolveSubcommand,
   DatabasePushSubcommand,
+  DatabaseSeedSubcommand,
   resolveNodeEnv,
   resolveStage
 } from "./domain.ts"
@@ -126,6 +127,26 @@ export const executeCommand = Command.make(
   })
 )
 
+export const seedCommand = Command.make(
+  "seed",
+  { file: dbFileOption },
+  Effect.fn(function* (config) {
+    yield* detectStage()
+    const baseFlags = yield* resolveBaseFlags
+
+    yield* databaseModule.seed(
+      baseFlags.workspace,
+      new DatabaseSeedSubcommand({
+        env: baseFlags.env,
+        stage: baseFlags.stage,
+        workspace: baseFlags.workspace,
+        database: baseFlags.database,
+        file: config.file
+      })
+    )
+  })
+)
+
 export const migrateDevCommand = Command.make(
   "dev",
   {
@@ -231,6 +252,7 @@ export const rootCommand = pipe(
     pushCommand,
     dumpCommand,
     executeCommand,
+    seedCommand,
     migrateDevCommand,
     migrateResetCommand,
     migrateDeployCommand,
