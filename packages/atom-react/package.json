@@ -51,7 +51,7 @@
     "build": "tsgo -b tsconfig.json && pnpm babel",
     "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
     "check": "tsgc -b tsconfig.json",
-    "test": "vitest",
+    "test": "vitest --run --browser.enabled=true && vitest --run --browser.enabled=false",
     "coverage": "vitest --coverage"
   },
   "devDependencies": {
@@ -68,6 +68,7 @@
     "react": "19.2.5",
     "react-dom": "19.2.5",
     "scheduler": "^0.27.0",
+    "vitest": "catalog:",
     "vitest-browser-react": "^2.2.0"
   },
   "peerDependencies": {

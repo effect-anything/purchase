@@ -55,7 +55,7 @@ vi.mock("react-router", async (importOriginal) => {
 
 import { Component } from "react"
 
-import { GlobalConfigProvider, useGlobalConfig } from "../src/global/config.ts"
+import { GlobalConfigProvider, useGlobalConfig } from "../src/global/config.tsx"
 import { useLanguageChangeRevalidator } from "../src/hooks/use-react-router-utils.ts"
 import { useActionData, useFetcherData, useLoaderData, useRouteLoaderData } from "../src/hooks/use-safe-response.ts"
 import { appStatusUtils, isAppRoute, NOTIFY_APP_STATUS_CHANGE } from "../src/utils"

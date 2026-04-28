@@ -53,7 +53,7 @@
     "build": "tsgo -b tsconfig.json && pnpm babel",
     "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
     "check": "tsgo -b tsconfig.json",
-    "test": "vitest",
+    "test": "vitest --run --browser.enabled=true && vitest --run --browser.enabled=false",
     "coverage": "vitest --coverage"
   },
   "dependencies": {
@@ -65,12 +65,17 @@
     "react-hook-form": "^7.72.1"
   },
   "devDependencies": {
+    "@effect-atom/atom": "^0.5.3",
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/rpc": "catalog:",
     "@effect/sql": "catalog:",
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "^19.2.14",
     "@vitest/browser-playwright": "4.1.5",
     "react": "19.2.5",
+    "scheduler": "^0.27.0",
     "vitest": "catalog:",
     "vitest-browser-react": "^2.2.0"
   },

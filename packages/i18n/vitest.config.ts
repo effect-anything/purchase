@@ -3,12 +3,16 @@ import { mergeConfig } from "vitest/config"
 import shared from "../../vitest.shared.ts"
 
 export default mergeConfig(shared, {
+  optimizeDeps: {
+    include: ["react", "react-i18next"]
+  },
   test: {
     environment: "jsdom",
-    include: ["test/**/*.test.ts", "test/**/!(*.browser).test.tsx"],
+    fileParallelism: false,
     browser: {
       provider: playwright(),
       enabled: false,
+      fileParallelism: false,
       headless: true,
       instances: [
         {
@@ -16,6 +20,9 @@ export default mergeConfig(shared, {
           include: ["test/**/*.browser.test.{ts,tsx}"]
         }
       ]
+    },
+    sequence: {
+      concurrent: false
     }
   }
 })

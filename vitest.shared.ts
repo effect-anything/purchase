@@ -24,7 +24,7 @@ const config: ViteUserConfig = {
     sequence: {
       concurrent: true
     },
-    include: ["test/**/*.test.{ts,tsx}"],
+    include: ["test/**/!(*.browser).test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["html"],

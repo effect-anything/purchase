@@ -51,7 +51,7 @@
     "build": "tsgo -b tsconfig.json && pnpm babel",
     "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
     "check": "tsgo -b tsconfig.json",
-    "test": "vitest",
+    "test": "vitest --run --browser.enabled=true && vitest --run --browser.enabled=false",
     "coverage": "vitest --coverage"
   },
   "dependencies": {

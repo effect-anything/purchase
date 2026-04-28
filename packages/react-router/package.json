@@ -54,7 +54,7 @@
     "build": "tsgo -b tsconfig.json && pnpm babel",
     "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
     "check": "tsgo -b tsconfig.json",
-    "test": "vitest"
+    "test": "vitest --run --browser.enabled=true && vitest --run --browser.enabled=false"
   },
   "dependencies": {
     "@effect-x/errors": "workspace:^",
@@ -78,6 +78,8 @@
     "@types/node": "catalog:",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "vitest": "catalog:"
+    "@vitest/browser-playwright": "4.1.5",
+    "vitest": "catalog:",
+    "vitest-browser-react": "^2.2.0"
   }
 }

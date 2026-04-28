@@ -1,6 +1,6 @@
 import type { ToasterMethods } from "./toaster.ts"
 
-import { useToasterContext } from "./provider.ts"
+import { useToasterContext } from "./provider.tsx"
 
 export interface UseToasterReturn extends ToasterMethods {}
 

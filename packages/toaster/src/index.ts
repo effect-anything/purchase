@@ -1,9 +1,9 @@
 // Core types and interfaces
 export type { ToasterProviderProps } from "./context.ts"
-export type { WithToasterProps } from "./provider.ts"
+export type { WithToasterProps } from "./provider.tsx"
 
 // React providers and hooks
-export { ToasterProvider, useToasterContext, withToaster } from "./provider.ts"
+export { ToasterProvider, useToasterContext, withToaster } from "./provider.tsx"
 export type {
   Action,
   ExternalToast,
