@@ -5,10 +5,12 @@ import { identity } from "effect/Function"
 import { createBroadcastChannel } from "../src/internal/broadcast-channel.ts"
 import { SqliteImportExecute, SqliteStorageSize, type WorkerError } from "../src/schema.ts"
 
-describe("internal browser primitives", () => {
+const describeBrowser = typeof window === "undefined" ? describe.skip : describe
+
+describeBrowser("internal browser primitives", () => {
   it.scoped("uses the real BroadcastChannel implementation to route requests between peers", () =>
     Effect.gen(function* () {
-      const name = `sqlite-browser-${crypto.randomUUID().slice(0, 4)}`
+      const name = `sqlite-browser-${crypto.randomUUID().slice(0, 8)}`
       const client = yield* createBroadcastChannel(name, identity)
       const server = yield* createBroadcastChannel(name, identity)
       yield* Effect.addFinalizer(() => Effect.all([client.close, server.close], { discard: true }))

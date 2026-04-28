@@ -1,11 +1,12 @@
 import * as SqliteClient from "@effect-x/sql-sqlite/client"
 import * as SqliteWorkerPool from "@effect-x/sql-sqlite/pool"
+import * as FxWorkerPool from "@effect-x/fx/worker/pool"
 import * as Reactivity from "@effect/experimental/Reactivity"
-import * as BrowserWorker from "@effect/platform-browser/BrowserWorker"
-import * as Worker from "@effect/platform/Worker"
 import * as SqlClient from "@effect/sql/SqlClient"
 import { describe, expect, layer } from "@effect/vitest"
 import { Effect, Exit, Layer, Logger, LogLevel, pipe, Stream } from "effect"
+
+const describeBrowser = typeof window === "undefined" ? describe.skip : describe
 
 const makeBrowserWorkerPoolLayer = (
   dbName: string,
@@ -16,21 +17,20 @@ const makeBrowserWorkerPoolLayer = (
       }
     | undefined
 ) =>
-  Worker.makePoolSerializedLayer(SqliteWorkerPool.WorkerPool, {
-    size: 1,
-    concurrency: 99
-  }).pipe(
-    Layer.provide(
-      BrowserWorker.layerPlatform(() => {
+  Layer.scoped(
+    SqliteWorkerPool.WorkerPool,
+    FxWorkerPool.make({
+      size: 1,
+      concurrency: 99,
+      workerFactory: () => {
         const url = new URL("./fixtures/sqlite-browser-worker.ts", import.meta.url)
         url.searchParams.set("dbName", dbName)
         if (migrations) {
           url.searchParams.set("migrations", JSON.stringify(migrations))
         }
-
-        return new globalThis.Worker(url, { type: "module" })
-      })
-    )
+        return new Worker(url, { type: "module" })
+      }
+    }) as Effect.Effect<SqliteWorkerPool.WorkerPoolEvent>
   )
 
 const makeBrowserSqliteLayer = (
@@ -50,11 +50,11 @@ const makeBrowserSqliteLayer = (
     Layer.tapErrorCause(Effect.logError)
   )
 
-const persistedDbName = `sbr-${crypto.randomUUID().slice(0, 4)}`
+const persistedDbName = `sbr-${crypto.randomUUID().slice(0, 8)}`
 
-describe("sqlite client browser integration", () => {
+describeBrowser("sqlite client browser integration", () => {
   layer(
-    makeBrowserSqliteLayer(`sbe2e-${crypto.randomUUID().slice(0, 4)}`, {
+    makeBrowserSqliteLayer(`sbe2e-${crypto.randomUUID().slice(0, 8)}`, {
       records: {
         "migrations/20240101000000-create-users/migration.sql": [
           "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, source TEXT NOT NULL);",
@@ -113,7 +113,7 @@ describe("sqlite client browser integration", () => {
   })
 })
 
-describe("sqlite client browser persistence seed", () => {
+describeBrowser("sqlite client browser persistence seed", () => {
   layer(makeBrowserSqliteLayer(persistedDbName))((it) => {
     it.effect(
       "creates the table and writes the first persisted row",

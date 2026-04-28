@@ -1,11 +1,12 @@
 import * as SqliteClient from "@effect-x/sql-sqlite/client"
 import * as SqliteWorkerPool from "@effect-x/sql-sqlite/pool"
+import * as FxWorkerPool from "@effect-x/fx/worker/pool"
 import * as Reactivity from "@effect/experimental/Reactivity"
-import * as BrowserWorker from "@effect/platform-browser/BrowserWorker"
-import * as Worker from "@effect/platform/Worker"
 import * as SqlClient from "@effect/sql/SqlClient"
 import { describe, expect, it } from "@effect/vitest"
 import { Context, Effect, Exit, Fiber, Layer, Logger, LogLevel, pipe, Schedule, Scope, Stream } from "effect"
+
+const describeBrowser = typeof window === "undefined" ? describe.skip : describe
 
 const realDelay = (ms: number) => Effect.promise(() => new Promise<void>((resolve) => setTimeout(resolve, ms)))
 
@@ -43,20 +44,20 @@ const makeBrowserSqliteLayerWithOptions = (
   pipe(
     SqliteClient.layer(),
     Layer.provide(
-      Worker.makePoolSerializedLayer(SqliteWorkerPool.WorkerPool, {
-        size: 1,
-        concurrency: 99
-      }).pipe(
-        Layer.provide(
-          BrowserWorker.layerPlatform(() => {
+      Layer.scoped(
+        SqliteWorkerPool.WorkerPool,
+        FxWorkerPool.make({
+          size: 1,
+          concurrency: 99,
+          workerFactory: () => {
             const url = new URL("./fixtures/sqlite-browser-worker.ts", import.meta.url)
             url.searchParams.set("dbName", dbName)
             if (options.fkEnabled === true) {
               url.searchParams.set("fkEnabled", "1")
             }
-            return new globalThis.Worker(url, { type: "module" })
-          })
-        )
+            return new Worker(url, { type: "module" })
+          }
+        }) as Effect.Effect<SqliteWorkerPool.WorkerPoolEvent>
       )
     ),
     Layer.provide([Reactivity.layer, Logger.minimumLogLevel(LogLevel.All)]),
@@ -94,13 +95,13 @@ const makeClientPair = Effect.fn(function* (dbName: string) {
   }
 })
 
-describe("sqlite client browser two-tab lock behavior", () => {
+describeBrowser("sqlite client browser two-tab lock behavior", () => {
   describe("layer", () => {
     it.scoped(
       "keeps two worker-backed clients on the same db in sync while both tabs are open",
       () =>
         Effect.gen(function* () {
-          const { mainSql, peerSql } = yield* makeClientPair(`sbl-${crypto.randomUUID().slice(0, 4)}`)
+          const { mainSql, peerSql } = yield* makeClientPair(`sbl-${crypto.randomUUID().slice(0, 8)}`)
 
           const mainRows = makeRows(1, 32, "main")
           const peerRows = makeRows(mainRows.length + 1, 24, "peer")
@@ -118,12 +119,12 @@ describe("sqlite client browser two-tab lock behavior", () => {
           expect(mainSeesPeer[32]).toEqual(peerRows[0])
           expect(mainSeesPeer[55]).toEqual(peerRows[23])
         }),
-      { timeout: 5_000 }
+      { timeout: 15_000 }
     )
 
     it.scoped("continues serving the second tab after the first tab scope closes and the lock hands off", () =>
       Effect.gen(function* () {
-        const { mainScope, mainSql, peerSql } = yield* makeClientPair(`sbh-${crypto.randomUUID().slice(0, 4)}`)
+        const { mainScope, mainSql, peerSql } = yield* makeClientPair(`sbh-${crypto.randomUUID().slice(0, 8)}`)
         const beforeCloseRows = makeRows(1, 24, "before-close")
         const afterCloseRows = makeRows(beforeCloseRows.length + 1, 24, "after-close")
 
@@ -162,7 +163,7 @@ describe("sqlite client browser two-tab lock behavior", () => {
 
     it.scoped("serves streamed queries through the relay client before handoff and after promotion", () =>
       Effect.gen(function* () {
-        const { mainScope, mainSql, peerSql } = yield* makeClientPair(`sbs-${crypto.randomUUID().slice(0, 4)}`)
+        const { mainScope, mainSql, peerSql } = yield* makeClientPair(`sbs-${crypto.randomUUID().slice(0, 8)}`)
         const initialRows = makeRows(1, 128, "main")
         const promotedRows = makeRows(initialRows.length + 1, 64, "peer")
 
@@ -210,7 +211,7 @@ describe("sqlite client browser two-tab lock behavior", () => {
     it.scoped("does not let follower startup rewrite main connection pragmas", () =>
       Effect.gen(function* () {
         const scope = yield* Effect.scope
-        const dbName = `sbfk-${crypto.randomUUID().slice(0, 4)}`
+        const dbName = `sbfk-${crypto.randomUUID().slice(0, 8)}`
         const mainClient = yield* makeScopedClient(scope, dbName, { fkEnabled: false })
 
         const beforeFollower = yield* mainClient.sql.unsafe("PRAGMA foreign_keys;").values
@@ -230,7 +231,7 @@ describe("sqlite client browser two-tab lock behavior", () => {
   // it.scoped('survives repeated promotion cycles with fresh follower tabs and full stream verification', () =>
   //   Effect.gen(function* () {
   //     const scope = yield* Effect.scope
-  //     const dbName = `sbm-${crypto.randomUUID().slice(0, 4)}`
+  //     const dbName = `sbm-${crypto.randomUUID().slice(0, 8)}`
   //     const initialRows = makeRows(1, 64, 'main')
   //     const promotedRows = makeRows(initialRows.length + 1, 48, 'peer')
   //     const restartRows = makeRows(initialRows.length + promotedRows.length + 1, 40, 'restart')

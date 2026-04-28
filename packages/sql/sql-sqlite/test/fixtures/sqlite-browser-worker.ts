@@ -1,14 +1,16 @@
 /// <reference lib="webworker" />
 
 import { Migrator } from "@effect-x/db"
+import * as FxWorkerRunner from "@effect-x/fx/worker/runner"
+import { WorkerMessage } from "@effect-x/fx/worker/schema"
 import * as SqliteSchema from "@effect-x/sql-sqlite/schema"
 import * as SqliteWorker from "@effect-x/sql-sqlite/worker"
 import * as Reactivity from "@effect/experimental/Reactivity"
-import * as BrowserWorkerRunner from "@effect/platform-browser/BrowserWorkerRunner"
-import * as WorkerRunner from "@effect/platform/WorkerRunner"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Layer from "effect/Layer"
+import * as Schema from "effect/Schema"
+import * as Scope from "effect/Scope"
 
 const workerUrl = new URL(self.location.href)
 const dbName = workerUrl.searchParams.get("dbName") ?? "sqlite-browser-test"
@@ -34,23 +36,26 @@ const workerLive = pipe(
     fkEnabled
   }),
   Layer.provide([
-    Migrator.fromRecord(() => ({
-      schemaSql: migrations?.schemaSql,
-      migrations: migrations?.records ?? {}
-    })),
+    migrations
+      ? Migrator.fromRecord(() => ({
+          schemaSql: migrations.schemaSql,
+          migrations: migrations.records ?? {}
+        }))
+      : Layer.empty,
     Reactivity.layer
   ]),
   Layer.orDie,
   Layer.tapErrorCause(Effect.logError)
 )
 
-WorkerRunner.launch(
-  Layer.provide(
-    Layer.unwrapEffect(
-      Effect.map(SqliteWorker.workerHandles(), (handlers) =>
-        WorkerRunner.layerSerialized(SqliteSchema.SqliteEvent, handlers)
-      )
-    ),
-    workerLive
-  )
-).pipe(Effect.provide(BrowserWorkerRunner.layer), Effect.runFork)
+FxWorkerRunner.run(
+  Schema.Union(...WorkerMessage.members, ...SqliteSchema.SqliteEvent.members),
+  workerLive,
+  [
+    (scope: Scope.CloseableScope) =>
+      Effect.runSync(SqliteWorker.workerHandles().pipe(Effect.provideService(Scope.Scope, scope)))
+  ],
+  {
+    layer: Layer.empty
+  }
+)

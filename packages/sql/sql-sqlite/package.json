@@ -66,12 +66,13 @@
     "build": "tsgo -b tsconfig.json && pnpm babel",
     "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
     "check": "tsgo -b tsconfig.json",
-    "test": "vitest",
+    "test": "vitest --run --browser.enabled=true test/internal.browser.test.ts && vitest --run --browser.enabled=true test/sqlite-client.browser.test.ts && vitest --run --browser.enabled=true test/sqlite-lock.browser.test.ts && vitest --run --browser.enabled=false",
     "coverage": "vitest --coverage"
   },
   "dependencies": {
     "@effect-x/atom-react": "workspace:^",
     "@effect-x/db": "workspace:^",
+    "@effect-x/fx": "workspace:^",
     "@effect-x/sql-kysely": "workspace:^",
     "@effect-x/wa-sqlite": "^0.1.5",
     "@effect/experimental": "catalog:",
@@ -87,6 +88,7 @@
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "^19.2.7",
+    "@vitest/browser-playwright": "4.1.5",
     "vitest": "catalog:"
   },
   "peerDependencies": {
