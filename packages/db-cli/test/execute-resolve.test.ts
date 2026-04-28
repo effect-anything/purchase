@@ -15,6 +15,7 @@ import {
   DatabaseMigrateResolveInputError,
   DatabaseMigrateResolveSubcommand
 } from "../src/domain.ts"
+import * as Server from "../src/server.ts"
 import type { DatabaseConfig } from "../src/shared.ts"
 import * as SQLite from "../src/sqlite.ts"
 import * as Workspace from "../src/workspace.ts"
@@ -332,7 +333,7 @@ describe("resolve command", () => {
         yield* withEnv(
           "XDEV_DB_CLI_PRISMA_BIN",
           prismaBin,
-          SQLite.resolvePrismaMigration(
+          Server.resolvePrismaMigration(
             workspace,
             dbDir,
             new DatabaseMigrateResolveSubcommand({

@@ -8,6 +8,7 @@ import { promisify } from "node:util"
 import * as Effect from "effect/Effect"
 import * as FileSystem from "effect/FileSystem"
 import * as Path from "effect/Path"
+import * as Schedule from "effect/Schedule"
 import { describe, expect, it } from "vitest"
 
 import type { DatabaseConfig } from "../src/shared.ts"
@@ -18,9 +19,34 @@ const repoRoot = realpathSync(new URL("../../..", import.meta.url))
 const dbCliNodeModules = `${repoRoot}/packages/db-cli/node_modules`
 const dbNodeModules = `${repoRoot}/packages/db/node_modules`
 const pgRequire = createRequire(realpathSync(`${dbNodeModules}/@effect/sql-pg/package.json`))
+const mysqlRequire = createRequire(realpathSync(`${dbNodeModules}/@effect/sql-mysql2/package.json`))
+const testcontainersRequire = createRequire(realpathSync(`${dbCliNodeModules}/@testcontainers/postgresql/package.json`))
 const { Client } = pgRequire("pg") as { Client: new (options: { connectionString: string }) => any }
+const mysql = mysqlRequire("mysql2/promise") as {
+  readonly createConnection: (url: string) => Promise<{
+    readonly query: (sql: string) => Promise<readonly [ReadonlyArray<any>, unknown]>
+    readonly end: () => Promise<void>
+  }>
+}
+const { GenericContainer, Wait } = testcontainersRequire("testcontainers") as {
+  readonly GenericContainer: new (image: string) => {
+    readonly withEnvironment: (environment: Record<string, string>) => any
+    readonly withExposedPorts: (port: number) => any
+    readonly withWaitStrategy: (strategy: unknown) => any
+    readonly start: () => Promise<{
+      readonly getHost: () => string
+      readonly getMappedPort: (port: number) => number
+      readonly stop: () => Promise<unknown>
+    }>
+  }
+  readonly Wait: {
+    readonly forLogMessage: (message: RegExp) => unknown
+  }
+}
 const describePostgres = process.env.DB_CLI_SKIP_TESTCONTAINERS === "1" ? describe.skip : describe
+const describeMySql = process.env.DB_CLI_SKIP_TESTCONTAINERS === "1" ? describe.skip : describe
 const postgresImage = process.env.DB_CLI_POSTGRES_IMAGE ?? "public.ecr.aws/docker/library/postgres:17-alpine"
+const mysqlImage = process.env.DB_CLI_MYSQL_IMAGE ?? "public.ecr.aws/docker/library/mysql:8.4"
 
 const linkWorkspaceNodeModules = Effect.fnUntraced(function* (cwd: string) {
   const fs = yield* FileSystem.FileSystem
@@ -39,6 +65,9 @@ const linkWorkspaceNodeModules = Effect.fnUntraced(function* (cwd: string) {
     .pipe(Effect.orDie)
   yield* fs.symlink(`${dbNodeModules}/@effect/sql`, path.join(nodeModules, "@effect/sql")).pipe(Effect.orDie)
   yield* fs.symlink(`${dbNodeModules}/@effect/sql-pg`, path.join(nodeModules, "@effect/sql-pg")).pipe(Effect.orDie)
+  yield* fs
+    .symlink(`${dbNodeModules}/@effect/sql-mysql2`, path.join(nodeModules, "@effect/sql-mysql2"))
+    .pipe(Effect.orDie)
   yield* fs.symlink(`${dbCliNodeModules}/tsx`, path.join(nodeModules, "tsx")).pipe(Effect.orDie)
   yield* fs.symlink(`${dbCliNodeModules}/@prisma`, path.join(nodeModules, "@prisma")).pipe(Effect.orDie)
   yield* fs.symlink(`${dbCliNodeModules}/prisma`, path.join(nodeModules, "prisma")).pipe(Effect.orDie)
@@ -59,6 +88,25 @@ const queryPostgres = Effect.fnUntraced(function* (url: string, sql: string) {
   }).pipe(Effect.orDie)
 
   return result.rows
+})
+
+const queryMySql = Effect.fnUntraced(function* (url: string, sql: string) {
+  const rows = yield* Effect.tryPromise({
+    try: () => {
+      let connection: Awaited<ReturnType<typeof mysql.createConnection>> | undefined
+      return mysql
+        .createConnection(url)
+        .then((conn) => {
+          connection = conn
+          return conn.query(sql)
+        })
+        .then(([result]) => result)
+        .finally(() => connection?.end())
+    },
+    catch: (error) => error
+  })
+
+  return rows
 })
 
 const makeTables = (config: DatabaseConfig, includeProject = false) =>
@@ -167,6 +215,24 @@ const makePostgresContainer = Effect.acquireRelease(
   (container) => Effect.promise(() => container.stop()).pipe(Effect.ignore)
 )
 
+const makeMySqlContainer = Effect.acquireRelease(
+  Effect.tryPromise({
+    try: () =>
+      new GenericContainer(mysqlImage)
+        .withEnvironment({
+          MYSQL_DATABASE: "test",
+          MYSQL_PASSWORD: "test",
+          MYSQL_ROOT_PASSWORD: "root",
+          MYSQL_USER: "test"
+        })
+        .withExposedPorts(3306)
+        .withWaitStrategy(Wait.forLogMessage(/ready for connections/i))
+        .start(),
+    catch: (error) => error
+  }).pipe(Effect.orDie),
+  (container) => Effect.promise(() => container.stop()).pipe(Effect.ignore)
+)
+
 describePostgres("postgres server provider", () => {
   it(
     "runs a development flow against a real postgres database",
@@ -203,8 +269,61 @@ describePostgres("postgres server provider", () => {
 
           const projectRows = yield* queryPostgres(config.url, 'SELECT name FROM "Project" ORDER BY name;')
           expect(projectRows.map((row) => row.name)).toEqual(["Postgres"])
+
+          yield* runDbCommand(workspace, ["dump"])
+
+          const schemaSql = yield* fs.readFileString(path.join(workspace.projectPath, "db", "schema.sql"))
+          expect(schemaSql).toContain('CREATE TABLE "Project"')
+          expect(schemaSql).toContain('CREATE TABLE "User"')
+          expect(schemaSql).toContain('CONSTRAINT "Project_pkey" PRIMARY KEY ("id")')
+          expect(schemaSql).not.toContain("_prisma_migrations")
         }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
       ),
     60_000
+  )
+})
+
+describeMySql("mysql server provider", () => {
+  it(
+    "runs push, execute, and dump against a real mysql database",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem
+          const path = yield* Path.Path
+          const container = yield* makeMySqlContainer
+          const config = {
+            runtime: "server",
+            provider: "mysql",
+            url: `mysql://test:test@${container.getHost()}:${container.getMappedPort(3306)}/test`
+          } satisfies DatabaseConfig
+          const workspace = yield* makeWorkspaceFixture(config)
+
+          yield* queryMySql(config.url, "SELECT 1;").pipe(
+            Effect.retry({
+              schedule: Schedule.spaced("500 millis"),
+              times: 30
+            })
+          )
+          yield* fs.writeFileString(path.join(workspace.projectPath, "db", "tables.ts"), makeTables(config, true))
+          yield* runDbCommand(workspace, ["push", "--force", "--skip-dump"])
+
+          const sqlPath = path.join(workspace.cwd, "insert-mysql.sql")
+          yield* fs.writeFileString(sqlPath, "INSERT INTO `Project` (`name`) VALUES ('MySQL');")
+          yield* runDbCommand(workspace, ["execute", "--file", sqlPath])
+
+          const projectRows = yield* queryMySql(config.url, "SELECT name FROM `Project` ORDER BY name;")
+          expect(projectRows.map((row) => row.name)).toEqual(["MySQL"])
+
+          yield* runDbCommand(workspace, ["dump"])
+
+          const schemaSql = yield* fs.readFileString(path.join(workspace.projectPath, "db", "schema.sql"))
+          expect(schemaSql).toContain("CREATE TABLE `Project`")
+          expect(schemaSql).toContain("CREATE TABLE `User`")
+          expect(schemaSql).toContain("PRIMARY KEY (`id`)")
+          expect(schemaSql).not.toContain("_prisma_migrations")
+        }).pipe(Effect.scoped, Effect.provide(NodeServices.layer))
+      ),
+    90_000
   )
 })

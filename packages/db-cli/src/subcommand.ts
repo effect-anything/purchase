@@ -383,6 +383,9 @@ export const dump = Effect.fn("db.dump")(function* (
   } else if (isNativeSqlite(config)) {
     const result = yield* SQLite.dump(dbDir, config)
     yield* logSchemaDumpResult(result)
+  } else if (config.runtime === "server" && (config.provider === "postgresql" || config.provider === "mysql")) {
+    const result = yield* Server.dump(workspace, dbDir, config)
+    yield* logSchemaDumpResult(result)
   } else {
     return yield* CliLog.error("Database dump is not supported for this provider")
   }
@@ -419,7 +422,7 @@ export const push = Effect.fn("db.push")(function* (
       database: subcommand.database
     })
   } else if (isNativeSqlite(config)) {
-    yield* SQLite.push(workspace, { dbDir })
+    yield* Server.push(workspace, { dbDir })
   } else if (config.runtime === "server") {
     yield* Server.push(workspace, { dbDir })
   } else {
@@ -533,7 +536,11 @@ export const dev = Effect.fn("db.dev")(function* (
     const datasource =
       config.runtime === "server" ? { url: config.url } : { url: `file:${path.join(dbDir, Shared.devDB)}` }
 
-    yield* SQLite.applyPrismaMigrations(workspace, {
+    if (config.runtime === "server") {
+      yield* SQLite.ensureUnlocked(SQLite.getDatabaseFile(dbDir, config, path))
+    }
+
+    yield* Server.applyPrismaMigrations(workspace, {
       datasource,
       dbDir,
       migrationsDir,
@@ -583,7 +590,11 @@ export const reset = Effect.fn("db.reset")(function* (
       config.runtime === "server" ? { url: config.url } : { url: `file:${path.join(dbDir, Shared.devDB)}` }
     const migrations = yield* Shared.getMigrations(migrationsDir)
 
-    yield* SQLite.applyPrismaMigrations(workspace, {
+    if (config.runtime === "server") {
+      yield* SQLite.ensureUnlocked(SQLite.getDatabaseFile(dbDir, config, path))
+    }
+
+    yield* Server.applyPrismaMigrations(workspace, {
       dbDir,
       migrationsDir,
       datasource,
@@ -689,10 +700,10 @@ export const resolve = Effect.fn("resolve")(function* (
 
   if (config.runtime === "d1") {
     yield* D1.resolveMigration(workspace, subcommand)
-  } else if (config.runtime === "server" && config.provider !== "sqlite") {
+  } else if (config.runtime === "server") {
     yield* Server.resolvePrismaMigration(workspace, dbDir, subcommand)
   } else {
-    yield* SQLite.resolvePrismaMigration(workspace, dbDir, subcommand)
+    yield* Server.resolvePrismaMigration(workspace, dbDir, subcommand)
   }
 
   const action = subcommand.appliedMigration !== undefined ? "applied" : "rolled back"

@@ -10,7 +10,7 @@
 | `d1`      | `sqlite`     | supported | Manage Cloudflare D1. Local mode uses Miniflare persisted SQLite files; remote mode uses `wrangler` against Cloudflare. |
 | `server`  | `sqlite`     | supported | Manage regular server-side SQLite through a file URL or absolute file path.                                             |
 | `server`  | `postgresql` | supported | Regular server PostgreSQL via URL. Local integration uses a disposable Testcontainers database.                         |
-| `server`  | `mysql`      | partial   | Regular server MySQL via URL. Prisma command paths are shared with PostgreSQL; container coverage still needs adding.   |
+| `server`  | `mysql`      | supported | Regular server MySQL via URL. Local integration uses a disposable Testcontainers database.                              |
 
 `server` means an external or Node-accessible database runtime. If that name becomes too broad, `node` or `external` are better candidates, but the current CLI keeps `server` for compatibility.
 
@@ -38,10 +38,11 @@ These tests can run locally or in an opt-in CI job with required binaries instal
 | ---------- | ------------ | ------------------------------------------------------------------------------------- |
 | `browser`  | `sqlite`     | `dev`, `dump`, `seed`; `deploy` is a no-op.                                           |
 | `server`   | `sqlite`     | `push`, `dump`, `execute`, `dev`, `reset`, `deploy`, `resolve`, `seed`.               |
-| `server`   | `postgresql` | `push`, `execute`, `dev`, `reset`, `deploy`, `resolve`, `seed`.                       |
+| `server`   | `postgresql` | `push`, `dump`, `execute`, `dev`, `reset`, `deploy`, `resolve`, `seed`.               |
+| `server`   | `mysql`      | `push`, `dump`, `execute`.                                                            |
 | `d1` local | `sqlite`     | `push`, `dump`, `execute`, `dev`, `reset`, `deploy`, `seed` against Miniflare SQLite. |
 
-Required binaries: `prisma`, `sqlite3`, and `wrangler` for D1 local tests. PostgreSQL integration tests require Docker and use `public.ecr.aws/docker/library/postgres:17-alpine` by default; set `DB_CLI_POSTGRES_IMAGE` to override or `DB_CLI_SKIP_TESTCONTAINERS=1` to skip them.
+Required binaries: `prisma`, `sqlite3`, and `wrangler` for D1 local tests. PostgreSQL integration tests require Docker and use `public.ecr.aws/docker/library/postgres:17-alpine` by default; MySQL integration tests use `public.ecr.aws/docker/library/mysql:8.4` by default. Set `DB_CLI_POSTGRES_IMAGE` or `DB_CLI_MYSQL_IMAGE` to override, or `DB_CLI_SKIP_TESTCONTAINERS=1` to skip them.
 
 ## Remote D1 Coverage
 
@@ -64,8 +65,6 @@ Remote tests should create disposable D1 databases or target preview databases o
 
 ## Gaps To Close
 
-| Gap                                     | Reason                                                                                    |
-| --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| MySQL container coverage                | MySQL uses the shared server Prisma command path, but still needs a real database e2e.    |
-| Stable schema dump for PostgreSQL/MySQL | Current deterministic `dump` implementation is SQLite/D1-specific.                        |
-| D1 remote safety harness                | Needs disposable database provisioning or a strict preview-only policy before automation. |
+| Gap                      | Reason                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| D1 remote safety harness | Needs disposable database provisioning or a strict preview-only policy before automation. |

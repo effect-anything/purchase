@@ -6,17 +6,11 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 
 import type * as Workspace from "./workspace.ts"
-import {
-  DatabaseExecuteInputError,
-  type DatabaseExecuteSubcommand,
-  type DatabaseMigrateResolveSubcommand,
-  type SchemaDumpResult
-} from "./domain.ts"
-import type { DatabaseConfig, PrismaMigration } from "./shared.ts"
+import { DatabaseExecuteInputError, type DatabaseExecuteSubcommand, type SchemaDumpResult } from "./domain.ts"
+import type { DatabaseConfig } from "./shared.ts"
 
-import { formatCommandOutput, logCommandOutput, runCommand, runCommandLine } from "./utils/shell.ts"
+import { formatCommandOutput, logCommandOutput, runCommand } from "./utils/shell.ts"
 import * as CliLog from "./utils/log.ts"
-import { resolvePrismaCommand } from "./utils/prisma-bin.ts"
 import { devDB } from "./shared.ts"
 
 const execFileAsync = promisify(execFile)
@@ -73,7 +67,7 @@ const listLockHolders = Effect.fn("db.list-sqlite-lock-holders")(function* (data
   return []
 })
 
-const ensureUnlocked = Effect.fn("db.ensure-sqlite-unlocked")(function* (databaseFile: string) {
+export const ensureUnlocked = Effect.fn("db.ensure-sqlite-unlocked")(function* (databaseFile: string) {
   const holders = yield* listLockHolders(databaseFile)
 
   if (holders.length === 0) {
@@ -89,58 +83,6 @@ const ensureUnlocked = Effect.fn("db.ensure-sqlite-unlocked")(function* (databas
       lines
     ].join("\n")
   )
-})
-
-export const applyPrismaMigrations = Effect.fn("apply-prisma-migrations")(function* (
-  _workspace: Workspace.Workspace,
-  {
-    dbDir,
-    migrationsDir: _migrationsDir,
-    datasource,
-    migrations: _migrations,
-    reset = false
-  }: {
-    dbDir: string
-    migrationsDir: string
-    datasource: { url: string }
-    migrations: Array<PrismaMigration>
-    reset?: boolean | undefined
-  }
-) {
-  const path = yield* Path.Path
-  const prismaCommand = resolvePrismaCommand()
-  const rawPath = datasource.url.startsWith("file:") ? datasource.url.replace(/^file:/, "") : undefined
-  const databaseFile = rawPath ? (path.isAbsolute(rawPath) ? rawPath : path.join(dbDir, rawPath)) : undefined
-
-  if (databaseFile) {
-    yield* ensureUnlocked(databaseFile)
-  }
-
-  if (reset) {
-    const resetOutput = yield* runCommandLine(
-      [...prismaCommand, "migrate", "reset", "--force", "--config", "./prisma.config.ts"],
-      { cwd: dbDir }
-    )
-    yield* logCommandOutput("prisma.migrate-reset", resetOutput)
-  }
-
-  const deployOutput = yield* runCommandLine(
-    [...prismaCommand, "migrate", "deploy", "--config", "./prisma.config.ts"],
-    {
-      cwd: dbDir
-    }
-  )
-  yield* logCommandOutput("prisma.migrate-deploy", deployOutput)
-})
-
-export const push = Effect.fn("sqlite.push")(function* (_workspace: Workspace.Workspace, { dbDir }: { dbDir: string }) {
-  const prismaCommand = resolvePrismaCommand()
-
-  const output = yield* runCommandLine(
-    [...prismaCommand, "db", "push", "--config", "./prisma.config.ts", "--accept-data-loss"],
-    { cwd: dbDir }
-  )
-  yield* logCommandOutput("prisma.db-push", output)
 })
 
 export const dump = Effect.fn("sqlite.dump")(function* (dbDir: string, config: NativeSqliteConfig) {
@@ -182,26 +124,6 @@ export const dump = Effect.fn("sqlite.dump")(function* (dbDir: string, config: N
     status: "updated",
     output: schemaOutput
   } satisfies SchemaDumpResult
-})
-
-export const resolvePrismaMigration = Effect.fn("sqlite.resolve-prisma-migration")(function* (
-  _workspace: Workspace.Workspace,
-  dbDir: string,
-  subcommand: DatabaseMigrateResolveSubcommand
-) {
-  const prismaCommand = resolvePrismaCommand()
-  const action =
-    subcommand.appliedMigration !== undefined
-      ? ["--applied", subcommand.appliedMigration]
-      : ["--rolled-back", subcommand.rolledBackMigration!]
-
-  const output = yield* runCommandLine(
-    [...prismaCommand, "migrate", "resolve", "--config", "./prisma.config.ts", ...action],
-    {
-      cwd: dbDir
-    }
-  )
-  yield* logCommandOutput("prisma.migrate-resolve", output)
 })
 
 export const execute = Effect.fn("sqlite.execute")(function* (
