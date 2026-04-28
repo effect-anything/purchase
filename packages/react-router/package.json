@@ -1,0 +1,83 @@
+{
+  "name": "@effect-x/react-router",
+  "version": "0.0.1",
+  "description": "React Router integrations for Effect-powered web and server applications.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "react-router",
+    "react",
+    "server",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/react-router"
+  },
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*.ts",
+    "./*/*": "./src/*/*.ts",
+    "./*/*/*": "./src/*/*/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      "./*": "./dist/*.js",
+      "./*/*": "./dist/*/*.js",
+      "./*/*/*": "./dist/*/*/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@effect-x/errors": "workspace:^",
+    "@effect-x/i18n": "workspace:^",
+    "@effect-x/otel": "workspace:^",
+    "@effect-x/server": "workspace:^",
+    "@effect-x/toaster": "workspace:^",
+    "@effect/sql": "catalog:",
+    "@react-router/node": "^7.14.2",
+    "cookie": "^1.1.1",
+    "effect": "catalog:",
+    "i18next": "catalog:",
+    "isbot": "^5.1.39",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.2",
+    "react-router": "^7.14.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "vitest": "catalog:"
+  }
+}

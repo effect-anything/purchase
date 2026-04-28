@@ -1,0 +1,86 @@
+{
+  "name": "@effect-x/event-log",
+  "version": "0.0.1",
+  "description": "Encrypted event log primitives and sync infrastructure for Effect applications.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "event-log",
+    "event-sourcing",
+    "sync",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/event-log"
+  },
+  "type": "module",
+  "sideEffects": [],
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts",
+    "./*/*": "./src/*/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./dist/index.js",
+      "./*": "./dist/*.js",
+      "./*/*": "./dist/*/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@craftzdog/react-native-buffer": "^6.1.0",
+    "@effect-x/expo-bip39": "workspace:^",
+    "@effect-x/fx": "workspace:^",
+    "@effect-x/sql-op-sqlite": "workspace:^",
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/sql": "catalog:",
+    "@msgpack/msgpack": "^3.1.2",
+    "@noble/hashes": "^2.0.1",
+    "@noble/secp256k1": "^3.0.0",
+    "@op-engineering/op-sqlite": "^15.0.3",
+    "@scure/bip39": "^2.0.0",
+    "effect": "catalog:",
+    "expo-crypto": "^55.0.14",
+    "expo-file-system": "^55.0.17",
+    "expo-network": "^55.0.13",
+    "expo-secure-store": "^55.0.13",
+    "msgpackr": "^1.11.5",
+    "react-native-quick-crypto": "^0.7.17",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

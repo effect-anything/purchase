@@ -1,0 +1,41 @@
+{
+  "$schema": "https://www.unpkg.com/wrangler/config-schema.json",
+  "name": "platform-worker",
+  "main": "index.ts",
+  "compatibility_date": "2026-03-28",
+  "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
+  "kv_namespaces": [
+    {
+      "binding": "STATE_KV",
+      "id": "state-kv"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "STATE_BUCKET",
+      "bucket_name": "state-bucket"
+    }
+  ],
+  "services": [
+    {
+      "binding": "ECHO_SERVICE",
+      "service": "echo-service"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "TASK_QUEUE",
+        "queue": "task-queue"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "task-queue",
+        "max_batch_size": 10,
+        "max_batch_timeout": 1,
+        "max_retries": 1
+      }
+    ]
+  }
+}

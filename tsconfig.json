@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.base.json",
+  "references": [{ "path": "tsconfig.packages.json" }],
+  "include": [
+    "**/vitest.*.ts", // All vitest config files across all packages
+    "./packages/*/test/**/*.ts",
+    "./packages/*/e2e/**/*.ts",
+    "./packages/*/test/**/*.json",
+    "./packages/*/typetest/**/*.ts",
+    "./packages/*/benchmark/**/*.ts",
+    "./packages/sql/*/test/**/*.ts",
+    "./packages/sql/*/e2e/**/*.ts",
+    "./packages/sql/*/test/**/*.json",
+    "./packages/sql/*/typetest/**/*.ts",
+    "./packages/sql/*/benchmark/**/*.ts",
+    "./packages/tools/*/test/**/*.ts",
+    "./packages/tools/*/test/**/*.json",
+    "./packages/tools/*/typetest/**/*.ts",
+    "./packages/tools/*/benchmark/**/*.ts"
+  ],
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": false,
+    "erasableSyntaxOnly": false,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "paths": {
+      "@effect-x/atom-react": ["./packages/atom-react/src/index.ts"],
+      "@effect-x/atom-react/*": ["./packages/atom-react/src/*.ts"],
+      "@effect-x/cloudflare/*": ["./packages/cloudflare/src/*.ts"],
+      "@effect-x/db": ["./packages/db/src/index.ts"],
+      "@effect-x/db/*": ["./packages/db/src/*.ts"],
+      "@effect-x/db-cli": ["./packages/db-cli/src/bin.ts"],
+      "@effect-x/errors/*": ["./packages/errors/src/*.ts", "./packages/errors/src/*.tsx"],
+      "@effect-x/event-log/*": ["./packages/event-log/src/*.ts"],
+      "@effect-x/event-log-server": ["./packages/event-log-server/src/index.ts"],
+      "@effect-x/event-log-server/*": ["./packages/event-log-server/src/*.ts"],
+      "@effect-x/expo-bip39/*": ["./packages/expo-bip39/src/*.ts"],
+      "@effect-x/form/*": ["./packages/form/src/*.ts"],
+      "@effect-x/fx": ["./packages/fx/src/index.ts"],
+      "@effect-x/fx/*": ["./packages/fx/src/*.ts"],
+      "@effect-x/i18n/*": ["./packages/i18n/src/*.ts"],
+      "@effect-x/otel/*": ["./packages/otel/src/*.ts"],
+      "@effect-x/react-router/*": ["./packages/react-router/src/*.ts", "./packages/react-router/src/*.tsx"],
+      "@effect-x/server/*": ["./packages/server/src/*.ts"],
+      "@effect-x/server-testing/*": ["./packages/server-testing/src/*.ts"],
+      "@effect-x/sql-do-proxy/*": ["./packages/sql/sql-do-proxy/src/*.ts"],
+      "@effect-x/sql-kysely/*": ["./packages/sql/sql-kysely/src/*.ts"],
+      "@effect-x/sql-op-sqlite/*": ["./packages/sql/sql-op-sqlite/src/*.ts"],
+      "@effect-x/sql-sqlite/*": ["./packages/sql/sql-sqlite/src/*.ts"],
+      "@effect-x/testing": ["./packages/testing/src/index.ts"],
+      "@effect-x/testing/*": ["./packages/testing/src/*.ts"],
+      "@effect-x/toaster": ["./packages/toaster/src/index.ts"],
+      "@effect-x/toaster/*": ["./packages/toaster/src/*.ts", "./packages/toaster/src/*.tsx"],
+
+      //
+      "@effect/oxc": ["./packages/tools/oxc/src/index.ts"],
+      "@effect/oxc/*": ["./packages/tools/oxc/src/*.ts"]
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "namespaceImportPackages": []
+      }
+    ]
+  },
+  "exclude": []
+}

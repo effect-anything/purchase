@@ -1,0 +1,82 @@
+{
+  "name": "@effect-x/sql-kysely",
+  "version": "0.1.0",
+  "description": "Kysely adapters and dialect helpers for @effect/sql.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "kysely",
+    "sql",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/sql/sql-kysely"
+  },
+  "files": [
+    "src/**/*.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./d1": "./src/d1.ts",
+    "./kysely": "./src/kysely.ts",
+    "./sqlite": "./src/sqlite.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./dist/index.js",
+      "./d1": "./dist/d1.js",
+      "./kysely": "./dist/kysely.js",
+      "./sqlite": "./dist/sqlite.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@effect/sql": "catalog:",
+    "effect": "catalog:",
+    "kysely": "^0.28.16"
+  },
+  "devDependencies": {
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/sql-sqlite-node": "^0.52.0",
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "^3.21.0",
+    "kysely": "^0.28.16"
+  },
+  "tags": [
+    "typescript",
+    "sql",
+    "kysely"
+  ]
+}

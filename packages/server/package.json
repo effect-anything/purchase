@@ -1,0 +1,86 @@
+{
+  "name": "@effect-x/server",
+  "version": "0.0.1",
+  "description": "Server-side helpers for Effect applications.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "server",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/server"
+  },
+  "files": [
+    "src/**/*.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts",
+    "./api/*": "./src/api/*.ts",
+    "./emailer/*": "./src/emailer/*.ts",
+    "./notification/*": "./src/notification/*.ts",
+    "./ratelimit/*": "./src/ratelimit/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./dist/index.js",
+      "./*": "./dist/*.js",
+      "./api/*": "./dist/api/*.js",
+      "./emailer/*": "./dist/emailer/*.js",
+      "./notification/*": "./dist/notification/*.js",
+      "./ratelimit/*": "./dist/ratelimit/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@effect-x/otel": "workspace:^",
+    "@effect/opentelemetry": "catalog:",
+    "@effect/platform": "catalog:",
+    "@opentelemetry/semantic-conventions": "catalog:",
+    "effect": "catalog:",
+    "fast-xml-parser": "^5.5.11",
+    "i18next": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "^3.21.0"
+  },
+  "tags": [
+    "typescript",
+    "server",
+    "effect"
+  ]
+}

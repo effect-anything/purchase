@@ -1,0 +1,83 @@
+{
+  "name": "@effect-x/atom-react",
+  "version": "0.0.1",
+  "description": "React bindings and registry helpers for Effect Atom state.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "atom",
+    "react",
+    "state",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/atom-react"
+  },
+  "files": [
+    "src/**/*.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./dist/index.js",
+      "./*": "./dist/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "devDependencies": {
+    "@effect-atom/atom": "^0.5.3",
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/sql": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.2",
+    "@types/scheduler": "^0.26.0",
+    "@vitest/browser-playwright": "4.1.5",
+    "effect": "catalog:",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "scheduler": "^0.27.0",
+    "vitest-browser-react": "^2.2.0"
+  },
+  "peerDependencies": {
+    "effect": "^3.21.0",
+    "react": "^19.2.4",
+    "scheduler": "*"
+  },
+  "tags": [
+    "typescript",
+    "react",
+    "database"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "source": [
+    "package.json",
+    "scripts/package.json",
+    "packages/*/package.json",
+    "packages/sql/*/package.json",
+    "packages/tools/*/package.json",
+    "examples/*/package.json"
+  ],
+  "versionGroups": [
+    {
+      "label": "Use workspace:^ for local packages",
+      "dependencies": ["$LOCAL"],
+      "dependencyTypes": ["dev", "prod"],
+      "pinVersion": "workspace:^"
+    },
+    {
+      "label": "Sync shared catalog dependencies in prod and dev deps",
+      "dependencies": [
+        "@cloudflare/workers-types",
+        "@effect/experimental",
+        "@effect/opentelemetry",
+        "@effect/platform",
+        "@effect/platform-browser",
+        "@effect/platform-node",
+        "@effect/rpc",
+        "@effect/sql",
+        "@effect/sql-d1",
+        "@effect/vitest",
+        "@faker-js/faker",
+        "@opentelemetry/semantic-conventions",
+        "@types/node",
+        "effect",
+        "i18next",
+        "vitest"
+      ],
+      "dependencyTypes": ["dev", "prod"]
+    },
+    {
+      "label": "Ignore peer dependency compatibility ranges",
+      "dependencyTypes": ["peer"],
+      "isIgnored": true
+    },
+    {
+      "label": "Ignore package version fields",
+      "dependencyTypes": ["local"],
+      "isIgnored": true
+    },
+    {
+      "label": "Ignore everything else for now",
+      "isIgnored": true
+    }
+  ]
+}

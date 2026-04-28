@@ -1,0 +1,85 @@
+{
+  "name": "@effect-x/cloudflare",
+  "version": "0.0.1",
+  "description": "Cloudflare Workers, Durable Objects, and platform integrations for Effect applications.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "cloudflare",
+    "workers",
+    "durable-objects",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/cloudflare"
+  },
+  "type": "module",
+  "sideEffects": [],
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*.ts",
+    "./*/*": "./src/*/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      "./*": "./dist/*.js",
+      "./*/*": "./dist/*/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@cloudflare/types": "^7.0.0",
+    "@cloudflare/workers-types": "catalog:",
+    "@dotenvx/dotenvx": "^1.63.0",
+    "@effect-x/event-log": "workspace:^",
+    "@effect-x/otel": "workspace:^",
+    "@effect-x/react-router": "workspace:^",
+    "@effect-x/server": "workspace:^",
+    "@effect-x/server-testing": "workspace:^",
+    "@effect/opentelemetry": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/rpc": "catalog:",
+    "@effect/sql": "catalog:",
+    "@effect/sql-d1": "catalog:",
+    "@opentelemetry/semantic-conventions": "catalog:",
+    "effect": "catalog:",
+    "fast-xml-parser": "^5.5.11",
+    "i18next": "catalog:",
+    "miniflare": "^4.20260424.0",
+    "rolldown": "^1.0.0-rc.17",
+    "wrangler": "^4.85.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://www.unpkg.com/wrangler/config-schema.json",
+  "name": "bindings-service-worker",
+  "main": "index.ts",
+  "compatibility_date": "2026-03-28",
+  "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bindings-service-db",
+      "database_id": "0"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "STATE_KV",
+      "id": "bindings-service-kv"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "STATE_BUCKET",
+      "bucket_name": "bindings-service-bucket"
+    }
+  ],
+  "services": [
+    {
+      "binding": "ECHO_SERVICE",
+      "service": "echo-service"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "TASK_QUEUE",
+        "queue": "bindings-service-queue"
+      }
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "name": "@effect-x/sql-sqlite",
+  "version": "0.1.0",
+  "description": "Effect SQL client integration for browser SQLite.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "sqlite",
+    "sql",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/sql/sql-sqlite"
+  },
+  "files": [
+    "src/**/*.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    "./client": "./src/client.ts",
+    "./hooks": "./src/hooks.ts",
+    "./kysely": "./src/kysely.ts",
+    "./live": "./src/live.ts",
+    "./metrics": "./src/metrics.ts",
+    "./pool": "./src/pool.ts",
+    "./relay-client": "./src/relay-client.ts",
+    "./relay": "./src/relay.ts",
+    "./schema": "./src/schema.ts",
+    "./worker": "./src/worker.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      "./client": "./dist/client.js",
+      "./hooks": "./dist/hooks.js",
+      "./kysely": "./dist/kysely.js",
+      "./live": "./dist/live.js",
+      "./metrics": "./dist/metrics.js",
+      "./pool": "./dist/pool.js",
+      "./relay-client": "./dist/relay-client.js",
+      "./relay": "./dist/relay.js",
+      "./schema": "./dist/schema.js",
+      "./worker": "./dist/worker.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@effect-x/atom-react": "workspace:^",
+    "@effect-x/db": "workspace:^",
+    "@effect-x/sql-kysely": "workspace:^",
+    "@effect-x/wa-sqlite": "^0.1.5",
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/platform-browser": "catalog:",
+    "@effect/sql": "catalog:",
+    "@opentelemetry/semantic-conventions": "catalog:",
+    "effect": "catalog:",
+    "kysely": "^0.28.9",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "^19.2.7",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "^3.21.0"
+  },
+  "tags": [
+    "typescript",
+    "sql"
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "name": "@effect-x/server-testing",
+  "version": "0.0.1",
+  "description": "Testing helpers for Effect HTTP, React Router, and worker applications.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "testing",
+    "react-router",
+    "workers",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/server-testing"
+  },
+  "type": "module",
+  "sideEffects": [],
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      "./*": "./dist/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@effect-x/i18n": "workspace:^",
+    "@effect-x/react-router": "workspace:^",
+    "@effect-x/testing": "workspace:^",
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
+    "effect": "catalog:",
+    "i18next": "catalog:",
+    "react-router": "^7.14.2",
+    "turbo-stream": "^3.2.0",
+    "vitest": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

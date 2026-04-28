@@ -1,0 +1,510 @@
+{
+  "load_direnv": "shell_hook",
+  "formatter": "auto",
+  "languages": {
+    "JSON": {
+      "language_servers": ["oxlint", "oxfmt", "cspell", "json-language-server"],
+      "formatter": [
+        {
+          "language_server": {
+            "name": "oxfmt"
+          }
+        },
+        {
+          "code_action": "source.fixAll.oxc"
+        }
+      ]
+    },
+    "JSONC": {
+      "language_servers": ["oxlint", "oxfmt", "cspell", "json-language-server"],
+      "formatter": [
+        {
+          "language_server": {
+            "name": "oxfmt"
+          }
+        },
+        {
+          "code_action": "source.fixAll.oxc"
+        }
+      ]
+    },
+    "JavaScript": {
+      "language_servers": ["tsgo", "oxlint", "oxfmt", "cspell"],
+      "formatter": [
+        {
+          "language_server": {
+            "name": "oxfmt"
+          }
+        },
+        {
+          "code_action": "source.fixAll.oxc"
+        }
+      ]
+    },
+    "TypeScript": {
+      "language_servers": ["tsgo", "oxlint", "oxfmt", "cspell"],
+      "formatter": [
+        {
+          "language_server": {
+            "name": "oxfmt"
+          }
+        },
+        {
+          "code_action": "source.fixAll.oxc"
+        }
+      ]
+    },
+    "TSX": {
+      "language_servers": ["tsgo", "oxlint", "oxfmt", "cspell"],
+      "formatter": [
+        {
+          "language_server": {
+            "name": "oxfmt"
+          }
+        },
+        {
+          "code_action": "source.fixAll.oxc"
+        }
+      ]
+    }
+  },
+  "lsp": {
+    "oxlint": {
+      "initialization_options": {
+        "settings": {
+          "disableNestedConfig": false,
+          "fixKind": "safe_fix",
+          "run": "onType",
+          "typeAware": false,
+          "unusedDisableDirectives": "deny"
+        }
+      }
+    },
+    "oxfmt": {
+      "initialization_options": {
+        "settings": {
+          "fmt.experimental": true,
+          "run": "onSave",
+          "typeAware": false,
+          "unusedDisableDirectives": false
+        }
+      }
+    },
+    "tsgo": {
+      "binary": {
+        "path": "./node_modules/.bin/tsgo",
+        "arguments": ["--lsp", "--stdio"]
+      },
+      "settings": {
+        "typescript": {
+          "preferences": {
+            "quoteStyle": "single",
+            "importModuleSpecifier": "non-relative",
+            "importModuleSpecifierEnding": "minimal",
+            "preferTypeOnlyAutoImports": true,
+            "includePackageJsonAutoImports": "off",
+            "autoImportSpecifierExcludeRegexes": [
+              // Keep protocol specifiers out of auto-import suggestions.
+              "^node:.*$",
+              "^cloudflare:.*$",
+
+              // Generated from package.json. Comment out a regex below to allow that package.
+              // dependencies
+              "^@babel/runtime(?:/.*)?$",
+              "^@base-ui/react(?:/.*)?$",
+              "^@craftzdog/react-native-buffer(?:/.*)?$",
+              "^@ebay/nice-modal-react(?:/.*)?$",
+              "^@effect-x/wa-sqlite(?:/.*)?$",
+              "^@effect-atom/atom(?:/.*)?$",
+              // "^@effect/ai(?:/.*)?$",
+              "^@effect/ai-openai(?:/.*)?$",
+              "^@effect/cluster(?:/.*)?$",
+              // "^@effect/experimental(?:/.*)?$",
+              // "^@effect/opentelemetry(?:/.*)?$",
+              // "^@effect/platform(?:/.*)?$",
+              "^@effect/platform-browser(?:/.*)?$",
+              "^@effect/platform-bun(?:/.*)?$",
+              "^@effect/platform-node(?:/.*)?$",
+              // "^@effect/rpc(?:/.*)?$",
+              // "^@effect/sql(?:/.*)?$",
+              // "^@effect/sql-d1(?:/.*)?$",
+              "^@effect/sql-sqlite-bun(?:/.*)?$",
+              "^@effect/sql-sqlite-do(?:/.*)?$",
+              "^@effect/sql-sqlite-node(?:/.*)?$",
+              "^@effect/workflow(?:/.*)?$",
+              "^@expo/metro-runtime(?:/.*)?$",
+              "^@expo/ui(?:/.*)?$",
+              "^@glideapps/glide-data-grid(?:/.*)?$",
+              "^@hot-updater/expo(?:/.*)?$",
+              "^@noble/hashes(?:/.*)?$",
+              "^@noble/secp256k1(?:/.*)?$",
+              "^@op-engineering/op-sqlite(?:/.*)?$",
+              "^@opentelemetry/semantic-conventions(?:/.*)?$",
+              "^@opentui-ui/dialog(?:/.*)?$",
+              "^@opentui-ui/toast(?:/.*)?$",
+              "^@opentui/core(?:/.*)?$",
+              "^@opentui/react(?:/.*)?$",
+              "^@paddle/paddle-js(?:/.*)?$",
+              "^@paddle/paddle-node-sdk(?:/.*)?$",
+              "^@portabletext/react(?:/.*)?$",
+              "^@react-navigation/drawer(?:/.*)?$",
+              "^@react-navigation/elements(?:/.*)?$",
+              "^@react-navigation/native(?:/.*)?$",
+              "^@react-navigation/stack(?:/.*)?$",
+              "^@sanity/client(?:/.*)?$",
+              "^@sanity/image-url(?:/.*)?$",
+              "^@sanity/react-loader(?:/.*)?$",
+              "^@scure/bip39(?:/.*)?$",
+              "^@standard-schema/utils(?:/.*)?$",
+              "^@tanstack/react-table(?:/.*)?$",
+              "^@tauri-apps/api(?:/.*)?$",
+              "^@tauri-apps/plugin-updater(?:/.*)?$",
+              "^accept-language-parser(?:/.*)?$",
+              "^ahooks(?:/.*)?$",
+              "^arctic(?:/.*)?$",
+              "^better-auth(?:/.*)?$",
+              "^better-sqlite3(?:/.*)?$",
+              "^class-variance-authority(?:/.*)?$",
+              "^cloudflare(?:/.*)?$",
+              "^clsx(?:/.*)?$",
+              "^cmdk(?:/.*)?$",
+              "^cookie(?:/.*)?$",
+              // "^effect(?:/.*)?$",
+              "^embla-carousel-react(?:/.*)?$",
+              "^expo(?:/.*)?$",
+              "^expo-asset(?:/.*)?$",
+              "^expo-audio(?:/.*)?$",
+              "^expo-clipboard(?:/.*)?$",
+              "^expo-constants(?:/.*)?$",
+              "^expo-crypto(?:/.*)?$",
+              "^expo-dev-client(?:/.*)?$",
+              "^expo-dev-launcher(?:/.*)?$",
+              "^expo-device(?:/.*)?$",
+              "^expo-document-picker(?:/.*)?$",
+              "^expo-file-system(?:/.*)?$",
+              "^expo-font(?:/.*)?$",
+              "^expo-haptics(?:/.*)?$",
+              "^expo-image(?:/.*)?$",
+              "^expo-image-manipulator(?:/.*)?$",
+              "^expo-image-picker(?:/.*)?$",
+              "^expo-keep-awake(?:/.*)?$",
+              "^expo-linear-gradient(?:/.*)?$",
+              "^expo-linking(?:/.*)?$",
+              "^expo-local-authentication(?:/.*)?$",
+              "^expo-localization(?:/.*)?$",
+              "^expo-modules-core(?:/.*)?$",
+              "^expo-network(?:/.*)?$",
+              "^expo-router(?:/.*)?$",
+              "^expo-screen-orientation(?:/.*)?$",
+              "^expo-secure-store(?:/.*)?$",
+              "^expo-sharing(?:/.*)?$",
+              "^expo-speech(?:/.*)?$",
+              "^expo-splash-screen(?:/.*)?$",
+              "^expo-status-bar(?:/.*)?$",
+              "^expo-system-ui(?:/.*)?$",
+              "^groq(?:/.*)?$",
+              "^i18next(?:/.*)?$",
+              "^ieee754(?:/.*)?$",
+              "^input-otp(?:/.*)?$",
+              "^intl-parse-accept-language(?:/.*)?$",
+              "^ioredis(?:/.*)?$",
+              "^isbot(?:/.*)?$",
+              "^kysely(?:/.*)?$",
+              "^metro-runtime(?:/.*)?$",
+              "^motion(?:/.*)?$",
+              "^msgpackr(?:/.*)?$",
+              "^nanoid(?:/.*)?$",
+              "^nativewind(?:/.*)?$",
+              "^rate-limiter-flexible(?:/.*)?$",
+              // "^react(?:/.*)?$",
+              "^react-day-picker(?:/.*)?$",
+              "^react-dom(?:/.*)?$",
+              "^react-error-boundary(?:/.*)?$",
+              "^react-fast-marquee(?:/.*)?$",
+              "^react-freeze(?:/.*)?$",
+              "^react-hook-form(?:/.*)?$",
+              "^react-hotkeys-hook(?:/.*)?$",
+              "^react-i18next(?:/.*)?$",
+              "^react-image-previewer(?:/.*)?$",
+              "^react-is(?:/.*)?$",
+              // "^react-native(?:/.*)?$",
+              "^react-native/types_generated(?:/.*)?$",
+              "^react-native-edge-to-edge(?:/.*)?$",
+              "^react-native-gesture-handler(?:/.*)?$",
+              "^react-native-keyboard-controller(?:/.*)?$",
+              "^react-native-masked-view(?:/.*)?$",
+              "^react-native-nitro-modules(?:/.*)?$",
+              "^react-native-quick-base64(?:/.*)?$",
+              "^react-native-quick-crypto(?:/.*)?$",
+              "^react-native-reanimated(?:/.*)?$",
+              "^react-native-safe-area-context(?:/.*)?$",
+              "^react-native-screens(?:/.*)?$",
+              "^react-native-svg(?:/.*)?$",
+              "^react-native-unistyles(?:/.*)?$",
+              "^react-native-worklets(?:/.*)?$",
+              "^react-resizable-panels(?:/.*)?$",
+              // "^react-router(?:/.*)?$",
+              "^react-virtualized(?:/.*)?$",
+              "^readable-stream(?:/.*)?$",
+              "^recharts(?:/.*)?$",
+              "^restty(?:/.*)?$",
+              "^scheduler(?:/.*)?$",
+              "^simple-hue-picker(?:/.*)?$",
+              "^sonner(?:/.*)?$",
+              "^stripe(?:/.*)?$",
+              "^tailwind-merge(?:/.*)?$",
+              "^temporal-polyfill(?:/.*)?$",
+              "^type-fest(?:/.*)?$",
+              "^ua-parser-js(?:/.*)?$",
+              "^undici(?:/.*)?$",
+              "^uuid(?:/.*)?$",
+              "^vaul(?:/.*)?$",
+
+              // devDependencies
+              "^@actions/core(?:/.*)?$",
+              "^@actions/github(?:/.*)?$",
+              "^@babel/core(?:/.*)?$",
+              "^@babel/types(?:/.*)?$",
+              "^@cloudflare/types(?:/.*)?$",
+              "^@cloudflare/workers-types(?:/.*)?$",
+              "^@dotenvx/dotenvx(?:/.*)?$",
+              // "^@effect/cli(?:/.*)?$",
+              "^@effect/printer(?:/.*)?$",
+              "^@effect/printer-ansi(?:/.*)?$",
+              "^@effect/tsgo(?:/.*)?$",
+              "^@effect/typeclass(?:/.*)?$",
+              // "^@effect/vitest(?:/.*)?$",
+              "^@egoist/tailwindcss-icons(?:/.*)?$",
+              "^@expo/build-tools(?:/.*)?$",
+              "^@expo/cli(?:/.*)?$",
+              "^@expo/config-plugins(?:/.*)?$",
+              "^@expo/fingerprint(?:/.*)?$",
+              "^@expo/metro-config(?:/.*)?$",
+              "^@faker-js/faker(?:/.*)?$",
+              "^@hot-updater/cloudflare(?:/.*)?$",
+              "^@hot-updater/react-native(?:/.*)?$",
+              "^@iconify-json/logos(?:/.*)?$",
+              "^@iconify-json/lucide(?:/.*)?$",
+              "^@nx/js(?:/.*)?$",
+              "^@nx/vite(?:/.*)?$",
+              "^@nx/workspace(?:/.*)?$",
+              "^@octokit/types(?:/.*)?$",
+              "^@pierre/diffs(?:/.*)?$",
+              "^@portabletext/types(?:/.*)?$",
+              "^@prisma/config(?:/.*)?$",
+              "^@prisma/generator-helper(?:/.*)?$",
+              "^@prisma/internals(?:/.*)?$",
+              "^@react-native/metro-config(?:/.*)?$",
+              "^@react-router/dev(?:/.*)?$",
+              "^@react-router/node(?:/.*)?$",
+              "^@rnx-kit/metro-config(?:/.*)?$",
+              "^@rnx-kit/metro-resolver-symlinks(?:/.*)?$",
+              "^@rnx-kit/tools-node(?:/.*)?$",
+              "^@sanity/document-internationalization(?:/.*)?$",
+              "^@sanity/types(?:/.*)?$",
+              "^@sanity/ui(?:/.*)?$",
+              "^@sanity/vision(?:/.*)?$",
+              "^@sanity/visual-editing(?:/.*)?$",
+              "^@sindresorhus/slugify(?:/.*)?$",
+              "^@standard-schema/spec(?:/.*)?$",
+              "^@svgr/core(?:/.*)?$",
+              "^@svgr/plugin-jsx(?:/.*)?$",
+              "^@svgr/plugin-svgo(?:/.*)?$",
+              "^@tailwindcss/container-queries(?:/.*)?$",
+              "^@tailwindcss/node(?:/.*)?$",
+              "^@tailwindcss/vite(?:/.*)?$",
+              "^@tauri-apps/cli(?:/.*)?$",
+              "^@types/babel__core(?:/.*)?$",
+              "^@types/bun(?:/.*)?$",
+              "^@types/node(?:/.*)?$",
+              "^@types/react(?:/.*)?$",
+              "^@types/react-dom(?:/.*)?$",
+              "^@types/react-virtualized(?:/.*)?$",
+              "^@types/ua-parser-js(?:/.*)?$",
+              "^@types/ws(?:/.*)?$",
+              "^@typescript/native-preview(?:/.*)?$",
+              "^@vite-pwa/assets-generator(?:/.*)?$",
+              "^@vitest/browser(?:/.*)?$",
+              "^@vitest/browser-playwright(?:/.*)?$",
+              "^@vitest/coverage-v8(?:/.*)?$",
+              "^@vitest/ui(?:/.*)?$",
+              "^address(?:/.*)?$",
+              "^agentation(?:/.*)?$",
+              "^autoprefixer(?:/.*)?$",
+              "^babel-plugin-react-compiler(?:/.*)?$",
+              "^browserslist(?:/.*)?$",
+              "^confbox(?:/.*)?$",
+              "^diff(?:/.*)?$",
+              "^eas-cli(?:/.*)?$",
+              "^eas-cli-local-build-plugin(?:/.*)?$",
+              "^esbuild(?:/.*)?$",
+              "^expo-atlas(?:/.*)?$",
+              "^expo-build-properties(?:/.*)?$",
+              "^expo-module-scripts(?:/.*)?$",
+              "^fast-check(?:/.*)?$",
+              "^fast-xml-parser(?:/.*)?$",
+              "^hot-updater(?:/.*)?$",
+              "^js-toml(?:/.*)?$",
+              "^jsx-email(?:/.*)?$",
+              "^lefthook(?:/.*)?$",
+              "^libsodium-wrappers(?:/.*)?$",
+              "^lodash-es(?:/.*)?$",
+              "^madge(?:/.*)?$",
+              "^magic-string(?:/.*)?$",
+              "^metro(?:/.*)?$",
+              "^metro-config(?:/.*)?$",
+              "^miniflare(?:/.*)?$",
+              "^nx(?:/.*)?$",
+              "^oxc-transform(?:/.*)?$",
+              "^oxfmt(?:/.*)?$",
+              "^oxlint(?:/.*)?$",
+              "^playwright(?:/.*)?$",
+              "^postcss(?:/.*)?$",
+              "^postcss-flexbugs-fixes(?:/.*)?$",
+              "^postcss-preset-env(?:/.*)?$",
+              "^prisma(?:/.*)?$",
+              "^pure-rand(?:/.*)?$",
+              "^react-dev-inspector(?:/.*)?$",
+              "^react-native-svg-transformer(?:/.*)?$",
+              "^rolldown(?:/.*)?$",
+              "^rollup-plugin-visualizer(?:/.*)?$",
+              "^rxjs(?:/.*)?$",
+              "^sanity(?:/.*)?$",
+              "^shellac(?:/.*)?$",
+              "^styled-components(?:/.*)?$",
+              "^svgo(?:/.*)?$",
+              "^tailwindcss(?:/.*)?$",
+              "^tinyglobby(?:/.*)?$",
+              "^tsconfck(?:/.*)?$",
+              "^tstyche(?:/.*)?$",
+              "^tsx(?:/.*)?$",
+              "^turbo-stream(?:/.*)?$",
+              "^tw-animate-css(?:/.*)?$",
+              "^unplugin-preprocessor-directives(?:/.*)?$",
+              "^vite(?:/.*)?$",
+              "^vite-plugin-mkcert(?:/.*)?$",
+              "^vite-plugin-pwa(?:/.*)?$",
+              "^vitest(?:/.*)?$",
+              "^vitest-browser-react(?:/.*)?$",
+              "^workbox-build(?:/.*)?$",
+              "^workbox-core(?:/.*)?$",
+              "^workbox-expiration(?:/.*)?$",
+              "^workbox-precaching(?:/.*)?$",
+              "^workbox-routing(?:/.*)?$",
+              "^workbox-strategies(?:/.*)?$",
+              "^workbox-window(?:/.*)?$",
+              "^wrangler(?:/.*)?$",
+              "^ws(?:/.*)?$"
+            ],
+            "autoImportFileExcludePatterns": [
+              "**/dist/**",
+              "**/build/**",
+              "**/coverage/**",
+              "**/.react-router/**",
+              "**/.sanity/**"
+            ]
+          },
+          "suggest": {
+            "includeAutomaticOptionalChainCompletions": false,
+            "classMemberSnippets": {
+              "enabled": false
+            },
+            "objectLiteralMethodSnippets": {
+              "enabled": false
+            }
+          }
+        }
+      }
+    },
+    "tailwindcss-language-server": {
+      "settings": {
+        "tailwindCSS": {
+          "emmetCompletions": true
+        }
+      }
+    }
+  },
+  "file_scan_exclusions": [
+    // Version control
+    // ".git",
+
+    // Environment and config files
+    ".direnv",
+    ".envrc",
+    "**/.env",
+    "**/.env.*",
+    ".node-version",
+    ".python-version",
+    ".editorconfig",
+
+    // Editor and IDE
+    ".cursor",
+    ".cursorignore",
+    ".vscode",
+    // ".zed",
+    ".claude",
+    // "AGENTS.md",
+    "CLAUDE.md",
+    ".mcp.json",
+
+    // Build and dependency tools
+    "**/.sanity",
+    "**/.react-router",
+    ".nx",
+    "nx.json",
+    ".nxignore",
+    "*turbo.json",
+    "*.turbo",
+    ".expo",
+    ".venv",
+    "**/node_modules",
+    "**/pnpm-lock.yaml",
+    // "**/tsconfig.json",
+    // "**/tsconfig.*.json",
+
+    // Build output
+    "**/build",
+    "**/dist",
+    "**/.wrangler",
+    "**/wrangler.*",
+    "coverage",
+    "**/*.tsbuildinfo",
+
+    // Configuration files
+    "cspell.json",
+    // "**/.oxlintrc.json",
+    // "**/.oxfmtrc.json",
+    "flake.*",
+    "lefthook.yml",
+
+    // Development and testing
+    // "**/vite.config.ts",
+    "**/vitest.config.ts",
+    "**/postcss.config.*",
+    "**/analyze-*.json",
+    "**/analyze-*.html",
+
+    // Framework and library specific
+    // "**/env.d.ts",
+    // "**/i18n.d.ts",
+    // "**/client.d.ts",
+    // "**/sw.ts",
+    // "**/entry.client.ts",
+    // "**/entry.server.ts",
+    // "**/layout.client.ts",
+    // "**/layout.client.tsx",
+    // "**/layout.route.tsx",
+    // "**/screen.client.ts",
+    // "**/screen.client.tsx",
+    // "**/screen.route.tsx",
+    // "**/context.*.ts",
+    // "**/react-router.config.ts",
+    // "worker-configuration.d.ts",
+
+    // Special
+    ".DS_Store",
+    ".obsidian",
+    // "README.md",
+    "migrations.json"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"],
+  "references": [],
+  "compilerOptions": {
+    "types": ["node", "react", "react-dom", "vite/client"]
+  }
+}

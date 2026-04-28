@@ -1,0 +1,81 @@
+{
+  "name": "@effect-x/event-log-server",
+  "version": "0.0.1",
+  "description": "Server and Cloudflare sync services for @effect-x/event-log.",
+  "keywords": [
+    "effect",
+    "effect-x",
+    "event-log",
+    "cloudflare",
+    "server",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/pkgs#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/pkgs/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/pkgs.git",
+    "directory": "packages/event-log-server"
+  },
+  "type": "module",
+  "sideEffects": [],
+  "files": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./src/*.ts",
+    "./*/*": "./src/*/*.ts",
+    "./*/*/*": "./src/*/*/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      "./*": "./dist/*.js",
+      "./*/*": "./dist/*/*.js",
+      "./*/*/*": "./dist/*/*/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@effect-x/cloudflare": "workspace:^",
+    "@effect-x/db": "workspace:^",
+    "@effect-x/event-log": "workspace:^",
+    "@effect-x/server": "workspace:^",
+    "@effect-x/sql-do-proxy": "workspace:^",
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/rpc": "catalog:",
+    "@effect/sql": "catalog:",
+    "@effect/sql-d1": "catalog:",
+    "@effect/sql-sqlite-do": "^0.29.0",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/sql-sqlite-node": "^0.52.0",
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

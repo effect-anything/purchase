@@ -1,0 +1,76 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "tsgo -b tsconfig.packages.json && pnpm --recursive --parallel --filter \"./packages/**/*\" run build",
+    "circular": "node scripts/circular.mjs",
+    "test": "vitest",
+    "coverage": "vitest --coverage",
+    "check": "tsgo -b tsconfig.json",
+    "check-recursive": "pnpm --recursive --filter \"./packages/**/*\" exec tsgo -b tsconfig.json",
+    "lint": "oxlint && oxfmt --check .",
+    "lint-fix": "oxlint --fix && oxfmt .",
+    "deps:check": "syncpack lint",
+    "deps:list": "syncpack list --sort count",
+    "deps:sync": "syncpack fix && pnpm install",
+    "test-types": "tstyche",
+    "local-registry:start": "pnpm exec verdaccio --config ./scripts/verdaccio.yaml --listen 127.0.0.1:4873",
+    "local-registry:publish": "node ./scripts/local-registry.mjs publish",
+    "local-registry:smoke": "node ./scripts/local-registry.mjs smoke",
+    "local-registry:check": "node ./scripts/local-registry.mjs check",
+    "changeset-version": "changeset version",
+    "changeset-publish": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-transform-export-namespace-from": "^7.27.1",
+    "@babel/plugin-transform-modules-commonjs": "^7.28.6",
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.31.0",
+    "@effect/language-service": "^0.85.1",
+    "@effect/oxc": "workspace:^",
+    "@effect/vitest": "catalog:",
+    "@faker-js/faker": "catalog:",
+    "@types/node": "catalog:",
+    "@typescript/native-preview": "7.0.0-dev.20260427.1",
+    "@vitest/browser": "4.1.4",
+    "@vitest/coverage-v8": "4.1.5",
+    "babel-plugin-annotate-pure-calls": "^0.5.0",
+    "effect": "catalog:",
+    "madge": "^8.0.0",
+    "oxfmt": "^0.46.0",
+    "oxlint": "1.42.0",
+    "playwright": "^1.59.1",
+    "syncpack": "^14.3.1",
+    "tstyche": "^7.1.0",
+    "typescript": "^6.0.3",
+    "verdaccio": "^6.5.2",
+    "vite": "^8.0.10",
+    "vitest": "catalog:"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "pnpm": {
+    "patchedDependencies": {
+      "@changesets/assemble-release-plan": "patches/@changesets__assemble-release-plan.patch",
+      "@changesets/get-github-info": "patches/@changesets__get-github-info.patch"
+    },
+    "ignoredBuiltDependencies": [
+      "core-js",
+      "cpu-features",
+      "esbuild",
+      "lmdb",
+      "msgpackr-extract",
+      "msw",
+      "protobufjs",
+      "sharp",
+      "ssh2",
+      "unrs-resolver",
+      "workerd"
+    ],
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
+  }
+}

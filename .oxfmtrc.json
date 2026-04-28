@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "tabWidth": 2,
+  "semi": false,
+  "singleQuote": false,
+  "trailingComma": "none",
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "experimentalSortPackageJson": false,
+  "ignorePatterns": [
+    "LLMS.md",
+    "**/dist/**",
+    "**/build/**",
+    "**/docs/**",
+    "**/coverage/**",
+    "packages/**/CHANGELOG.md",
+    ".zed/**",
+    ".agents/**",
+    ".context/**",
+    ".specs/**"
+  ]
+}
