@@ -1,0 +1,27 @@
+---
+title: Account Portal and Activity
+description: Show ownership, entitlements, checkout history, and billing activity.
+---
+
+The account page is where normalized billing state becomes visible to the customer.
+
+Relevant file:
+
+- [account page](</examples/nextjs/app/(authed)/account/page.tsx:1>)
+
+## What the page shows
+
+- active subscriptions and one-time purchases
+- wallet balances
+- credit ledger rows
+- checkout intents
+- normalized event history
+- current entitlements
+
+## Why this page is important
+
+This is the kind of screen that becomes painful if billing state only exists in provider dashboards. Purchase makes it possible to read a coherent local view instead.
+
+## Portal direction
+
+The example currently emphasizes activity and ownership, but this is also the natural place to add `portal.createSession(...)` actions for customer self-service flows.

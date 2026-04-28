@@ -1,0 +1,7 @@
+{
+  "payload": "{\"event_id\":\"ntf_fixture_adjustment_updated\",\"notification_id\":\"ntf_fixture_adjustment_updated\",\"event_type\":\"adjustment.updated\",\"occurred_at\":\"2026-04-21T12:06:00.000000Z\",\"data\":{\"id\":\"adj_fixture_123\",\"action\":\"refund\",\"status\":\"approved\",\"reason\":\"requested_by_customer\",\"transaction_id\":\"txn_fixture_123\",\"customer_id\":\"ctm_fixture_123\",\"currency_code\":\"USD\",\"items\":[{\"id\":\"adjitm_fixture_123\",\"type\":\"full\",\"amount\":\"1500\",\"item_id\":\"txnitm_fixture_123\"}],\"totals\":{\"subtotal\":\"1500\",\"tax\":\"0\",\"total\":\"1500\",\"grand_total\":\"1500\",\"currency_code\":\"USD\"},\"custom_data\":null,\"created_at\":\"2026-04-21T12:05:00.000000Z\",\"updated_at\":\"2026-04-21T12:06:00.000000Z\"}}",
+  "webhookSecret": "pdl_ntfset_01jcabpgj9ft3pxhrhc04svt0b_HaFBjn6n3/sJnT+W6C8wrBG/uBuYFtpv",
+  "source": "fixture",
+  "eventType": "adjustment.updated",
+  "capturedAt": "2026-04-21T12:06:00.000Z"
+}

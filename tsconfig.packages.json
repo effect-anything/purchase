@@ -2,28 +2,5 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   "include": [],
-  "references": [
-    { "path": "packages/atom-react" },
-    { "path": "packages/cloudflare" },
-    { "path": "packages/db" },
-    { "path": "packages/db-cli" },
-    { "path": "packages/errors" },
-    { "path": "packages/event-log" },
-    { "path": "packages/event-log-server" },
-    { "path": "packages/expo-bip39" },
-    { "path": "packages/form" },
-    { "path": "packages/fx" },
-    { "path": "packages/i18n" },
-    { "path": "packages/otel" },
-    { "path": "packages/react-router" },
-    { "path": "packages/server" },
-    { "path": "packages/server-testing" },
-    { "path": "packages/sql/sql-do-proxy" },
-    { "path": "packages/sql/sql-kysely" },
-    { "path": "packages/sql/sql-op-sqlite" },
-    { "path": "packages/sql/sql-sqlite" },
-    { "path": "packages/testing" },
-    { "path": "packages/toaster" },
-    { "path": "packages/tools/oxc" }
-  ]
+  "references": [{ "path": "packages/purchase" }, { "path": "packages/tools/oxc" }]
 }

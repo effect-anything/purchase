@@ -1,0 +1,7 @@
+{
+  "payload": "{\"id\":\"evt_fixture_customer_updated\",\"object\":\"event\",\"api_version\":\"2026-03-25.dahlia\",\"created\":1776769250,\"data\":{\"object\":{\"id\":\"cus_fixture_123\",\"object\":\"customer\",\"email\":\"jo.updated@example.com\",\"name\":\"Jo Updated\",\"metadata\":{},\"created\":1776769000}},\"livemode\":false,\"pending_webhooks\":1,\"request\":{\"id\":\"req_fixture_customer_updated\",\"idempotency_key\":\"fixture-customer-updated\"},\"type\":\"customer.updated\"}",
+  "webhookSecret": "whsec_a797eac79700a35a660c541fc39489e0435887066cd6fba5719d9afeac2624f8",
+  "source": "fixture",
+  "eventType": "customer.updated",
+  "capturedAt": "2026-04-21T11:00:50.000Z"
+}

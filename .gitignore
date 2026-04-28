@@ -13,7 +13,6 @@ node_modules/
 
 # Auto-generated from scripts
 coverage/
-docs/
 tmp/
 stats.html
 jsdoc-analysis-results.json
@@ -34,3 +33,6 @@ scratchpad/**/*
 
 # Claude Code
 .claude/
+
+.source/
+.wrangler

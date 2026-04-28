@@ -1,0 +1,123 @@
+---
+title: Catalog Modeling
+description: Model products, plans, features, and offers with the Purchase DSL.
+---
+
+## DSL building blocks
+
+Purchase models commerce using a small set of primitives:
+
+- `featureFlag(...)`
+- `quotaFeature(...)`
+- `creditUnit(...)`
+- `plan(...)`
+- `subscriptionProduct(...)`
+- `oneTimeProduct(...)`
+- `creditPackProduct(...)`
+
+## Design rules
+
+The catalog DSL is intended to produce stable commercial identifiers.
+
+- product ids identify the product family
+- plan ids identify the commercial option inside the product
+- offer ids are the stable external runtime ids, typically `productId:planId`
+- provider ids map your commercial catalog to Stripe or Paddle objects
+
+## Example
+
+```ts
+const noteSyncEnabled = featureFlag({ id: "note_sync_enabled" })
+const noteItems = quotaFeature({ id: "note_items" })
+const aiCredits = creditUnit({ id: "ai_credits", unit: "AI credits" })
+
+const subscriptionPlans = [
+  plan({
+    id: "notes_free",
+    group: "base",
+    default: true,
+    includes: [noteItems({ limit: 50, reset: "month" })]
+  }),
+  plan({
+    id: "notes_pro_monthly",
+    group: "base",
+    price: { amount: 9, interval: "month" },
+    includes: [noteSyncEnabled(), noteItems({ limit: 10_000, reset: "month" })],
+    provider: {
+      stripe: "notes_pro_monthly",
+      paddle: "notes_pro_monthly"
+    }
+  })
+] as const
+
+const creditPlans = [
+  plan({
+    id: "ai_credits_500",
+    group: "credits",
+    price: { amount: 10, interval: "one_time" },
+    includes: [aiCredits({ amount: 500, reset: "year" })],
+    provider: {
+      stripe: "ai_credits_500",
+      paddle: "ai_credits_500"
+    }
+  })
+] as const
+```
+
+The example catalog in this repository intentionally mixes all three commercial families:
+
+- subscriptions
+- one-time purchases
+- credit packs
+
+That is a useful signal about the intended scope of the package.
+
+## What to keep stable
+
+Treat these as long-lived ids:
+
+- feature ids
+- product ids
+- plan ids once they are used in production
+- provider mapping keys
+
+Changing human-facing names is cheap. Changing commercial ids is not.
+
+## Modeling guidance
+
+- Use subscriptions for ongoing access and renewable quotas
+- Use one-time products for perpetual purchases
+- Use credit packs for prepaid balances and usage-style systems
+- Keep provider mappings explicit rather than deriving them from display copy
+
+## Why the model is split this way
+
+The DSL separates product families from concrete offers because real applications need both views:
+
+- browsing and upgrade UI cares about the product family
+- checkout and mutation workflows care about the exact offer
+
+That is why most runtime APIs operate on `offerId`, while projections often also expose `productId`.
+
+## Current scope
+
+The existing DSL already covers:
+
+- feature flags
+- quotas with reset behavior
+- credit units with amount and expiry metadata
+- subscription, one-time, and credits product modes
+
+More advanced catalog authoring ergonomics may still evolve, but the core modeling shape is already visible in the current codebase and tests.
+
+## Normalized catalog shape
+
+At runtime, the DSL is normalized into:
+
+- commercial products
+- commercial offers
+- benefit records
+- provider mappings
+- checkout targets
+
+Application code should prefer those normalized commercial ids over raw DSL internals once the SDK is running.

@@ -1,0 +1,43 @@
+---
+title: Roadmap
+description: Current release-readiness priorities for the Purchase SDK.
+---
+
+The SDK already has meaningful core runtime coverage, but it still needs tighter
+productization work before it feels like a broadly adoptable open-source billing
+system.
+
+## Public API hardening
+
+- Reduce accidental surface area
+- Stabilize naming across providers
+- Tighten schema-level guarantees for runtime inputs and outputs
+- Clarify which modules are intended as long-lived entry points
+
+## Runtime and state guarantees
+
+- Tighten replay and idempotency expectations around provider event handling
+- Define clearer projection and workflow-store invariants
+- Reduce ambiguity around cross-provider lifecycle state mapping
+- Make failure modes easier to reason about during partial workflow completion
+
+## Setup and migration ergonomics
+
+- Provide clearer bootstrap flows for Next.js and Cloudflare deployments
+- Improve schema and database initialization guidance
+- Add safer migration and webhook replay workflows
+- Improve examples so teams can move from demo shape to production shape faster
+
+## Documentation depth
+
+- Expand end-to-end guides for catalog setup, checkout, portals, and webhooks
+- Document provider capability differences explicitly
+- Add operational guidance for local development and production rollouts
+- Add clearer architecture notes around app-owned state and workflow boundaries
+
+## Release discipline
+
+- Define versioning guarantees for the SDK surface
+- Improve CI coverage for integration scenarios
+- Tighten packaging, examples, and changelog quality before wider release
+- Raise confidence that reference docs, examples, and test coverage describe the same system

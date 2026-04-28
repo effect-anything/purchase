@@ -1,0 +1,69 @@
+---
+title: Webhooks
+description: Normalize provider events and keep replay handling safe.
+---
+
+Webhooks are where billing integrations usually become fragile. Purchase treats them as a first-class workflow boundary.
+
+## Handler shape
+
+Your application receives raw provider data and passes it to the SDK:
+
+```ts
+const result =
+  yield *
+  sdk.webhooks.handle({
+    provider: "stripe",
+    signature,
+    body
+  })
+```
+
+## What the runtime should own
+
+The runtime should own signature verification, payload parsing, provider event normalization, durable event recording, replay-safe processing, and projection refreshes. Product-specific behavior should run after the SDK has accepted and normalized the event.
+
+## Webhook lifecycle
+
+<Mermaid chart={`
+sequenceDiagram
+  participant Provider
+  participant Route
+  participant SDK
+  participant DB
+
+Provider->>Route: raw body + signature
+Route->>SDK: webhooks.handle(...)
+SDK->>SDK: verify signature and parse payload
+SDK->>DB: persist webhook and normalized events
+SDK->>DB: trigger reconciliation
+SDK-->>Route: accepted + normalizedEvents + triggers
+`} />
+
+## Why replay matters
+
+Payment systems must assume:
+
+- duplicate deliveries
+- out-of-order deliveries
+- delayed deliveries
+- manual replays during incident recovery
+
+Purchase already exposes both `handle` and `replay` entry points because webhook ingestion is not a best-effort side effect. It is part of the billing state machine.
+
+## What to log and inspect
+
+The webhook result already gives you strong operational hooks: `accepted`, `providerEventId`, normalized event kinds, and reconciliation reasons.
+
+That makes it practical to build replay jobs, incident dashboards, or support tooling without reparsing provider payloads later.
+
+## Recommended route design
+
+- Keep the HTTP route thin
+- Persist and normalize through the SDK
+- Return success only after the workflow accepts the event
+- Avoid mixing product-specific side effects directly into raw webhook parsing code
+
+## Common mistake
+
+Do not attach product access changes directly to raw webhook route code. Let the SDK normalize the event and refresh durable state first, then let the application read the updated projection.

@@ -1,0 +1,36 @@
+---
+title: Pricing and Catalog
+description: Render a real pricing page from the Purchase catalog.
+---
+
+The public pricing page reads the normalized commercial catalog and renders it as a product experience.
+
+Relevant files:
+
+- [pricing page](</examples/nextjs/app/(public)/pricing/page.tsx:1>)
+- [HTTP API schema](/examples/nextjs/lib/http-api.ts:1)
+- [HTTP API handler](/examples/nextjs/lib/http-api-handler.ts:1)
+
+## Public catalog API
+
+The app exposes a typed endpoint:
+
+```ts
+HttpApiGroup.make("catalog").add(HttpApiEndpoint.get("get", "/catalog").addSuccess(CatalogApiResponse))
+```
+
+That returns:
+
+- active environment
+- active provider
+- normalized `CommercialCatalog`
+
+## What the page renders
+
+The pricing page groups offers into:
+
+- subscriptions
+- one-time purchases
+- credit packs
+
+That is the value of the catalog model. The page never needs to think in terms of provider-native product objects.

@@ -1,5 +1,6 @@
 import rule from "@effect/oxc/oxlint/rules/no-js-extension-imports"
 import { describe, expect, it } from "vitest"
+
 import { runRule } from "./utils.ts"
 
 describe("no-js-extension-imports", () => {

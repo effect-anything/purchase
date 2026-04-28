@@ -3,15 +3,20 @@
   "extends": ["./packages/tools/oxc/oxlintrc.json"],
   "ignorePatterns": [
     "LLMS.md",
+    "**/node_modules",
     "**/dist",
     "**/build",
-    "**/docs",
+    "**/coverage",
+    "**/.next",
+    "**/.vinext",
     "**/.tsbuildinfo",
     "packages/**/CHANGELOG.md",
     "!scratchpad/**/*",
     ".agents/**/*",
     ".context/**/*",
-    ".specs/**/*"
+    ".specs/**/*",
+    "**/.wrangler/**/*",
+    "worker-configuration.d.ts"
   ],
   "jsPlugins": ["@effect/oxc/oxlint"],
   "overrides": [
@@ -20,12 +25,6 @@
       "rules": {
         "effect/no-bigint-literals": "off",
         "eslint/no-console": "off",
-        "effect/no-import-from-barrel-package": "off"
-      }
-    },
-    {
-      "files": ["packages/testing/src/test.ts", "packages/testing/src/test-setup.ts"],
-      "rules": {
         "effect/no-import-from-barrel-package": "off"
       }
     },

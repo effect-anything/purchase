@@ -1,0 +1,50 @@
+---
+title: Checkout Flow
+description: Launch provider-neutral checkout from the signed-in account page.
+---
+
+The account page turns catalog offers into billing actions.
+
+Relevant files:
+
+- [account page](</examples/nextjs/app/(authed)/account/page.tsx:1>)
+- [account actions](</examples/nextjs/app/(authed)/account/account-actions.tsx:1>)
+- [app runtime](/examples/nextjs/lib/app-runtime.ts:1)
+
+## Browser action
+
+The checkout button calls the browser API client with one thing: `offerId`.
+
+```ts
+const response = await client.checkout.start({ payload: { offerId: props.offerId } })
+```
+
+## Server-side workflow
+
+Server code authenticates the user, validates the offer, and then delegates to Purchase:
+
+```ts
+const checkout =
+  yield *
+  sdk.checkout.start({
+    customerId: asCustomerId(input.user.id),
+    offerId: input.offerId as never,
+    successUrl: `${getAppBaseUrl()}/account?checkout=success&offer=${encodeURIComponent(input.offerId)}`,
+    cancelUrl: `${getAppBaseUrl()}/account?checkout=cancelled&offer=${encodeURIComponent(input.offerId)}`,
+    metadata: {
+      source: "nextjs-app",
+      workspaceSlug: input.user.workspaceSlug,
+      authUserId: input.user.id
+    }
+  })
+```
+
+## Why this boundary is right
+
+The browser does not send:
+
+- provider customer ids
+- provider price ids
+- provider-specific checkout payloads
+
+It only selects a commercial offer. The server runtime fills in the rest.

@@ -1,0 +1,60 @@
+---
+title: Workflows
+description: The shared workflow model for billing operations.
+---
+
+The public SDK exposes a workflow-oriented surface instead of a provider-API surface.
+
+## Major workflow groups
+
+| Workflow group               | Examples                                                                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Checkout and webhook ingress | `checkout.start`, `webhooks.handle`, `webhooks.replay`                                                                                               |
+| Portal and subscription ops  | `portal.createSession`, `subscriptions.cancel`, `subscriptions.change`, `subscriptions.pause`, `subscriptions.resume`, `subscriptions.previewChange` |
+| Purchase and credit ops      | `purchases.refund`, `credits.grant`, `credits.consume`                                                                                               |
+
+## Workflow receipts
+
+Mutation-style workflows return a `WorkflowReceipt`. That is a useful public concept because it describes what actually happened:
+
+which workflow ran, which stages completed, whether an intent was created, which normalized events were emitted, and which reconciliation steps were implied downstream.
+
+## Why this surface exists
+
+Applications usually care about business operations, not raw provider methods.
+
+For example, "refund this purchase" is a better app-level boundary than "call provider refund API and then manually patch local tables."
+
+## Workflow guarantees Purchase is aiming for
+
+The workflow surface is aiming for explicit input and output types, idempotent event handling, replay-safe webhook processing, provider-normalized state transitions, and app-readable receipts and projections.
+
+## Example flow: checkout to projection
+
+<Mermaid chart={`
+sequenceDiagram
+  participant App
+  participant Checkout as checkout.start
+  participant Provider
+  participant Webhooks as webhooks.handle
+  participant Projection as projection.refresh
+
+App->>Checkout: customerId + offerId
+Checkout->>Provider: create checkout session
+Checkout-->>App: intentId + checkoutUrl
+Provider-->>Webhooks: completion event
+Webhooks->>Projection: reconciliation triggers
+Projection-->>App: updated snapshot and entitlements
+`} />
+
+## Why stage-aware receipts matter
+
+Billing operations can fail halfway through the business process even if a provider API call succeeded. Stage-aware receipts make it much easier to reason about:
+
+what input was accepted, whether provider state changed, whether local facts were persisted, and whether read-side reconciliation is still required.
+
+## Design focus
+
+The hard parts are the invariants across projection and workflow stores, partial-failure semantics, and cross-provider lifecycle normalization.
+
+Those concerns are exactly why the workflow-first public shape is the right abstraction boundary for the project.

@@ -1,0 +1,82 @@
+{
+  "name": "@effect-x/purchase",
+  "version": "0.0.1",
+  "description": "Provider-neutral payment SDK for Effect applications with subscriptions, one-time purchases, and credits workflows.",
+  "keywords": [
+    "payments",
+    "billing",
+    "stripe",
+    "paddle",
+    "subscription",
+    "credits",
+    "effect",
+    "typescript"
+  ],
+  "homepage": "https://github.com/effect-anything/purchase#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/purchase/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/purchase.git",
+    "directory": "packages/purchase"
+  },
+  "files": [
+    "src/**/*.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/public.ts",
+    "./*": "./src/*.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./dist/public.js",
+      "./*": "./dist/*.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "test": "vitest",
+    "test:core": "vitest run test/core",
+    "test:provider": "vitest run test/provider test/provider-live-harness.test.ts",
+    "test:provider-live": "vitest run e2e/provider-live",
+    "coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@effect-x/db": "0.0.1",
+    "@effect/experimental": "^0.60.0",
+    "@effect/sql": "^0.51.1",
+    "effect": "^3.21.0"
+  },
+  "devDependencies": {
+    "@effect/cli": "catalog:",
+    "@effect/platform": "^0.96.1",
+    "@effect/platform-node": "^0.106.0",
+    "@effect/sql-pg": "^0.52.0",
+    "@effect/sql-sqlite-node": "^0.52.0",
+    "@effect/vitest": "^0.29.0",
+    "@paddle/paddle-node-sdk": "^3.7.0",
+    "stripe": "^22.0.1"
+  },
+  "tags": [
+    "typescript",
+    "effect"
+  ]
+}

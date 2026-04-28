@@ -1,4 +1,4 @@
-import type { CreateRule, Visitor } from "oxlint"
+import type { CreateRule, Visitor } from "../types.ts"
 
 const rule: CreateRule = {
   meta: {

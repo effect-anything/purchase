@@ -1,0 +1,65 @@
+---
+title: Deployment
+description: Production rollout guidance for Node and Cloudflare-oriented systems.
+---
+
+Purchase is intended to run in both traditional server environments and newer worker-oriented setups.
+
+## Production concerns
+
+- provider secret management
+- webhook endpoint reliability
+- SQL schema readiness
+- replay procedures
+- observability around workflow failures
+- safe catalog rollout
+
+## Operational architecture
+
+<Mermaid
+  chart={`
+flowchart TD
+  A[App API] --> B[Purchase Runtime]
+  C[Webhook Endpoint] --> B
+  B --> D[(SQL Database)]
+  B --> E[Stripe or Paddle]
+  F[Catalog Sync CLI] --> D
+  F --> E
+`}
+/>
+
+## Node deployments
+
+Node services are the most straightforward starting point because they naturally fit:
+
+- long-lived SQL connectivity
+- background operational tooling
+- existing API route patterns
+
+## Cloudflare direction
+
+Cloudflare support is a strategic part of the project, not an afterthought. The docs should make that clear because it is one of the strongest differentiators versus many existing billing systems.
+
+The current repository already contains D1-specific work and docs infrastructure for workers. The next step is to expand deployment guides with more concrete reference architectures as the runtime approaches broader release-readiness.
+
+## Suggested first production shape
+
+For most teams, the safest first rollout looks like this:
+
+1. one active provider
+2. one SQL database
+3. one webhook endpoint
+4. one catalog owner in code
+5. one replay procedure
+
+## Rollout advice
+
+1. Start with one provider and one narrow product surface
+2. Prove webhook durability and replay
+3. Prove customer projection reads in production
+4. Add portal, refunds, and credits as explicit workflow phases
+5. Only then widen catalog complexity or multi-provider routing
+
+## Why operations matter so much here
+
+Payment systems rarely fail because the happy-path checkout form was impossible to render. They fail because replay, reconciliation, and incident visibility were under-specified. A good Purchase deployment should treat those as first-class design inputs.

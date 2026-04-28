@@ -1,0 +1,7 @@
+{
+  "payload": "{\"id\":\"evt_fixture_refund_updated\",\"object\":\"event\",\"api_version\":\"2026-03-25.dahlia\",\"created\":1776769350,\"data\":{\"object\":{\"id\":\"re_fixture_123\",\"object\":\"refund\",\"amount\":2000,\"charge\":{\"id\":\"ch_fixture_refunded\",\"object\":\"charge\",\"invoice\":\"in_fixture_123\"},\"created\":1776769300,\"currency\":\"usd\",\"metadata\":{},\"payment_intent\":\"pi_fixture_123\",\"reason\":\"requested_by_customer\",\"status\":\"succeeded\"}},\"livemode\":false,\"pending_webhooks\":1,\"request\":{\"id\":\"req_fixture_refund_updated\",\"idempotency_key\":\"fixture-refund-updated\"},\"type\":\"refund.updated\"}",
+  "webhookSecret": "whsec_a797eac79700a35a660c541fc39489e0435887066cd6fba5719d9afeac2624f8",
+  "source": "fixture",
+  "eventType": "refund.updated",
+  "capturedAt": "2026-04-21T11:02:30.000Z"
+}

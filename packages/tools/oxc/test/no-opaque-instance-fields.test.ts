@@ -1,5 +1,6 @@
 import rule from "@effect/oxc/oxlint/rules/no-opaque-instance-fields"
 import { describe, expect, it } from "vitest"
+
 import { createTestContext, runRule } from "./utils.ts"
 
 function runRuleWithNodes(nodes: Array<{ visitor: string; node: unknown }>) {

@@ -1,0 +1,61 @@
+---
+title: Customer State
+description: How Purchase builds normalized customer snapshots and entitlements.
+---
+
+Purchase does not expect the application to read raw provider objects directly for product behavior.
+
+Instead, the runtime produces normalized customer state:
+
+customer snapshots, current subscription state, purchase grant state, entitlement snapshots, and credit wallet state.
+
+## Why this matters
+
+Provider objects are not an application model. They are transport objects with provider-specific lifecycle semantics.
+
+Your app needs a simpler answer to questions like:
+
+what this customer currently owns, which offer is active, which entitlements should be granted, how many credits are available, and whether a cancellation is scheduled or already effective.
+
+## Snapshot flow
+
+1. Checkout or webhook workflows write durable rows
+2. Provider events are normalized into commercial events
+3. Projection services refresh customer state
+4. The app reads a normalized snapshot
+
+<Mermaid
+  chart={`
+flowchart TD
+  A[Checkout or Webhook] --> B[Workflow Store]
+  B --> C[Commercial Events]
+  C --> D[Projection Refresh]
+  D --> E[Customer Snapshot]
+  D --> F[Entitlement Snapshot]
+  D --> G[Credits Wallet]
+`}
+/>
+
+## Entitlements
+
+Purchase treats entitlements as derived commercial state rather than UI-only flags.
+
+That gives you one place to reason about:
+
+feature access, quota ceilings, reset windows, and balance display.
+
+## App-owned responsibility
+
+Purchase computes commercial state, but your application still decides how to enforce it. For example:
+
+request authorization, feature gating in product code, usage metering, and customer messaging.
+
+This separation keeps the billing runtime reusable without forcing product logic into the SDK.
+
+## What this buys you
+
+Instead of joining provider objects and local patches by hand, application code can ask focused questions:
+
+what subscriptions are active, what one-time grants still apply, what entitlements are enabled, and how many credits remain.
+
+That is the difference between a payment integration and a usable commercial runtime.

@@ -1,0 +1,70 @@
+---
+title: Credits
+description: Model prepaid and usage-style commercial systems.
+---
+
+Purchase is not limited to subscriptions. It also models prepaid credit systems.
+
+## Core APIs
+
+| API                 | Purpose                                                                          |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `credits.grant`     | Add credits to a customer wallet from a purchase, promotion, or operator action. |
+| `credits.consume`   | Spend credits with an idempotent usage record.                                   |
+| `credits.getWallet` | Read the current wallet balance and related state.                               |
+
+## Typical use cases
+
+Typical credit-backed products include AI message balances, token balances, prepaid usage bundles, one-time credit packs, and promotional grants.
+
+## Catalog model
+
+Credits are modeled with `creditUnit(...)` features and `creditPackProduct(...)` products.
+
+```ts
+const aiCredits = creditUnit({ id: "ai_credits", unit: "AI credits" })
+```
+
+That keeps the pricing surface and the consumption surface connected through one commercial vocabulary.
+
+## Why this matters
+
+Many teams bolt credits on after subscriptions already exist. That usually creates a second parallel state system. Purchase is trying to avoid that by putting subscriptions, one-time purchases, and credits in the same runtime model from the start.
+
+## Example operations
+
+```ts
+const granted =
+  yield *
+  sdk.credits.grant({
+    customerId,
+    creditKey: "ai_credits",
+    offerId: "ai_credit_pack:ai_credits_500",
+    amount: 500,
+    idempotencyKey: "grant:campaign_123"
+  })
+```
+
+```ts
+const consumed =
+  yield *
+  sdk.credits.consume({
+    customerId,
+    creditKey: "ai_credits",
+    amount: 25,
+    idempotencyKey: "consume:message_987"
+  })
+```
+
+```ts
+const wallet =
+  yield *
+  sdk.credits.getWallet({
+    customerId,
+    creditKey: "ai_credits"
+  })
+```
+
+## Why idempotency matters
+
+Credit systems are especially sensitive to duplicate writes. Grant and consume operations need to stay safe under retries, background processing, and operational replay, which is why these APIs take explicit `idempotencyKey` values.

@@ -1,5 +1,0 @@
-// Reexport the native module. On web, it will be resolved to ExpoBip39Module.web.ts
-// and on native platforms ExpoBip39Module.ts
-
-export * from "./ExpoBip39.types.ts"
-export { default } from "./ExpoBip39Module.ts"

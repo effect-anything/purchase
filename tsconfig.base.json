@@ -21,8 +21,8 @@
     // Opt-in to stricter type checking and correctness guard rails. The more the merrier.
     "strict": true,
     "exactOptionalPropertyTypes": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     // Miscellaneoaus

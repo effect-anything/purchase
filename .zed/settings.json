@@ -2,6 +2,15 @@
   "load_direnv": "shell_hook",
   "formatter": "auto",
   "languages": {
+    "CSS": {
+      "formatter": [
+        {
+          "language_server": {
+            "name": "oxfmt"
+          }
+        }
+      ]
+    },
     "JSON": {
       "language_servers": ["oxlint", "oxfmt", "cspell", "json-language-server"],
       "formatter": [
@@ -86,13 +95,13 @@
           "fmt.experimental": true,
           "run": "onSave",
           "typeAware": false,
-          "unusedDisableDirectives": false
+          "unusedDisableDirectives": "deny"
         }
       }
     },
     "tsgo": {
       "binary": {
-        "path": "./node_modules/.bin/tsgo",
+        "path": "/Users/kee/Workspace/effect/tsgo/result/bin/tsgo",
         "arguments": ["--lsp", "--stdio"]
       },
       "settings": {
@@ -280,7 +289,6 @@
               "^@expo/config-plugins(?:/.*)?$",
               "^@expo/fingerprint(?:/.*)?$",
               "^@expo/metro-config(?:/.*)?$",
-              "^@faker-js/faker(?:/.*)?$",
               "^@hot-updater/cloudflare(?:/.*)?$",
               "^@hot-updater/react-native(?:/.*)?$",
               "^@iconify-json/logos(?:/.*)?$",
@@ -291,7 +299,6 @@
               "^@octokit/types(?:/.*)?$",
               "^@pierre/diffs(?:/.*)?$",
               "^@portabletext/types(?:/.*)?$",
-              "^@prisma/config(?:/.*)?$",
               "^@prisma/generator-helper(?:/.*)?$",
               "^@prisma/internals(?:/.*)?$",
               "^@react-native/metro-config(?:/.*)?$",
@@ -370,7 +377,6 @@
               "^rollup-plugin-visualizer(?:/.*)?$",
               "^rxjs(?:/.*)?$",
               "^sanity(?:/.*)?$",
-              "^shellac(?:/.*)?$",
               "^styled-components(?:/.*)?$",
               "^svgo(?:/.*)?$",
               "^tailwindcss(?:/.*)?$",

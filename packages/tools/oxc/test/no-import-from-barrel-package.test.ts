@@ -1,5 +1,6 @@
 import rule from "@effect/oxc/oxlint/rules/no-import-from-barrel-package"
 import { describe, expect, it } from "vitest"
+
 import { runRule } from "./utils.ts"
 
 describe("no-import-from-barrel-package", () => {

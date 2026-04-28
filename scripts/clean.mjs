@@ -9,13 +9,22 @@ const collectDirectories = (directory) =>
 
 const dirs = [
   ".",
+  ...collectDirectories("docs"),
+  ...collectDirectories("examples"),
   ...collectDirectories("packages"),
-  ...collectDirectories("packages/sql"),
-  ...collectDirectories("packages/tools"),
-  ...collectDirectories("packages/ai")
+  ...collectDirectories("packages/tools")
 ]
 dirs.forEach((pkg) => {
-  const files = [".tsbuildinfo", "tsconfig.tsbuildinfo", "docs", "build", "dist", "coverage"]
+  const files = [
+    ".tsbuildinfo",
+    "tsconfig.tsbuildinfo",
+    "docs",
+    "build",
+    "dist",
+    "coverage",
+    "node_modules/.vite",
+    "node_modules/.vite-temp"
+  ]
 
   files.forEach((file) => {
     if (pkg === "." && file === "docs") {

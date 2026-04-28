@@ -1,0 +1,106 @@
+---
+title: Architecture
+description: The system design behind Purchase.
+---
+
+Purchase sits between payment providers and application-owned state.
+
+```text
+catalog DSL -> catalog runtime -> provider adapter -> workflow store -> customer projection -> app product logic
+```
+
+## Core idea
+
+Most billing integrations start as a provider SDK plus a few handlers. Over time, that usually creates drift:
+
+- provider event semantics leak into product code
+- each app re-implements lifecycle rules differently
+- replay, refunds, and entitlements become ad hoc state machines
+
+Purchase isolates that problem into one runtime layer.
+
+## The architectural boundary
+
+The key design choice is this:
+
+- providers are integration dependencies
+- the commercial model is application infrastructure
+
+Once you adopt that boundary, you start wanting:
+
+- stable commercial ids
+- durable local workflow state
+- provider-normalized events
+- customer projections
+- explicit replay paths
+
+Those are the concerns Purchase is built around.
+
+## Main subsystems
+
+### Catalog
+
+Defines stable commercial products, offers, and benefit payloads.
+
+### Provider adapters
+
+Translate provider-specific APIs and webhook payloads into normalized runtime operations.
+
+### Workflow runtime
+
+Executes checkout, subscription change, refund, portal, credit grant, and credit consume flows.
+
+### Projection runtime
+
+Builds current customer commercial state from durable workflow and provider data.
+
+### App boundary
+
+Your application still owns:
+
+- customer identity
+- product policy
+- schema choices
+- authorization decisions
+- how entitlements are consumed
+
+## Data flow
+
+<Mermaid chart={`
+sequenceDiagram
+  participant App
+  participant SDK as Purchase SDK
+  participant Provider
+  participant DB as App SQL DB
+
+App->>SDK: checkout.start / refund / credits.consume
+SDK->>DB: persist intent and workflow facts
+SDK->>Provider: call provider API
+Provider-->>App: webhook
+App->>SDK: webhooks.handle(body, signature)
+SDK->>DB: persist normalized events
+SDK->>DB: refresh projection
+App->>SDK: getSnapshot / getEntitlements
+SDK-->>App: normalized customer state
+`} />
+
+## Why not just call Stripe or Paddle directly
+
+Direct provider integration works at first. It usually stops being enough when:
+
+- you add a second provider
+- you need consistent refund or credit behavior
+- you need replay after an outage
+- you need the same commercial logic in multiple apps
+- you want product code to stop caring about provider event naming
+
+## Why Effect
+
+Effect is a strong fit for billing infrastructure because it makes dependencies and failures explicit:
+
+- provider clients are layered services
+- workflows stay testable
+- runtime edges remain composable
+- app teams can choose environment-specific wiring without rewriting business logic
+
+It also fits billing well because billing systems have partial-failure edges everywhere. Explicit dependencies and typed effects make those edges much easier to test and reason about.

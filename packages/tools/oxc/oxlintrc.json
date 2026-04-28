@@ -41,6 +41,7 @@
     "typescript/no-useless-empty-export": "error",
     // Code quality
     "eslint/no-console": "error",
+    "eslint/no-underscore-dangle": "off",
     "eslint/no-var": "error",
     "eslint/no-useless-constructor": "error",
     "unicorn/no-abusive-eslint-disable": "error",

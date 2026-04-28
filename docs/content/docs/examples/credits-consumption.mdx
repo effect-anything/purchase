@@ -1,0 +1,45 @@
+---
+title: Credits Consumption
+description: Spend prepaid credits from a real workspace action.
+---
+
+The example does not stop at selling credits. It also shows how the product consumes them.
+
+Relevant files:
+
+- [workspace client](</examples/nextjs/app/(authed)/workspace/workspace-client.tsx:1>)
+- [app runtime](/examples/nextjs/lib/app-runtime.ts:1)
+- [HTTP API schema](/examples/nextjs/lib/http-api.ts:1)
+- [HTTP API handler](/examples/nextjs/lib/http-api-handler.ts:1)
+
+## Workspace action
+
+The workspace triggers credit consumption through the browser API client:
+
+```ts
+const response = await client.credits.consume({
+  payload: {
+    amount: 25,
+    reason: "AI note summarization"
+  }
+})
+```
+
+The server then calls:
+
+```ts
+return (
+  yield *
+  sdk.credits.consume({
+    customerId: asCustomerId(input.user.id),
+    creditKey: "ai_credits",
+    amount: input.amount,
+    idempotencyKey: `${input.user.id}:${Date.now()}:${input.amount}`,
+    reason: input.reason
+  })
+)
+```
+
+## Why this matters
+
+Selling credits is easy to demo. Safely consuming them in real product actions is the harder part. This example shows the intended shape for that runtime boundary.

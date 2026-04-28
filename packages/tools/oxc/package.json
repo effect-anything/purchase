@@ -56,9 +56,5 @@
     "check": "tsgo -b tsconfig.json",
     "test": "vitest",
     "coverage": "vitest --coverage"
-  },
-  "devDependencies": {
-    "@types/node": "catalog:",
-    "vitest": "catalog:"
   }
 }

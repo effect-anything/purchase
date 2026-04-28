@@ -1,5 +1,6 @@
-import path from "node:path"
 import type { ViteUserConfig } from "vitest/config"
+
+import path from "node:path"
 
 const config: ViteUserConfig = {
   build: {
@@ -24,7 +25,7 @@ const config: ViteUserConfig = {
     sequence: {
       concurrent: true
     },
-    include: ["test/**/!(*.browser).test.{ts,tsx}"],
+    include: ["test/**/!(*.browser).test.{ts,tsx}", "e2e/**/!(*.browser).test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["html"],

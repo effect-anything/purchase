@@ -1,0 +1,50 @@
+---
+title: Installation
+description: Install the SDK and understand the runtime prerequisites.
+---
+
+## Packages
+
+Install the core SDK and Effect:
+
+```bash
+pnpm add @effect-x/purchase effect
+```
+
+In real applications you will usually also install:
+
+- a SQL client package for your runtime
+- a provider secret/config source
+- one provider integration path, usually Stripe or Paddle
+
+## Runtime assumptions
+
+Purchase is designed around a few assumptions:
+
+- your application owns a SQL database
+- your application can run Effect layers at process or request scope
+- your application will expose webhook handlers for the payment provider
+- your application will map app customers to commercial customers
+
+## Supported deployment targets
+
+The current architecture is being shaped to work well in:
+
+- Node services
+- Cloudflare-based systems
+
+The repository already contains a Cloudflare D1 HTTP client and Node-oriented SQL support. Broader deployment guides are being expanded in the docs as the runtime hardens.
+
+## Supported database direction
+
+The current codebase already includes first-class paths for:
+
+- SQLite
+- PostgreSQL
+- Cloudflare D1 over HTTP
+
+The broader platform direction for Purchase also includes:
+
+- MySQL
+
+Where support is still being finalized, document it as target architecture rather than guaranteed stable surface.

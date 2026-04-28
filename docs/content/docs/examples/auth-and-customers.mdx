@@ -1,0 +1,47 @@
+---
+title: Authentication and Customers
+description: Start with app authentication, then map signed-in users to Purchase customers.
+---
+
+Purchase does not replace application auth. The example begins with normal sign-in and sign-up pages, then maps authenticated users into billing customers.
+
+Relevant files:
+
+- [sign-in page](</examples/nextjs/app/(public)/sign-in/page.tsx:1>)
+- [sign-up page](</examples/nextjs/app/(public)/sign-up/page.tsx:1>)
+- [auth form](</examples/nextjs/app/(public)/sign-in/sign-in-form.tsx:1>)
+- [auth session helpers](/examples/nextjs/lib/auth-session.ts:1)
+
+## Auth flow
+
+The client form uses Better Auth:
+
+```ts
+const result =
+  props.mode === "sign-up"
+    ? await authClient.signUp.email({
+        email,
+        password,
+        name,
+        callbackURL: "/workspace"
+      })
+    : await authClient.signIn.email({
+        email,
+        password,
+        callbackURL: "/workspace"
+      })
+```
+
+## Session to customer mapping
+
+The key idea is that billing starts from app identity, not provider identity.
+
+The example converts the session into an app-owned customer shape with `sessionUser(...)`, then passes that user into Purchase runtime helpers.
+
+## Why this matters
+
+This keeps:
+
+- auth ownership in the app
+- customer ids stable across providers
+- commercial state aligned with the rest of product state
