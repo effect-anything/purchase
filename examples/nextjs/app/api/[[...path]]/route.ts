@@ -1,9 +1,9 @@
-import { handleNextApiRequest } from "@/lib/http-api-handler"
+import { handleApiRequest } from "@/runtime"
 
-export const GET = handleNextApiRequest
-export const POST = handleNextApiRequest
-export const PUT = handleNextApiRequest
-export const PATCH = handleNextApiRequest
-export const DELETE = handleNextApiRequest
-export const OPTIONS = handleNextApiRequest
-export const HEAD = handleNextApiRequest
+export const GET = handleApiRequest
+export const POST = handleApiRequest
+export const PUT = handleApiRequest
+export const PATCH = handleApiRequest
+export const DELETE = handleApiRequest
+export const OPTIONS = handleApiRequest
+export const HEAD = handleApiRequest

@@ -7,9 +7,6 @@ const config: ViteUserConfig = {
     target: "es2020"
   },
   resolve: { tsconfigPaths: true },
-  optimizeDeps: {
-    exclude: ["bun:sqlite"]
-  },
   plugins: [],
   server: {
     watch: {

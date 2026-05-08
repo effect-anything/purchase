@@ -1,6 +1,6 @@
 import { AuthForm } from "../sign-in/sign-in-form.tsx"
 
-export default function SignUpPage() {
+export default async function SignUpPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">

@@ -1,21 +1,21 @@
 import type { ReactNode } from "react"
 
-import { getSession } from "@/lib/auth-session"
+import { getSession } from "@/services/auth"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
 export default async function PublicLayout(props: { readonly children: ReactNode }) {
-  const session = await getSession()
+  // const session = await getSession()
 
-  if (session) {
-    redirect("/workspace")
-  }
+  // if (session) {
+  //   redirect("/workspace")
+  // }
 
   return (
     <>
       <header className="site-shell">
         <div className="site-nav">
-          <Link href="/" className="brand-mark">
+          <Link href="/" className="brand-mark" prefetch={false}>
             <span className="brand-icon">N</span>
             <span>
               <span className="brand-kicker">Effect Purchase</span>
@@ -23,15 +23,15 @@ export default async function PublicLayout(props: { readonly children: ReactNode
             </span>
           </Link>
           <nav className="nav-links" aria-label="Public">
-            <Link href="/pricing" className="nav-link">
+            <Link href="/pricing" className="nav-link" prefetch={false}>
               Pricing
             </Link>
           </nav>
           <div className="nav-actions">
-            <Link href="/sign-in" className="nav-action-link">
+            <Link href="/sign-in" className="nav-action-link" prefetch={false}>
               Sign in
             </Link>
-            <Link href="/sign-up" className="primary-button nav-primary-button">
+            <Link href="/sign-up" className="primary-button nav-primary-button" prefetch={false}>
               Sign up
             </Link>
           </div>

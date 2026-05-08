@@ -21,11 +21,36 @@
   "jsPlugins": ["@effect/oxc/oxlint"],
   "overrides": [
     {
-      "files": ["**/{test,tests,typetest,e2e,examples,benchmark,scripts,scratchpad}/**"],
+      "files": ["**/{test,tests,typetest,e2e,benchmark}/**", "scripts/**", "scratchpad/**"],
       "rules": {
         "effect/no-bigint-literals": "off",
         "eslint/no-console": "off",
         "effect/no-import-from-barrel-package": "off"
+      }
+    },
+    {
+      "files": ["docs/**/*.{ts,tsx,js,jsx}", "examples/**/*.{ts,tsx,js,jsx}"],
+      "rules": {
+        "effect/no-import-from-barrel-package": "off",
+        "nextjs/no-img-element": "warn",
+        "nextjs/no-html-link-for-pages": "warn",
+        "react/jsx-key": "error",
+        "react/no-children-prop": "warn",
+        "react/react-in-jsx-scope": "off",
+        "react/rules-of-hooks": "warn",
+        "react/exhaustive-deps": "warn",
+        "react/button-has-type": "warn"
+      }
+    },
+    {
+      "files": ["docs/**/{test,tests,e2e}/**", "examples/**/{test,tests,e2e}/**"],
+      "rules": {
+        "effect/no-bigint-literals": "off",
+        "eslint/no-console": "off",
+        "effect/no-import-from-barrel-package": "off",
+        "vitest/no-disabled-tests": "warn",
+        "vitest/no-focused-tests": "error",
+        "vitest/valid-expect": "error"
       }
     },
     {

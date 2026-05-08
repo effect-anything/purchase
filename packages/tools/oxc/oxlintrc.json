@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "import", "oxc", "eslint", "unicorn", "node"],
+  "plugins": ["typescript", "import", "oxc", "eslint", "unicorn", "node", "react", "nextjs", "vitest"],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -54,7 +54,13 @@
     "oxc/no-map-spread": "off",
     "eslint/object-shorthand": "off",
     "eslint/no-shadow": "off",
-    "eslint/no-unused-vars": "off",
+    "eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
     "eslint/require-yield": "off",
     "eslint/no-fallthrough": "off",
     "eslint/no-await-in-loop": "off",
@@ -81,13 +87,6 @@
       {
         "default": "generic",
         "readonly": "generic"
-      }
-    ],
-    "typescript/no-unused-vars": [
-      "error",
-      {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_"
       }
     ]
   }

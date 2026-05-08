@@ -8,6 +8,5 @@
 export * from "./db.ts"
 export * from "./dsl.ts"
 export * from "./errors.ts"
-export * from "./provider.ts"
 export * from "./schema.ts"
 export * from "./sdk.ts"

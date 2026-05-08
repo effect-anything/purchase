@@ -8,21 +8,25 @@
     "deploy": "vinext deploy",
     "start": "vinext start",
     "check": "tsgo --noEmit",
+    "test": "vitest",
     "cf-typegen": "wrangler types worker-configuration.d.ts",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "devDependencies": {
-    "@better-auth/kysely-adapter": "^1.6.9",
+    "@better-auth/core": "^1.6.9",
     "@cloudflare/vite-plugin": "^1.36.3",
+    "@cloudflare/vitest-pool-workers": "^0.16.3",
     "@cloudflare/workers-types": "^4.20260508.1",
     "@effect-x/db": "0.0.1",
     "@effect-x/purchase": "workspace:^",
     "@effect/experimental": "^0.60.0",
-    "@effect/sql": "^0.51.1",
-    "@effect/sql-d1": "^0.49.0",
     "@effect/platform": "^0.96.1",
     "@effect/platform-browser": "^0.76.0",
+    "@effect/platform-node": "^0.106.0",
+    "@effect/sql": "^0.51.1",
+    "@effect/sql-d1": "^0.49.0",
+    "@effect/vitest": "^0.29.0",
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -30,12 +34,11 @@
     "@vitejs/plugin-rsc": "^0.5.26",
     "better-auth": "1.6.9",
     "effect": "^3.21.0",
-    "kysely": "^0.28.14",
-    "kysely-d1": "^0.4.0",
     "next": "^16.2.6",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tailwindcss": "^4.2.4",
-    "vinext": "^0.0.49"
+    "vinext": "^0.0.49",
+    "vitest": "catalog:"
   }
 }

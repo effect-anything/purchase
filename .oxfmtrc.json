@@ -7,7 +7,7 @@
   "trailingComma": "none",
   "arrowParens": "always",
   "endOfLine": "lf",
-  "experimentalSortPackageJson": false,
+  "sortPackageJson": false,
   "sortImports": {
     "groups": [
       "type-import",

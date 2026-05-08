@@ -3,13 +3,7 @@ import madge from "madge"
 
 madge(
   glob.globSync(
-    [
-      "packages/*/src/**/*.ts",
-      "docs/**/*.ts",
-      "docs/**/*.tsx",
-      "examples/nextjs/**/*.ts",
-      "examples/nextjs/**/*.tsx"
-    ],
+    ["packages/*/src/**/*.ts", "docs/**/*.ts", "docs/**/*.tsx", "examples/nextjs/**/*.ts", "examples/nextjs/**/*.tsx"],
     {
       ignore: ["docs/.source"]
     }

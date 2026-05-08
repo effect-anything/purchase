@@ -5,7 +5,7 @@ import defaultMdxComponents from "fumadocs-ui/mdx"
 
 const fumadocsMdxComponents = defaultMdxComponents as unknown as MDXComponents
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
+export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...fumadocsMdxComponents,
     Mermaid,

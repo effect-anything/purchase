@@ -1,6 +1,6 @@
 "use client"
 
-import { authClient } from "@/lib/auth-client"
+import { authClient } from "@/services/auth/auth-client"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 

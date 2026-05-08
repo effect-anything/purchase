@@ -18,7 +18,6 @@ import {
   paddleProductFixture,
   paddleSubscriptionFixture,
   paddleTransactionFixture,
-  paddleWebhookPayload,
   paddleWebhookSecret
 } from "../fixtures/paddle.ts"
 import {
@@ -504,7 +503,7 @@ const fakeStripeClient = {
             })
           ),
     previewChange: ({
-      subscriptionId,
+      subscriptionId: _subscriptionId,
       priceId,
       quantity
     }: {
@@ -532,7 +531,7 @@ const fakeStripeClient = {
       })
     },
     previewCharge: ({
-      subscriptionId,
+      subscriptionId: _subscriptionId,
       priceId,
       quantity
     }: {

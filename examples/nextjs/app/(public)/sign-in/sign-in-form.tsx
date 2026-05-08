@@ -1,6 +1,6 @@
 "use client"
 
-import { authClient } from "@/lib/auth-client"
+import { authClient } from "@/services/auth/auth-client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
@@ -58,7 +58,7 @@ export function AuthForm(props: { readonly mode: "sign-in" | "sign-up" }) {
       </button>
       <p className="muted-copy">
         {props.mode === "sign-up" ? "Already have an account?" : "Need an account?"}{" "}
-        <Link href={props.mode === "sign-up" ? "/sign-in" : "/sign-up"} className="text-link">
+        <Link href={props.mode === "sign-up" ? "/sign-in" : "/sign-up"} className="text-link" prefetch={false}>
           {props.mode === "sign-up" ? "Sign in" : "Sign up"}
         </Link>
       </p>

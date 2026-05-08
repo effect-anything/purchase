@@ -1,6 +1,6 @@
 "use client"
 
-import { makeBrowserHttpApiClient } from "@/lib/http-api-client-browser"
+import { makeBrowserHttpApiClient } from "@/services/api/http-api-client-browser"
 import { useState } from "react"
 
 export function WorkspaceClient() {

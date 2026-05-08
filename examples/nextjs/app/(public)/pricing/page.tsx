@@ -1,8 +1,13 @@
 import type { CommercialCatalog } from "@effect-x/purchase/schema"
 
-import { getSession } from "@/lib/auth-session"
-import { flattenCatalogOffers, formatBenefitLabel, formatBenefitValue, formatOfferPrice } from "@/lib/catalog-view"
-import { makeServerHttpApiClient } from "@/lib/http-api-client"
+import { makeServerHttpApiClient } from "@/services/api/http-api-client"
+import { getSession } from "@/services/auth"
+import {
+  flattenCatalogOffers,
+  formatBenefitLabel,
+  formatBenefitValue,
+  formatOfferPrice
+} from "@/services/catalog/catalog-view"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 

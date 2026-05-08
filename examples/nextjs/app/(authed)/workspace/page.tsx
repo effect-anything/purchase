@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/auth-session"
+import { getSessionOrThrow } from "@/services/auth"
 
 import { WorkspaceClient } from "./workspace-client.tsx"
 
@@ -27,7 +27,7 @@ const notes = [
 ] as const
 
 export default async function WorkspacePage() {
-  const session = await requireSession()
+  const session = await getSessionOrThrow()
 
   return (
     <main className="app-page workspace-app-page">

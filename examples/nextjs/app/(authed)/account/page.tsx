@@ -1,11 +1,14 @@
-import { requireSession } from "@/lib/auth-session"
-import { flattenCatalogOffers, formatBenefitLabel, formatBenefitValue, formatOfferPrice } from "@/lib/catalog-view"
-import { makeServerHttpApiClient } from "@/lib/http-api-client"
+import { makeServerHttpApiClient } from "@/services/api/http-api-client"
+import {
+  flattenCatalogOffers,
+  formatBenefitLabel,
+  formatBenefitValue,
+  formatOfferPrice
+} from "@/services/catalog/catalog-view"
 
 import { AccountCheckoutButton, AccountPlaceholderButton } from "./account-actions.tsx"
 
 export default async function AccountPage() {
-  await requireSession()
   const client = await makeServerHttpApiClient()
   const [catalogResponse, account] = await Promise.all([client.catalog.get(), client.account.get()])
   const catalog = flattenCatalogOffers(catalogResponse.catalog.products)
@@ -82,7 +85,7 @@ export default async function AccountPage() {
               </p>
             </div>
             <div className="credit-pack-list">
-              {lifetimeOffers.map(({ product, offer }) => {
+              {lifetimeOffers.map(({ offer }) => {
                 const active = activeOfferIds.has(offer.id)
                 return (
                   <div key={offer.id} className={`credit-pack-row${active ? " credit-pack-row-active" : ""}`}>
@@ -276,10 +279,9 @@ function AccountPlanCard(props: {
       <strong>{formatOfferPrice(props.offer)}</strong>
       <p className="offer-copy">{props.product.description ?? ""}</p>
       <div className="inline-action-block inline-action-block-compact">
-        <AccountPlaceholderButton
-          children={props.active ? "Manage" : "Select"}
-          message="Pricing interactions stay in the account page."
-        />
+        <AccountPlaceholderButton message="Pricing interactions stay in the account page.">
+          {props.active ? "Manage" : "Select"}
+        </AccountPlaceholderButton>
       </div>
     </article>
   )

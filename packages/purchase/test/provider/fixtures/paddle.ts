@@ -16,8 +16,6 @@ const decodePrice = Schema.decodeSync(PaddlePrice)
 const decodeCustomer = Schema.decodeSync(PaddleCustomer)
 const decodeSubscription = Schema.decodeSync(PaddleSubscription)
 const decodeTransaction = Schema.decodeSync(PaddleTransaction)
-const encodeProduct = Schema.encodeSync(PaddleProduct)
-const encodePrice = Schema.encodeSync(PaddlePrice)
 const encodeTransaction = Schema.encodeSync(PaddleTransaction)
 
 const now = new Date("2025-01-01T00:00:00.000Z")

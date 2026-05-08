@@ -4,11 +4,17 @@
   "compatibility_date": "2026-05-07",
   "compatibility_flags": ["nodejs_compat"],
   "main": "./worker/index.ts",
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "purchase-nextjs-demo",
-      "database_id": "local-purchase-nextjs-demo"
+      "database_id": "38d983aa-fc90-42cb-a8fd-7db7ca376e72"
     }
   ],
   "assets": {

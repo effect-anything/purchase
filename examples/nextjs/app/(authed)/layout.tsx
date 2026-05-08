@@ -2,11 +2,11 @@ import type { ReactNode } from "react"
 
 import { NavAccount } from "@/components/nav-account"
 import { SignOutButton } from "@/components/sign-out-button"
-import { requireSession } from "@/lib/auth-session"
+import { getSessionOrThrow } from "@/services/auth"
 import Link from "next/link"
 
 export default async function AuthedLayout(props: { readonly children: ReactNode }) {
-  const session = await requireSession()
+  const session = await getSessionOrThrow()
 
   return (
     <>

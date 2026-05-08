@@ -1,18 +1,9 @@
 import { Paddle } from "@effect-x/purchase/paddle"
 import { BaseSDK } from "@effect-x/purchase/sdk"
 import { Stripe } from "@effect-x/purchase/stripe"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
+import { Effect, Layer } from "effect"
 
 import { CommercialPlans, CommercialProducts } from "./catalog.ts"
-
-export type PurchaseRuntimeEnvironment = "sandbox" | "production"
-
-export const PurchaseRuntimeConfig = {
-  provider: "stripe" as const,
-  environment: "sandbox" as PurchaseRuntimeEnvironment,
-  baseUrl: "http://localhost:3000"
-} as const
 
 // This file is the example project's pay runtime wiring.
 // In repo discussions this is the closest equivalent to a "pay-kit.ts" setup file:

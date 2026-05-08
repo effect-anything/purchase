@@ -1,6 +1,7 @@
+import { getSession } from "@/services/auth"
 import Link from "next/link"
 
-export default function HomePage() {
+export default async function HomePage() {
   return (
     <main className="landing-page marketing-page">
       <section className="marketing-hero">
