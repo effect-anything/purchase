@@ -2,9 +2,18 @@ import * as glob from "glob"
 import madge from "madge"
 
 madge(
-  glob.globSync(["packages/*/src/**/*.ts"], {
-    ignore: []
-  }),
+  glob.globSync(
+    [
+      "packages/*/src/**/*.ts",
+      "docs/**/*.ts",
+      "docs/**/*.tsx",
+      "examples/nextjs/**/*.ts",
+      "examples/nextjs/**/*.tsx"
+    ],
+    {
+      ignore: ["docs/.source"]
+    }
+  ),
   {
     detectiveOptions: {
       ts: {
