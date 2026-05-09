@@ -171,6 +171,7 @@ export interface CreateTransactionParams {
   readonly enableCheckout?: boolean | undefined
   readonly purchaseOrderNumber?: string | undefined
   readonly additionalInformation?: string | undefined
+  readonly checkoutUrl?: string | undefined
 }
 
 export interface RefundTransactionParams {
@@ -418,6 +419,7 @@ export interface PaymentClient {
       providerCustomerId: CustomerProviderId
       successUrl?: string | undefined
       cancelUrl?: string | undefined
+      checkoutUrl?: string | undefined
       metadata?: Record<string, string> | undefined
     }) => Effect.Effect<CheckoutSession, any, never>
   }

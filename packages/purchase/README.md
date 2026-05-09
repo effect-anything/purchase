@@ -10,6 +10,39 @@ It is designed for teams that run multiple products and want one commercial runt
 
 The SDK currently targets Stripe and Paddle and exposes a catalog-driven runtime for checkout, webhook ingestion, replay, customer snapshots, entitlements, credits, refunds, and portal sessions.
 
+## Public Imports
+
+Use the root package import as the stable application entrypoint. The preferred
+runtime helpers are `PurchaseSDK` and `PurchaseProvider`; compatibility aliases
+for `BaseSDK` and `PayProvider` remain available.
+
+```ts
+import {
+  CustomerId,
+  Paddle,
+  PurchaseProvider,
+  PurchaseSDK,
+  Stripe,
+  featureFlag,
+  plan,
+  subscriptionProduct
+} from "@effect-x/purchase"
+```
+
+The intentionally supported narrow subpaths for this release are:
+
+- `@effect-x/purchase/db` for storage adapter and override types
+- `@effect-x/purchase/dsl` for catalog DSL helpers
+- `@effect-x/purchase/errors` for legacy provider/runtime error classes
+- `@effect-x/purchase/paddle` for the Paddle provider layer
+- `@effect-x/purchase/provider` for provider tags, config, and selection helpers
+- `@effect-x/purchase/schema` for public schema classes and workflow types
+- `@effect-x/purchase/sdk` for the purchase SDK runtime types and helpers
+- `@effect-x/purchase/stripe` for the Stripe provider layer
+- `@effect-x/purchase/tables` for package-owned storage table models
+
+Internal implementation paths and implicit wildcard subpaths are not part of the consumer contract.
+
 ## Testing Strategy
 
 `purchase` uses a layered payment testing model:
@@ -38,16 +71,16 @@ Shared provider-live utilities live under [test/support/provider-live-harness.ts
 
 ## Quick Start
 
-Install the package and one provider integration:
+Install the package alongside Effect:
 
 ```bash
 pnpm add @effect-x/purchase effect
 ```
 
-Define a catalog:
+Define a catalog and bind it to an app-local SDK class from the root package entrypoint:
 
 ```ts
-import { BaseSDK, featureFlag, plan, subscriptionProduct } from "@effect-x/purchase"
+import { PurchaseSDK, featureFlag, plan, subscriptionProduct } from "@effect-x/purchase"
 
 const premium = featureFlag({ id: "premium_access" })
 
@@ -77,21 +110,45 @@ const products = [
   })
 ] as const
 
-export class Pay extends BaseSDK<Pay, Record<string, never>, typeof plans, typeof products>({
+export class Pay extends PurchaseSDK<Pay, Record<string, never>, typeof plans, typeof products>({
   plans,
   products
 }) {}
 ```
 
-Wire one provider layer at runtime:
+Wire exactly one configured provider layer at your app runtime boundary. Keep
+sandbox/test-mode credentials in runtime configuration rather than in the SDK
+class so the same catalog can be reused across environments:
 
 ```ts
-import { Paddle, Stripe } from "@effect-x/purchase"
-import * as Layer from "effect/Layer"
+import { Paddle, PurchaseProvider, Stripe } from "@effect-x/purchase"
+import { Layer, Redacted } from "effect"
 
-export const StripePayLayer = Pay.layer(Pay).pipe(Layer.provide(Stripe.layer))
-export const PaddlePayLayer = Pay.layer(Pay).pipe(Layer.provide(Paddle.layer))
+const providerLayer = PurchaseProvider.fromTags({
+  paddle: Paddle.layerConfig({
+    apiToken: Redacted.make(process.env.PADDLE_API_TOKEN ?? ""),
+    webhookToken: Redacted.make(process.env.PADDLE_WEBHOOK_TOKEN ?? ""),
+    environment: "sandbox"
+  }),
+  stripe: Stripe.layerConfig({
+    apiToken: Redacted.make(process.env.STRIPE_API_KEY ?? ""),
+    webhookToken: Redacted.make(process.env.STRIPE_WEBHOOK_SECRET ?? ""),
+    environment: "sandbox"
+  })
+})
+
+export const PayLayer = Pay.layer(Pay).pipe(Layer.provide(providerLayer))
 ```
+
+For Stripe runtime wiring, swap in `PurchaseProvider.fromTags({ paddle: Paddle.layer, stripe: Stripe.layer })`
+or `PurchaseProvider.FromTags({ paddle: Paddle.layer, stripe: Stripe.layer })`.
+
+The Next.js example follows this same path in
+[`examples/nextjs/purchase.ts`](../../examples/nextjs/purchase.ts) and
+[`examples/nextjs/context.ts`](../../examples/nextjs/context.ts): the catalog is
+bound once, then the app runtime supplies a Paddle sandbox provider layer. Use
+`Stripe.layerConfig(...)` with `environment: "sandbox"` for Stripe test-mode
+experiments.
 
 Then call the shared workflow API:
 
@@ -101,6 +158,14 @@ const checkout = Pay.checkout.start({
   offerId: "app:pro_monthly"
 })
 ```
+
+## Catalog Sync Safety
+
+`catalog.sync({ dryRun: true })` builds the same sync plan used by the write path, but it must not create provider products or prices, write local product rows, persist provider refs, or archive provider objects.
+
+A normal `catalog.sync()` may create missing provider objects for SDK-owned catalog entries, persist local offer rows, and store provider refs for later reuse. Provider ids declared directly in the catalog DSL are treated as externally owned; SDK-created ids are marked as SDK-owned in local provider metadata.
+
+Removal and replacement are intentionally ownership-aware. SDK-owned stale prices or products are archive candidates and are archived only when the provider supports the archive operation; external or unknown provider ids are not destructively archived and stale local rows are marked locally with a provider archive timestamp instead.
 
 ## Current Status
 

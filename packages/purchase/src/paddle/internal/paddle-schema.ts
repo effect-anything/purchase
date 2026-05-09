@@ -130,10 +130,6 @@ const TaxRatesUsed = Schema.Struct({
   totals: UnitTotals
 })
 
-export const PaddleProductCustomData = Schema.Struct({
-  projectId: Schema.String
-})
-
 export class PaddleProduct extends Schema.Class<PaddleProduct>("PaddleProduct")({
   id: Schema.String,
   name: Schema.String,
@@ -141,7 +137,7 @@ export class PaddleProduct extends Schema.Class<PaddleProduct>("PaddleProduct")(
   type: PaddleProductType,
   description: Schema.String,
   image_url: Schema.String.pipe(Schema.optionalWith({ exact: true, nullable: true })),
-  custom_data: PaddleProductCustomData,
+  custom_data: CustomData,
   status: PaddleObjectStatus,
   import_meta: CustomData,
   created_at: Schema.Date,
@@ -199,10 +195,6 @@ const PaymentAttempt = Schema.Struct({
   captured_at: Schema.optionalWith(Schema.Date, { exact: true, nullable: true })
 })
 
-export const PaddlePriceCustomData = Schema.Struct({
-  projectId: Schema.String
-})
-
 export class PaddlePrice extends Schema.Class<PaddlePrice>("PaddlePrice")({
   id: Schema.String,
   product_id: Schema.String,
@@ -222,7 +214,7 @@ export class PaddlePrice extends Schema.Class<PaddlePrice>("PaddlePrice")({
       unit_price: UnitPrice
     })
   ),
-  custom_data: PaddlePriceCustomData.pipe(Schema.optionalWith({ exact: true, nullable: true })),
+  custom_data: CustomData,
   status: PaddleObjectStatus,
   quantity: Quantity,
   import_meta: CustomData,

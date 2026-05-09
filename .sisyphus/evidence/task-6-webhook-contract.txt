@@ -1,0 +1,13 @@
+
+> @effect-x/purchase@0.0.1 test /Users/kee/Workspace/github.com/effect-anything/purchase/packages/purchase
+> vitest e2e/webhook-workflow.test.ts
+
+
+ RUN  v4.1.5 /Users/kee/Workspace/github.com/effect-anything/purchase/packages/purchase
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:23:31
+   Duration  731ms (transform 199ms, setup 84ms, import 452ms, tests 115ms, environment 0ms)
+

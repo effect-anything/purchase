@@ -612,6 +612,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         .create({
           customerId: args.providerCustomerId,
           priceId: args.providerOfferId,
+          checkoutUrl: args.checkoutUrl,
           customData: metadata
         })
         .pipe(Effect.orDie)

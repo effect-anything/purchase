@@ -1,0 +1,13 @@
+
+> @effect-x/purchase@0.0.1 test /Users/kee/Workspace/github.com/effect-anything/purchase/packages/purchase
+> vitest public-api.test.ts
+
+
+ RUN  v4.1.5 /Users/kee/Workspace/github.com/effect-anything/purchase/packages/purchase
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  17:10:50
+   Duration  758ms (transform 218ms, setup 109ms, import 553ms, tests 3ms, environment 0ms)
+

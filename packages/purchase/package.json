@@ -34,7 +34,15 @@
   "exports": {
     "./package.json": "./package.json",
     ".": "./src/public.ts",
-    "./*": "./src/*.ts",
+    "./db": "./src/db.ts",
+    "./dsl": "./src/dsl.ts",
+    "./errors": "./src/errors.ts",
+    "./paddle": "./src/paddle.ts",
+    "./provider": "./src/provider.ts",
+    "./schema": "./src/schema.ts",
+    "./sdk": "./src/sdk.ts",
+    "./stripe": "./src/stripe.ts",
+    "./tables": "./src/tables.ts",
     "./internal/*": null,
     "./*/index": null
   },
@@ -43,7 +51,15 @@
     "exports": {
       "./package.json": "./package.json",
       ".": "./dist/public.js",
-      "./*": "./dist/*.js",
+      "./db": "./dist/db.js",
+      "./dsl": "./dist/dsl.js",
+      "./errors": "./dist/errors.js",
+      "./paddle": "./dist/paddle.js",
+      "./provider": "./dist/provider.js",
+      "./schema": "./dist/schema.js",
+      "./sdk": "./dist/sdk.js",
+      "./stripe": "./dist/stripe.js",
+      "./tables": "./dist/tables.js",
       "./internal/*": null,
       "./*/index": null
     },

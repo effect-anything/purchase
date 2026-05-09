@@ -180,7 +180,7 @@ export const setupPayTables = Effect.gen(function* () {
     concurrency: 1,
     discard: true
   })
-  yield* Effect.forEach(payTables.toReversed(), (table) => sql.unsafe(`DELETE FROM ${table}`).withoutTransform, {
+  yield* Effect.forEach([...payTables].reverse(), (table) => sql.unsafe(`DELETE FROM ${table}`).withoutTransform, {
     concurrency: 1,
     discard: true
   })

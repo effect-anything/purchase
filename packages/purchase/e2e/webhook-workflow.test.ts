@@ -5,6 +5,7 @@ import * as Either from "effect/Either"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import {
   countCoreRows,
+  countRows,
   insertTestCustomer,
   parseJsonColumn,
   queryAll,
@@ -67,17 +68,27 @@ describe("core webhook workflow", () => {
         expect(result.providerEventId).toBe("evt_test_checkout_completed")
         expect(result.normalizedEvents).toHaveLength(1)
         expect(result.reconciliationTriggers.map((trigger) => trigger.reason)).toContain("checkout_completed")
+        expect(result.reconciliationTriggers).toContainEqual(
+          expect.objectContaining({
+            reason: "checkout_completed",
+            customerId: "customer_123",
+            offerId: testOfferIds.proMonthly,
+            sourceEventId: "stripe:evt_test_checkout_completed"
+          })
+        )
 
         const receipt = yield* queryOne<{
           readonly provider_event_id: string
           readonly status: string
-        }>("SELECT provider_event_id, status FROM paykit_webhook_event WHERE provider_event_id = ?", [
+          readonly processed_at: string | null
+        }>("SELECT provider_event_id, status, processed_at FROM paykit_webhook_event WHERE provider_event_id = ?", [
           "evt_test_checkout_completed"
         ])
         expect(receipt).toMatchObject({
           provider_event_id: "evt_test_checkout_completed",
           status: "processed"
         })
+        expect(receipt?.processed_at).toBeTruthy()
 
         const event = yield* queryOne<{
           readonly id: string
@@ -114,6 +125,10 @@ describe("core webhook workflow", () => {
           [testCustomerId, "premium_access"]
         )
         expect(entitlement?.feature_id).toBe("premium_access")
+        expect(yield* countRows("paykit_webhook_event")).toBe(1)
+        expect(yield* countRows("paykit_commercial_event")).toBe(1)
+        expect(yield* countRows("paykit_subscription")).toBe(1)
+        expect(yield* countRows("paykit_entitlement")).toBeGreaterThan(0)
       }),
       payment.layer
     )
@@ -125,11 +140,15 @@ describe("core webhook workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* prepareCheckoutWebhook
-        yield* sdk.webhooks.handle({
+        const first = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_checkout_completed" }),
           signature: "test_signature"
         })
+        expect(first.accepted).toBe(true)
+        expect(first.normalizedEvents).toHaveLength(1)
+        expect(first.reconciliationTriggers.map((trigger) => trigger.reason)).toContain("checkout_completed")
+
         const before = yield* countCoreRows
 
         const second = yield* sdk.webhooks.handle({
@@ -139,10 +158,19 @@ describe("core webhook workflow", () => {
         })
         const after = yield* countCoreRows
 
-        expect(second.accepted).toBe(false)
-        expect(second.normalizedEvents).toHaveLength(0)
-        expect(second.reconciliationTriggers).toHaveLength(0)
+        expect(second).toMatchObject({
+          workflow: "webhook.receive",
+          eventId: "stripe:evt_test_checkout_completed",
+          providerEventId: "evt_test_checkout_completed",
+          accepted: false,
+          normalizedEvents: [],
+          reconciliationTriggers: []
+        })
         expect(after).toEqual(before)
+        expect(yield* countRows("paykit_webhook_event")).toBe(1)
+        expect(yield* countRows("paykit_commercial_event")).toBe(1)
+        expect(yield* countRows("paykit_subscription")).toBe(1)
+        expect(yield* countRows("paykit_entitlement")).toBeGreaterThan(0)
       }),
       payment.layer
     )
@@ -209,9 +237,29 @@ describe("core webhook workflow", () => {
         const after = yield* countCoreRows
 
         expect(replay.accepted).toBe(false)
+        expect(replay.providerEventId).toBe("evt_test_checkout_completed")
         expect(replay.normalizedEvents).toHaveLength(1)
-        expect(replay.normalizedEvents[0]?.id).toBe("stripe:evt_test_checkout_completed")
+        expect(replay.normalizedEvents[0]).toMatchObject({
+          id: "stripe:evt_test_checkout_completed",
+          provider: "stripe",
+          providerEventId: "evt_test_checkout_completed",
+          kind: "checkout_completed",
+          customerId: "customer_123",
+          offerId: testOfferIds.proMonthly
+        })
+        expect(replay.reconciliationTriggers).toContainEqual(
+          expect.objectContaining({
+            reason: "checkout_completed",
+            customerId: "customer_123",
+            offerId: testOfferIds.proMonthly,
+            sourceEventId: "stripe:evt_test_checkout_completed"
+          })
+        )
         expect(after).toEqual(before)
+        expect(yield* countRows("paykit_webhook_event")).toBe(1)
+        expect(yield* countRows("paykit_commercial_event")).toBe(1)
+        expect(yield* countRows("paykit_subscription")).toBe(1)
+        expect(yield* countRows("paykit_entitlement")).toBeGreaterThan(0)
       }),
       payment.layer
     )

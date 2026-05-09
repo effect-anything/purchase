@@ -1,0 +1,17 @@
+
+> @ check /Users/kee/Workspace/github.com/effect-anything/purchase
+> tsgo -b tsconfig.json
+
+
+> @effect-x/purchase@0.0.1 test /Users/kee/Workspace/github.com/effect-anything/purchase/packages/purchase
+> vitest test/cloudflare-d1-http-client.test.ts
+
+
+ RUN  v4.1.5 /Users/kee/Workspace/github.com/effect-anything/purchase/packages/purchase
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  17:25:29
+   Duration  409ms (transform 29ms, setup 87ms, import 211ms, tests 25ms, environment 0ms)
+

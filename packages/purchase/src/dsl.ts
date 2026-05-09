@@ -25,6 +25,7 @@ const PlanPriceInput = Schema.Struct({
   interval: BillingInterval
 })
 
+/** Provider ids declared in the DSL are treated as externally owned during catalog sync. */
 const ProviderMappingInput = Schema.Record({ key: Schema.String, value: Schema.String })
 
 const QuotaFeatureConfigInput = Schema.Struct({

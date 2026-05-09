@@ -207,7 +207,6 @@ const makeAdapter = (
       const insert = buildInsertClause(data)
       const returning = buildSelectClause(select, getFieldName, model)
       const rows = await runAll<SqlRow>(
-        sql,
         insert.isEmpty
           ? `INSERT INTO ${quoteIdentifier(model)} DEFAULT VALUES RETURNING ${returning}`
           : `INSERT INTO ${quoteIdentifier(model)} (${insert.columns}) VALUES (${insert.placeholders}) RETURNING ${returning}`,
@@ -278,7 +277,7 @@ const makeAdapter = (
       },
       async delete({ model, where }) {
         const whereClause = buildWhereClause(where)
-        await runAll(sql, `DELETE FROM ${quoteIdentifier(model)}${whereClause.sql}`, whereClause.params)
+        await runAll(`DELETE FROM ${quoteIdentifier(model)}${whereClause.sql}`, whereClause.params)
       },
       async deleteMany({ model, where }) {
         const whereClause = buildWhereClause(where)

@@ -8,6 +8,11 @@ export class ProviderNotConfigured extends Schema.TaggedError<ProviderNotConfigu
   message: Schema.String
 }) {}
 
+export class CreditsConflict extends Schema.TaggedError<CreditsConflict>()("CreditsConflict", {
+  workflow: Schema.String,
+  message: Schema.String
+}) {}
+
 export class MissingOfferId extends Schema.TaggedError<MissingOfferId>()("MissingOfferId", {
   message: Schema.String
 }) {}

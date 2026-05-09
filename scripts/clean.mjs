@@ -9,7 +9,6 @@ const collectDirectories = (directory) =>
 
 const dirs = [
   ".",
-  ...collectDirectories("docs"),
   ...collectDirectories("examples"),
   ...collectDirectories("packages"),
   ...collectDirectories("packages/tools")
@@ -18,7 +17,6 @@ dirs.forEach((pkg) => {
   const files = [
     ".tsbuildinfo",
     "tsconfig.tsbuildinfo",
-    "docs",
     "build",
     "dist",
     "coverage",
@@ -27,14 +25,10 @@ dirs.forEach((pkg) => {
   ]
 
   files.forEach((file) => {
-    if (pkg === "." && file === "docs") {
+    if (pkg === ".") {
       return
     }
 
     Fs.rmSync(`${pkg}/${file}`, { recursive: true, force: true }, () => {})
   })
-})
-
-collectDirectories("docs").forEach((dir) => {
-  Fs.rmSync(dir, { recursive: true, force: true }, () => {})
 })

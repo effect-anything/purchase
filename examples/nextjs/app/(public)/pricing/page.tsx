@@ -1,13 +1,13 @@
 import type { CommercialCatalog } from "@effect-x/purchase/schema"
 
-import { makeServerHttpApiClient } from "@/services/api/http-api-client"
 import { getSession } from "@/services/auth"
+import { loadCommercialCatalog } from "@/services/catalog/app-runtime"
 import {
   flattenCatalogOffers,
   formatBenefitLabel,
   formatBenefitValue,
   formatOfferPrice
-} from "@/services/catalog/catalog-view"
+} from "@/services/catalog/catalog-ui"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 
@@ -17,9 +17,8 @@ export default async function PricingPage() {
     redirect("/workspace")
   }
 
-  const client = await makeServerHttpApiClient()
-  const catalogPayload = await client.catalog.get()
-  const offers = flattenCatalogOffers(catalogPayload.catalog.products)
+  const catalog = await loadCommercialCatalog()
+  const offers = flattenCatalogOffers(catalog.products)
   const subscriptionOffers = offers.filter((entry) => entry.offer.type === "subscription")
   const free = subscriptionOffers.find((entry) => entry.offer.isDefault || entry.offer.priceAmount === undefined)
   const monthly = subscriptionOffers.find((entry) => entry.offer.billingInterval === "month")

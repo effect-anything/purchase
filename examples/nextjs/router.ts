@@ -1,55 +1,116 @@
-import { HttpApiScalar, HttpLayerRouter, HttpMiddleware, HttpServer, HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
+import type { PaymentProviderTag } from "@effect-x/purchase"
+
+import {
+  HttpApiScalar,
+  HttpLayerRouter,
+  HttpMiddleware,
+  HttpRouter,
+  HttpServer,
+  HttpServerRequest,
+  HttpServerResponse
+} from "@effect/platform"
+import { Effect, Layer, Stream } from "effect"
 
 import { AccountHttpApiLive } from "./services/account/http.ts"
 import { AppApi } from "./services/api/http-api.ts"
+import { AuthService } from "./services/auth/auth-service.ts"
 import { AuthHttpLive } from "./services/auth/http.ts"
+import { CatalogService } from "./services/catalog/catalog-service.ts"
 import { CatalogHttpLive } from "./services/catalog/http.ts"
 import { CheckoutHttpLive } from "./services/checkout/http.ts"
 import { CreditsHttpLive } from "./services/credits/http.ts"
+import { WebhookService } from "./services/webhooks/webhook-service.ts"
+
+const isPaymentProvider = (provider: string | undefined): provider is PaymentProviderTag =>
+  provider === "paddle" || provider === "stripe"
 
 const SimpleRoute = Layer.scopedDiscard(
   Effect.gen(function* () {
     const router = yield* HttpLayerRouter.HttpRouter
-    // const auth = yield* Auth
+    const auth = yield* AuthService
 
     yield* router.add("GET", "/api/health", HttpServerResponse.text("ok"))
+
+    yield* router.add(
+      "POST",
+      "/api/catalog/sync",
+      Effect.gen(function* () {
+        const catalog = yield* CatalogService
+        yield* catalog.sync()
+        return HttpServerResponse.unsafeJson({ synced: true })
+      }).pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logError(cause).pipe(
+            Effect.as(HttpServerResponse.unsafeJson({ error: "Catalog sync failed" }, { status: 500 }))
+          )
+        )
+      )
+    )
+
+    yield* router.add(
+      "POST",
+      "/api/webhooks/:provider",
+      Effect.gen(function* () {
+        const params = yield* HttpRouter.params
+        const provider = params.provider
+
+        if (!isPaymentProvider(provider)) {
+          return HttpServerResponse.unsafeJson({ error: "Unsupported webhook provider" }, { status: 404 })
+        }
+
+        const req = yield* HttpServerRequest.HttpServerRequest
+        const signature = req.headers["paddle-signature"] ?? req.headers["stripe-signature"]
+
+        if (!signature) {
+          return HttpServerResponse.unsafeJson({ error: "Missing webhook signature" }, { status: 400 })
+        }
+
+        const body = yield* req.text
+        const webhooks = yield* WebhookService
+        const result = yield* webhooks.process({ provider, body, signature })
+
+        return HttpServerResponse.unsafeJson(result)
+      }).pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logError(cause).pipe(
+            Effect.as(HttpServerResponse.unsafeJson({ error: "Webhook processing failed" }, { status: 400 }))
+          )
+        )
+      )
+    )
 
     yield* router.add(
       "*",
       "/api/auth/*",
       Effect.gen(function* () {
-        return HttpServerResponse.empty()
-        // const req = yield* HttpServerRequest.HttpServerRequest
-        // const source = req.source as IncomingMessage
-        // const url = new URL(req.url, `http://${req.headers.host}`)
-        // const res = yield* Effect.promise((signal) => auth.handler(createRequest(source, url, signal)))
-        // const responseBody = res.body
-        // if (!responseBody) {
-        //   return HttpServerResponse.empty({
-        //     headers: res.headers,
-        //     status: res.status,
-        //     statusText: res.statusText
-        //   })
-        // }
+        const req = yield* HttpServerRequest.HttpServerRequest
+        const webRequest = yield* HttpServerRequest.toWeb(req).pipe(Effect.orDie)
+        const res = yield* auth.handler(webRequest).pipe(Effect.orDie)
+        const responseBody = res.body
 
-        // const stream = Stream.fromReadableStream({
-        //   evaluate: () => responseBody,
-        //   onError: (error) => {
-        //     console.error(error)
-        //     return new Errors.InternalServerError()
-        //   }
-        // })
-        // return HttpServerResponse.stream(stream, {
-        //   headers: res.headers,
-        //   status: res.status,
-        //   statusText: res.statusText
-        // })
+        if (!responseBody) {
+          return HttpServerResponse.empty({
+            headers: res.headers,
+            status: res.status,
+            statusText: res.statusText
+          })
+        }
+
+        return HttpServerResponse.stream(
+          Stream.fromReadableStream({
+            evaluate: () => responseBody,
+            onError: (error) => error
+          }),
+          {
+            headers: res.headers,
+            status: res.status,
+            statusText: res.statusText
+          }
+        )
       })
     )
   })
 )
-//.pipe(Layer.provide(Auth.Default))
 
 const ApiLayers = Layer.mergeAll(AuthHttpLive, AccountHttpApiLive, CatalogHttpLive, CheckoutHttpLive, CreditsHttpLive)
 

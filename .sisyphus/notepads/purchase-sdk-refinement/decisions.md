@@ -1,0 +1,2 @@
+- Task 1 decision: replaced package export wildcard with explicit exports so accidental src files such as cli/core/internal/provider-client are not consumer package API.
+- Task 1 decision: kept @effect-x/purchase/tables as an intentional compatibility subpath because package-owned table models may be needed for storage/migration integration, while internal implementation folders remain blocked.

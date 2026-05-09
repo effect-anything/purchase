@@ -1,6 +1,7 @@
 "use client"
 
 import { makeBrowserHttpApiClient } from "@/services/api/http-api-client-browser"
+import { Effect } from "effect"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 
@@ -19,7 +20,7 @@ export function AccountCheckoutButton(props: { readonly offerId: string; readonl
           setMessage(null)
           startTransition(async () => {
             const client = await makeBrowserHttpApiClient()
-            const response = await client.checkout.start({ payload: { offerId: props.offerId } })
+            const response = await Effect.runPromise(client.checkout.start({ payload: { offerId: props.offerId } }))
 
             if (response.checkout.url) {
               window.location.href = response.checkout.url

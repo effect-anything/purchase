@@ -16,7 +16,7 @@ describe("cloudflare d1 http sql client", () => {
       readonly url: string
     }> = []
 
-    const fetchImpl: typeof fetch = async (input, init) => {
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const bodyText =
         typeof init?.body === "string"
           ? init.body
@@ -59,7 +59,8 @@ describe("cloudflare d1 http sql client", () => {
           status: 200
         }
       )
-    }
+    }) as typeof globalThis.fetch & { preconnect: () => void }
+    fetchImpl.preconnect = () => {}
 
     const layer = CloudflareD1HttpClient.layer({
       accountId: "account_123",

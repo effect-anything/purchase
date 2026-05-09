@@ -68,6 +68,42 @@ interface PaddlePartialRefundItem {
   readonly amount: string
 }
 
+const paddleTransientRetryStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504])
+
+const isPaddleTransientError = (error: HttpClientError.HttpClientError) =>
+  error._tag === "RequestError" ||
+  (error._tag === "ResponseError" && paddleTransientRetryStatuses.has(error.response.status))
+
+const retryAfterDelay = (error: HttpClientError.HttpClientError, attempt: number) => {
+  if (error._tag === "ResponseError") {
+    const retryAfter = error.response.headers["retry-after"]
+    const retryAfterSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+      return `${Math.min(retryAfterSeconds, 30)} seconds` as const
+    }
+  }
+
+  return `${Math.min(2 ** attempt * 250, 5_000)} millis` as const
+}
+
+const retryPaddleTransient = <A, E extends HttpClientError.HttpClientError, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    let attempt = 0
+    while (true) {
+      const result = yield* Effect.either(effect)
+      if (result._tag === "Right") {
+        return result.right
+      }
+
+      if (attempt >= 4 || !isPaddleTransientError(result.left)) {
+        return yield* Effect.fail(result.left)
+      }
+
+      yield* Effect.sleep(retryAfterDelay(result.left, attempt))
+      attempt += 1
+    }
+  })
+
 export const makePaddleClient = (config: PaddleConfig) =>
   Effect.gen(function* () {
     const { apiToken, environment } = config
@@ -208,8 +244,7 @@ export const makePaddleClient = (config: PaddleConfig) =>
               currency_code: args.unitPrice.currencyCode
             },
             quantity: args.quantity,
-            custom_data: args.metadata ?? undefined,
-            status: args.active === false ? "archived" : "active"
+            custom_data: args.metadata ?? undefined
           })
         })
 
@@ -330,8 +365,7 @@ export const makePaddleClient = (config: PaddleConfig) =>
             name: args.name,
             description: args.description ?? "",
             tax_category: "standard",
-            custom_data: args.metadata ?? undefined,
-            status: args.active === false ? "archived" : "active"
+            custom_data: args.metadata ?? undefined
           })
         })
 
@@ -1220,6 +1254,7 @@ export const makePaddleClient = (config: PaddleConfig) =>
         enableCheckout?: boolean | undefined
         purchaseOrderNumber?: string | undefined
         additionalInformation?: string | undefined
+        checkoutUrl?: string | undefined
         customData?: Record<string, unknown> | undefined
       }): Effect.fn.Return<PaddleTransaction, HttpClientError.HttpClientError, never> {
         const collectionMode = args.collectionMode ?? "automatic"
@@ -1245,6 +1280,7 @@ export const makePaddleClient = (config: PaddleConfig) =>
                     }
                   }
                 : undefined,
+            checkout: args.checkoutUrl ? { url: args.checkoutUrl } : undefined,
             custom_data: args.customData
           })
         })

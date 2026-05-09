@@ -71,6 +71,8 @@ const BetterAuthSecret = Config.redacted("BETTER_AUTH_SECRET").pipe(
 
 const BetterAuthURL = Config.url("BETTER_AUTH_URL").pipe(Config.withDefault(new URL("http://localhost:3000")))
 
+const BasePublicURL = Config.url("BASE_PUBLIC_URL").pipe(Config.withDefault(new URL("http://localhost:3000")))
+
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -86,10 +88,12 @@ const make = Effect.gen(function* () {
 
   const authSecret = yield* BetterAuthSecret
   const baseUrl = yield* BetterAuthURL
+  const publicUrl = yield* BasePublicURL
 
   const auth = betterAuth({
     secret: Redacted.value(authSecret),
     baseURL: baseUrl.toString(),
+    trustedOrigins: ["http://localhost:3000", "http://localhost:3001", baseUrl.origin, publicUrl.origin],
     database: effectSqlAuthAdapter(runPromise, sql),
     emailAndPassword: {
       enabled: true,

@@ -690,6 +690,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
           providerCustomerId: providerCustomerId as never,
           successUrl: input.successUrl,
           cancelUrl: input.cancelUrl,
+          checkoutUrl: input.checkoutUrl,
           metadata: input.metadata
         })
         .pipe(
@@ -1360,6 +1361,21 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
             providerCheckoutSessionId: normalizedEvent.checkoutSessionId,
             status: "accepted"
           })
+        }
+
+        if (normalizedEvent.providerTransactionId && normalizedEvent.kind === "transaction_updated") {
+          const invoiceStatus = mapInvoiceStatus(normalizedEvent.eventType, normalizedEvent.status)
+          if (invoiceStatus === "paid") {
+            yield* workflowStore.markCheckoutIntentStatus({
+              providerCheckoutSessionId: normalizedEvent.providerTransactionId,
+              status: "accepted"
+            })
+          } else if (invoiceStatus === "failed") {
+            yield* workflowStore.markCheckoutIntentStatus({
+              providerCheckoutSessionId: normalizedEvent.providerTransactionId,
+              status: "failed"
+            })
+          }
         }
 
         if (customerId && normalizedEvent.providerCustomerId) {

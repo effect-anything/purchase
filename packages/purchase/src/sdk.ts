@@ -63,10 +63,17 @@ export interface PayCheckoutRequest<TProducts extends ReadonlyArray<unknown>> {
    */
   readonly cancelUrl?: string | undefined
   /**
+   * Provider-hosted checkout page URL. Paddle uses this as the transaction
+   * checkout payment link base and requires it to be an approved website.
+   */
+  readonly checkoutUrl?: string | undefined
+  /**
    * Caller metadata persisted on the checkout intent and passed to the provider.
    */
   readonly metadata?: Readonly<Record<string, string>> | undefined
 }
+
+export type PurchaseCheckoutRequest<TProducts extends ReadonlyArray<unknown>> = PayCheckoutRequest<TProducts>
 
 /**
  * Commercial checkout result returned by the default SDK.
@@ -103,6 +110,8 @@ export interface PayCheckoutResult<TProducts extends ReadonlyArray<unknown>> {
   readonly metadata: Readonly<Record<string, string>>
 }
 
+export type PurchaseCheckoutResult<TProducts extends ReadonlyArray<unknown>> = PayCheckoutResult<TProducts>
+
 export interface BasePaySdkOptions<TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
   /**
    * DSL plan declarations used only as catalog source input.
@@ -117,6 +126,11 @@ export interface BasePaySdkOptions<TPlans extends ReadonlyArray<unknown>, TProdu
    */
   readonly storageOverrides?: PayStorageOverrides | undefined
 }
+
+export type PurchaseSDKOptions<
+  TPlans extends ReadonlyArray<unknown>,
+  TProducts extends ReadonlyArray<unknown>
+> = BasePaySdkOptions<TPlans, TProducts>
 
 export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
   /**
@@ -176,6 +190,11 @@ export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TPro
     readonly createSession: (input: CreatePortalSessionInput) => Effect.Effect<BillingPortalSession, unknown>
   }
 }
+
+export type PurchaseSDKContract<
+  _TPlans extends ReadonlyArray<unknown>,
+  TProducts extends ReadonlyArray<unknown>
+> = BasePaySdkContract<_TPlans, TProducts>
 
 export class BasePay extends Context.Tag("BasePay")<
   BasePay,
@@ -274,6 +293,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
                 offerId: input.offerId as never,
                 successUrl: input.successUrl,
                 cancelUrl: input.cancelUrl,
+                checkoutUrl: input.checkoutUrl,
                 metadata
               })
 
@@ -359,6 +379,9 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
 
   return tag
 }
+
+export { BaseSDK as PurchaseSDK }
+export { PayProvider, PayProviderConfig, PurchaseProvider, PurchaseProviderConfig } from "./provider.ts"
 
 const isCurrentCommercialSubscriptionStatus = (status: SubscriptionAgreementState["status"]) =>
   status === "trialing" || status === "active" || status === "grace" || status === "paused"

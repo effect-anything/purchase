@@ -108,6 +108,10 @@ export class StartCheckoutInput extends Schema.Class<StartCheckoutInput>("@pay/c
    */
   cancelUrl: Schema.optional(Schema.String),
   /**
+   * Provider checkout payment link base. Paddle requires this to be an approved website.
+   */
+  checkoutUrl: Schema.optional(Schema.String),
+  /**
    * Caller-supplied correlation metadata that will be persisted on the intent.
    */
   metadata: Schema.Record({ key: Schema.String, value: Schema.String })

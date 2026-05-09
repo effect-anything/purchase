@@ -409,7 +409,32 @@ describe("core provider webhook fixtures", () => {
             customerId: testCustomerId,
             offerId: fixtureCase.offerId
           })
-          expect(result.reconciliationTriggers.map((trigger) => trigger.reason)).toContain(fixtureCase.kind)
+          expect(result.reconciliationTriggers).toContainEqual(
+            expect.objectContaining({
+              reason: fixtureCase.kind,
+              customerId: testCustomerId,
+              offerId: fixtureCase.offerId,
+              sourceEventId: `${fixtureCase.provider}:${normalized.providerEventId}`
+            })
+          )
+
+          const receipt = yield* queryOne<{
+            readonly provider_id: string
+            readonly provider_event_id: string
+            readonly type: string
+            readonly status: string
+            readonly processed_at: string | null
+          }>(
+            "SELECT provider_id, provider_event_id, type, status, processed_at FROM paykit_webhook_event WHERE provider_event_id = ?",
+            [normalized.providerEventId]
+          )
+          expect(receipt).toMatchObject({
+            provider_id: fixtureCase.provider,
+            provider_event_id: normalized.providerEventId,
+            type: fixtureCase.eventType,
+            status: "processed"
+          })
+          expect(receipt?.processed_at).toBeTruthy()
 
           const event = yield* queryOne<{
             readonly id: string
@@ -527,11 +552,34 @@ describe("core provider webhook fixtures", () => {
             body: payload,
             signature: "fixture_signature"
           })
+          const replay = yield* sdk.webhooks.replay({
+            provider: fixtureCase.provider,
+            providerEventId: normalized.providerEventId as never
+          })
           const after = yield* countCoreRows
 
           expect(duplicate.accepted).toBe(false)
           expect(duplicate.normalizedEvents).toHaveLength(0)
           expect(duplicate.reconciliationTriggers).toHaveLength(0)
+          expect(replay.accepted).toBe(false)
+          expect(replay.providerEventId).toBe(normalized.providerEventId)
+          expect(replay.normalizedEvents).toHaveLength(1)
+          expect(replay.normalizedEvents[0]).toMatchObject({
+            id: `${fixtureCase.provider}:${normalized.providerEventId}`,
+            provider: fixtureCase.provider,
+            providerEventId: normalized.providerEventId,
+            kind: fixtureCase.kind,
+            customerId: testCustomerId,
+            offerId: fixtureCase.offerId
+          })
+          expect(replay.reconciliationTriggers).toContainEqual(
+            expect.objectContaining({
+              reason: fixtureCase.kind,
+              customerId: testCustomerId,
+              offerId: fixtureCase.offerId,
+              sourceEventId: `${fixtureCase.provider}:${normalized.providerEventId}`
+            })
+          )
           expect(after).toEqual(before)
         }),
         payment.layer

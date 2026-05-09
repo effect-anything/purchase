@@ -1,17 +1,20 @@
-import { makeServerHttpApiClient } from "@/services/api/http-api-client"
+import { loadUserAccountOverview } from "@/services/account/app-runtime"
+import { requireSession, sessionUser } from "@/services/auth"
+import { loadCommercialCatalog } from "@/services/catalog/app-runtime"
 import {
   flattenCatalogOffers,
   formatBenefitLabel,
   formatBenefitValue,
   formatOfferPrice
-} from "@/services/catalog/catalog-view"
+} from "@/services/catalog/catalog-ui"
 
 import { AccountCheckoutButton, AccountPlaceholderButton } from "./account-actions.tsx"
 
 export default async function AccountPage() {
-  const client = await makeServerHttpApiClient()
-  const [catalogResponse, account] = await Promise.all([client.catalog.get(), client.account.get()])
-  const catalog = flattenCatalogOffers(catalogResponse.catalog.products)
+  const session = await requireSession()
+  const user = sessionUser(session)
+  const [catalogResponse, account] = await Promise.all([loadCommercialCatalog(), loadUserAccountOverview(user)])
+  const catalog = flattenCatalogOffers(catalogResponse.products)
 
   const activeOfferIds = new Set(account.snapshot.activeOfferIds.map(String))
   const subscriptionOffers = catalog.filter((entry) => entry.offer.type === "subscription")
@@ -279,9 +282,15 @@ function AccountPlanCard(props: {
       <strong>{formatOfferPrice(props.offer)}</strong>
       <p className="offer-copy">{props.product.description ?? ""}</p>
       <div className="inline-action-block inline-action-block-compact">
-        <AccountPlaceholderButton message="Pricing interactions stay in the account page.">
-          {props.active ? "Manage" : "Select"}
-        </AccountPlaceholderButton>
+        {props.offer.priceAmount === undefined ? (
+          <AccountPlaceholderButton message="Free is the default workspace baseline.">
+            {props.active ? "Active" : "Included"}
+          </AccountPlaceholderButton>
+        ) : (
+          <AccountCheckoutButton offerId={props.offer.id}>
+            {props.active ? "Manage" : "Subscribe"}
+          </AccountCheckoutButton>
+        )}
       </div>
     </article>
   )

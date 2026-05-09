@@ -1,0 +1,57 @@
+{
+  "active_plan": "/Users/kee/Workspace/github.com/effect-anything/purchase/.sisyphus/plans/purchase-sdk-refinement.md",
+  "started_at": "2026-05-11T08:59:42.347Z",
+  "session_ids": ["ses_1e9bc827effe2413n03Gm4VMJ6"],
+  "session_origins": {
+    "ses_1e9bc827effe2413n03Gm4VMJ6": "direct"
+  },
+  "plan_name": "purchase-sdk-refinement",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Define the stable consumer contract for `@effect-x/purchase`",
+      "session_id": "ses_1e9b87bbcffeexWUTXoXnalfC3",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-11T09:11:27.283Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Clean up consumer-facing API/DX around runtime wiring and naming",
+      "session_id": "ses_1e99135aeffeKq61IADNSPvD3z",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-11T10:17:01.312Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Harden webhook handling coverage for replay, dedupe, and reconciliation",
+      "session_id": "ses_1e9735511ffeubmjStjmkTW8dk",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-11T10:24:08.859Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Finalize documentation and verification alignment for open-source adoption",
+      "session_id": "ses_1e96df22dffe5oDSK8gZlFvy37",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-05-11T10:25:55.477Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan Compliance Audit — oracle",
+      "session_id": "ses_1e95ac54effeJwb6JYgeeCTM7c",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-11T10:47:34.400Z"
+    }
+  }
+}

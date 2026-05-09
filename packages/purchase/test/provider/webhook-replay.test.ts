@@ -36,9 +36,19 @@ describe("provider webhook replay", () => {
           signature
         })
         const normalized = yield* provider.webhooksNormalize(webhookEvent)
+        const replayedWebhookEvent = yield* provider.webhooksUnmarshal({
+          payload: fixture.payload,
+          signature
+        })
+        const replayedNormalized = yield* provider.webhooksNormalize(replayedWebhookEvent)
 
         expect(webhookEvent.type).toBe(event.eventType)
         expect(normalized.eventType).toBe(event.eventType)
+        expect(replayedNormalized).toMatchObject({
+          providerEventId: normalized.providerEventId,
+          eventType: normalized.eventType,
+          kind: normalized.kind
+        })
       })
     )
   }
@@ -69,9 +79,19 @@ describe("provider webhook replay", () => {
           signature
         })
         const normalized = yield* provider.webhooksNormalize(webhookEvent)
+        const replayedWebhookEvent = yield* provider.webhooksUnmarshal({
+          payload: fixture.payload,
+          signature
+        })
+        const replayedNormalized = yield* provider.webhooksNormalize(replayedWebhookEvent)
 
         expect(webhookEvent.event_type).toBe(event.eventType)
         expect(normalized.eventType).toBe(event.eventType)
+        expect(replayedNormalized).toMatchObject({
+          providerEventId: normalized.providerEventId,
+          eventType: normalized.eventType,
+          kind: normalized.kind
+        })
       })
     )
   }

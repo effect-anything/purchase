@@ -10,7 +10,7 @@ export const makeBrowserHttpApiClient = async () =>
   Effect.runPromise(
     Effect.gen(function* () {
       return yield* HttpApiClient.make(AppApi, {
-        baseUrl: "/api"
+        baseUrl: "/"
       })
     }).pipe(Effect.provide(BrowserHttpClient.layerXMLHttpRequest))
   )

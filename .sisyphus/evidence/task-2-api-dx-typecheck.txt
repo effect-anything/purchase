@@ -1,0 +1,4 @@
+
+> @ check /Users/kee/Workspace/github.com/effect-anything/purchase
+> tsgo -b tsconfig.json
+

@@ -12,7 +12,7 @@ const CloudflareLive = Layer.mergeAll(
   CloudflareBindings.fromEnv(env),
   CloudflareExecutionContext.fromContext(
     {
-      waitUntil: (promise: Promise<any>) => waitUntil(promise)
+      waitUntil: (promise: Promise<unknown>) => waitUntil(promise)
     },
     env
   ),
@@ -27,29 +27,32 @@ export const HttpApiLive = AllRoutes.pipe(Layer.provideMerge(ServerLive))
 
 export type ServerRuntime = ManagedRuntime.ManagedRuntime<Layer.Layer.Success<typeof ServerLive>, never>
 
-export type ClientRuntime = ManagedRuntime.ManagedRuntime<Layer.Layer<never>, never>
+export type ClientRuntime = ManagedRuntime.ManagedRuntime<never, never>
+
+declare global {
+  var serverRuntime: ServerRuntime | undefined
+  var clientRuntime: ClientRuntime | undefined
+}
 
 export const make = () => {
   // TODO: provider next context
   const serverRuntime = ManagedRuntime.make(ServerLive)
-  // @ts-expect-error
   globalThis.serverRuntime = serverRuntime
 
   const clientRuntime = ManagedRuntime.make(Layer.empty, serverRuntime.memoMap)
-  // @ts-expect-error
   globalThis.clientRuntime = clientRuntime
 
-  const dispose = () => {
-    serverRuntime.dispose()
-    clientRuntime.dispose()
+  const dispose = async () => {
+    await serverRuntime.dispose()
+    await clientRuntime.dispose()
   }
 
   return { dispose }
 }
 
-export const serverRuntime: ServerRuntime = (globalThis as any).serverRuntime as ServerRuntime
+export const serverRuntime = globalThis.serverRuntime as ServerRuntime
 
-export const clientRuntime: ClientRuntime = (globalThis as any).clientRuntime as ClientRuntime
+export const clientRuntime = globalThis.clientRuntime as ClientRuntime
 
 // Api
 

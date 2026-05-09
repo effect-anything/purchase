@@ -47,18 +47,22 @@ describe("core checkout workflow", () => {
         expect(result.metadata.workspaceId).toBe("workspace_123")
         expect(result.metadata.payCustomerId).toBe("customer_123")
         expect(result.metadata.payOfferId).toBe(testOfferIds.proMonthly)
+        expect(result.session.url).toContain(TEST_CHECKOUT_SESSION_ID)
 
         const intent = yield* queryOne<{
           readonly customer_id: string
           readonly offer_id: string
           readonly provider_checkout_session_id: string
+          readonly checkout_url: string | null
           readonly status: string
           readonly metadata: string
         }>("SELECT * FROM paykit_checkout_intent WHERE id = ?", [result.intentId])
         expect(intent?.customer_id).toBe("customer_123")
         expect(intent?.offer_id).toBe(testOfferIds.proMonthly)
         expect(intent?.provider_checkout_session_id).toBe(TEST_CHECKOUT_SESSION_ID)
+        expect(intent?.checkout_url).toBe(TEST_CHECKOUT_URL)
         expect(intent?.status).toBe("pending")
+        expect(intent?.metadata).toBeDefined()
         expect(parseJsonColumn(intent?.metadata)).toMatchObject({
           workspaceId: "workspace_123",
           payCustomerId: "customer_123",
@@ -94,9 +98,27 @@ describe("core checkout workflow", () => {
 
         const readIntent = yield* sdk.checkout.getIntent({ intentId: result.intentId })
         expect(Option.isSome(readIntent)).toBe(true)
+        if (Option.isSome(readIntent)) {
+          expect(readIntent.value.customerId).toBe(testCustomerId)
+          expect(parseJsonColumn(readIntent.value.metadata)).toMatchObject({
+            workspaceId: "workspace_123",
+            payCustomerId: "customer_123",
+            payOfferId: testOfferIds.proMonthly
+          })
+        }
         expect(payment.calls.customers.find).toHaveLength(1)
         expect(payment.calls.checkout.prepare).toHaveLength(1)
-        expect(payment.calls.checkout.prepare[0]?.providerOfferId).toBe(TEST_CREATED_PRICE_ID)
+        expect(payment.calls.checkout.prepare[0]).toMatchObject({
+          customerId: testCustomerId,
+          providerOfferId: TEST_CREATED_PRICE_ID,
+          successUrl: "https://app.test/success",
+          cancelUrl: "https://app.test/cancel",
+          metadata: {
+            workspaceId: "workspace_123",
+            payCustomerId: "customer_123",
+            payOfferId: testOfferIds.proMonthly
+          }
+        })
       }),
       payment.layer
     )

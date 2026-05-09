@@ -1,6 +1,7 @@
 "use client"
 
 import { makeBrowserHttpApiClient } from "@/services/api/http-api-client-browser"
+import { Effect } from "effect"
 import { useState } from "react"
 
 export function WorkspaceClient() {
@@ -13,12 +14,14 @@ export function WorkspaceClient() {
 
     try {
       const client = await makeBrowserHttpApiClient()
-      const response = await client.credits.consume({
-        payload: {
-          amount: 25,
-          reason: "AI note summarization"
-        }
-      })
+      const response = await Effect.runPromise(
+        client.credits.consume({
+          payload: {
+            amount: 25,
+            reason: "AI note summarization"
+          }
+        })
+      )
       setMessage(`Summary queued. Remaining AI credits: ${response.wallet.available}.`)
     } finally {
       setPending(false)

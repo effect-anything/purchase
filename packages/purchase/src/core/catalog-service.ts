@@ -113,6 +113,10 @@ export interface CommercialCatalogSyncPlanArchiveCandidate {
   readonly safeToArchive: boolean
   readonly ownership: CommercialCatalogProviderOwnership
   readonly reason: "removed_offer" | "changed_price" | "changed_billing_interval"
+  /**
+   * Provider objects are archived only when this is `provider_archive_if_supported` and `dryRun` is false.
+   * External or unknown ownership is never destructively archived; stale local rows receive an archive marker instead.
+   */
   readonly action: "provider_archive_if_supported" | "local_archive_marker" | "skip_external_or_unknown"
 }
 
@@ -128,6 +132,10 @@ export interface CommercialCatalogSyncPlan {
 }
 
 export interface CommercialCatalogSyncInput {
+  /**
+   * Builds the same sync plan without creating provider objects, writing provider refs,
+   * inserting or updating local rows, or archiving provider objects.
+   */
   readonly dryRun?: boolean | undefined
 }
 
@@ -621,8 +629,16 @@ export const CommercialCatalogServiceLayer = (input: {
             const existingPriceInterval = existingRow?.priceInterval ?? undefined
             const priceChanged = Option.isSome(existing) && existingPriceAmount !== offer.priceAmount
             const billingIntervalChanged = Option.isSome(existing) && existingPriceInterval !== offer.billingInterval
+            const previousProviderOfferOwnership = recordOwnership(
+              currentProvider,
+              providerOfferOwnershipKey(activeProvider)
+            )
             const shouldCreateProviderPrice =
-              !externalProviderOfferId && (!currentProviderOfferId || priceChanged || billingIntervalChanged)
+              !externalProviderOfferId &&
+              (!currentProviderOfferId ||
+                priceChanged ||
+                billingIntervalChanged ||
+                previousProviderOfferOwnership === "external")
             const providerOfferOwnership: CommercialCatalogProviderOwnership = externalProviderOfferId
               ? "external"
               : shouldCreateProviderPrice
@@ -639,7 +655,7 @@ export const CommercialCatalogServiceLayer = (input: {
                         name: offer.name,
                         unitPrice: {
                           amount: displayAmountToMinorUnit(offer.priceAmount ?? 0, offer.currency ?? "USD"),
-                          currencyCode: offer.currency ?? "USD"
+                          currencyCode: (offer.currency ?? "USD").toUpperCase()
                         },
                         ...(offer.billingInterval && offer.billingInterval !== "one_time"
                           ? {
@@ -689,8 +705,7 @@ export const CommercialCatalogServiceLayer = (input: {
             }
 
             if ((priceChanged || billingIntervalChanged) && currentProviderOfferId) {
-              const previousOwnership = recordOwnership(currentProvider, providerOfferOwnershipKey(activeProvider))
-              const safeToArchive = previousOwnership === "sdk"
+              const safeToArchive = previousProviderOfferOwnership === "sdk"
               const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
                 ownerType: "offer",
                 ownerId: offer.id,
@@ -698,7 +713,7 @@ export const CommercialCatalogServiceLayer = (input: {
                 providerId: currentProviderOfferId,
                 kind: "offer",
                 safeToArchive,
-                ownership: previousOwnership,
+                ownership: previousProviderOfferOwnership,
                 reason: priceChanged ? "changed_price" : "changed_billing_interval",
                 action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
               }

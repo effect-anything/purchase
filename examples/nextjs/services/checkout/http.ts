@@ -1,8 +1,12 @@
-import { HttpApiBuilder } from "@effect/platform"
+import { HttpApiBuilder, HttpServerRequest } from "@effect/platform"
 import { Effect } from "effect"
 
-import { AuthenticationRequired, MissingOfferId } from "../../errors.ts"
+import { AuthenticationRequired, MissingOfferId, ProviderNotConfigured } from "../../errors.ts"
 import { AppApi } from "../api/http-api.ts"
+import { AuthService } from "../auth/auth-service.ts"
+import { sessionUser } from "../auth/auth-session.ts"
+import { purchaseEnvironment, purchaseProvider } from "../purchase-domain.ts"
+import { CheckoutService } from "./checkout-service.ts"
 
 export const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
   handlers.handle("start", ({ payload }) =>
@@ -12,26 +16,25 @@ export const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handle
         return yield* Effect.fail(new MissingOfferId({ message: "Missing offerId" }))
       }
 
-      // const session = yield* Effect.tryPromise(() => getSession()).pipe(
-      //   Effect.flatMap((value) =>
-      //     value
-      //       ? Effect.succeed(value)
-      //       : Effect.fail(new AuthenticationRequired({ message: "Authentication required for checkout." }))
-      //   )
-      // )
-
-      // const checkout = yield* startUserCheckout({ user: sessionUser(session), offerId })
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const auth = yield* AuthService
+      const session = yield* auth
+        .getSession({ headers: new Headers(request.headers) })
+        .pipe(
+          Effect.flatMap((value) =>
+            value
+              ? Effect.succeed(value)
+              : Effect.fail(new AuthenticationRequired({ message: "Authentication required for checkout." }))
+          )
+        )
+      const checkoutService = yield* CheckoutService
+      const checkout = yield* checkoutService.start({ user: sessionUser(session), offerId })
 
       return {
-        // environment: getPurchaseEnvironment(),
-        // provider: getActiveProvider(),
-        // checkout: {
-        //   offerId,
-        //   intentId: checkout.intentId,
-        //   sessionId: checkout.session.id,
-        //   url: checkout.session.url ?? null
-        // }
-      } as any
+        environment: purchaseEnvironment,
+        provider: purchaseProvider,
+        checkout
+      }
     })
   )
 )
