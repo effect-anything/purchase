@@ -17,7 +17,6 @@ import type {
   ChangeSubscriptionParams,
   CreatePriceParams,
   CreateProductParams,
-  PaymentClient,
   PaymentWebhookNormalization,
   PauseSubscriptionParams,
   PreviewSubscriptionChangeParams,
@@ -27,8 +26,7 @@ import type {
 import type { PaymentProviderTag } from "../../src/provider/type.ts"
 
 import { ProviderOperationNotSupported, WebhookUnmarshalError } from "../../src/errors.ts"
-import { makePaymentClient } from "../../src/provider/client.ts"
-import { PaymentImpl } from "../../src/provider/impl.ts"
+import { makePaymentClient, PaymentClient } from "../../src/provider/client.ts"
 
 export const TEST_PROVIDER_CUSTOMER_ID = "cus_test_123"
 export const TEST_CHECKOUT_SESSION_ID = "cs_test_123"
@@ -43,21 +41,21 @@ export const TEST_REFUND_ID = "re_test_123"
 export interface TestPaymentCalls {
   readonly products: {
     readonly create: Array<CreateProductParams>
-    readonly archive: Array<Parameters<PaymentClient["products"]["archive"]>[0]>
+    readonly archive: Array<Parameters<PaymentClient.Methods["products"]["archive"]>[0]>
   }
   readonly prices: {
     readonly create: Array<CreatePriceParams>
-    readonly archive: Array<Parameters<PaymentClient["prices"]["archive"]>[0]>
+    readonly archive: Array<Parameters<PaymentClient.Methods["prices"]["archive"]>[0]>
   }
   readonly customers: {
-    readonly find: Array<Parameters<PaymentClient["customers"]["find"]>[0]>
-    readonly create: Array<Parameters<PaymentClient["customers"]["create"]>[0]>
+    readonly find: Array<Parameters<PaymentClient.Methods["customers"]["find"]>[0]>
+    readonly create: Array<Parameters<PaymentClient.Methods["customers"]["create"]>[0]>
   }
   readonly checkout: {
-    readonly prepare: Array<Parameters<PaymentClient["checkout"]["prepare"]>[0]>
+    readonly prepare: Array<Parameters<PaymentClient.Methods["checkout"]["prepare"]>[0]>
   }
   readonly subscriptions: {
-    readonly cancel: Array<Parameters<PaymentClient["subscriptions"]["cancel"]>[0]>
+    readonly cancel: Array<Parameters<PaymentClient.Methods["subscriptions"]["cancel"]>[0]>
     readonly change: Array<ChangeSubscriptionParams>
     readonly pause: Array<PauseSubscriptionParams>
     readonly resume: Array<ResumeSubscriptionParams>
@@ -67,12 +65,14 @@ export interface TestPaymentCalls {
     readonly create: Array<RefundTransactionParams>
   }
   readonly billingPortal: {
-    readonly createSession: Array<Parameters<PaymentClient["billingPortal"]["createSession"]>[0]>
+    readonly createSession: Array<Parameters<PaymentClient.Methods["billingPortal"]["createSession"]>[0]>
   }
 }
 
 export const makeTestPaymentLayer = (options?: {
   readonly provider?: PaymentProviderTag | undefined
+  readonly products?: ReadonlyArray<Product> | undefined
+  readonly prices?: ReadonlyArray<Price> | undefined
   readonly unsupported?: Partial<Record<string, true>> | undefined
   readonly normalizedWebhook?: PaymentWebhookNormalization | undefined
   readonly normalizeWebhook?: ((event: unknown) => Effect.Effect<PaymentWebhookNormalization, never, never>) | undefined
@@ -99,14 +99,14 @@ export const makeTestPaymentLayer = (options?: {
   const failIfUnsupported = (operation: string): Effect.Effect<void, ProviderOperationNotSupported> =>
     unsupported[operation] ? Effect.fail(unsupportedFailure(operation)) : Effect.void
 
-  const makeProduct = (id = TEST_CREATED_PRODUCT_ID): Product =>
+  const makeProduct = (id = TEST_CREATED_PRODUCT_ID, prices: ReadonlyArray<Price> = []): Product =>
     ({
       id,
       name: "Created Product",
       description: "",
       active: true,
       metadata: {},
-      prices: []
+      prices
     }) as unknown as Product
 
   const makePrice = (input: CreatePriceParams): Price =>
@@ -188,7 +188,7 @@ export const makeTestPaymentLayer = (options?: {
       }
     }) as unknown as SubscriptionChangePreview
 
-  const client: PaymentClient = makePaymentClient(provider, {
+  const client = makePaymentClient(provider, {
     _tag: provider,
     webhooksUnmarshal: ({ payload }) =>
       Effect.try({
@@ -223,7 +223,7 @@ export const makeTestPaymentLayer = (options?: {
       return Effect.succeed(normalized)
     },
     prices: {
-      list: () => Effect.succeed([]),
+      list: () => Effect.succeed(options?.prices ?? []),
       get: () => Effect.succeed(Option.none()),
       create: (params) =>
         failIfUnsupported("prices.create").pipe(
@@ -245,8 +245,8 @@ export const makeTestPaymentLayer = (options?: {
         )
     },
     products: {
-      stream: () => Stream.empty,
-      list: () => Effect.succeed([]),
+      stream: () => Stream.fromIterable(options?.products ?? []),
+      list: () => Effect.succeed(options?.products ?? []),
       get: () => Effect.succeed(Option.none()),
       create: (params) =>
         failIfUnsupported("products.create").pipe(
@@ -371,12 +371,6 @@ export const makeTestPaymentLayer = (options?: {
 
   return {
     calls,
-    layer: Layer.succeed(
-      PaymentImpl,
-      PaymentImpl.of({
-        _tag: provider,
-        make: Effect.succeed(client)
-      })
-    )
+    layer: Layer.succeed(PaymentClient, PaymentClient.of(client))
   } as const
 }

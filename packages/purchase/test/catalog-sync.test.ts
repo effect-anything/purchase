@@ -2,10 +2,46 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 
+import type { Price, Product } from "../src/internal/provider-schema.ts"
+
 import { runPayEffect } from "./support/run-pay-effect.ts"
 import { countRows, parseJsonColumn, queryAll } from "./support/sqlite-pay-harness.ts"
 import { TestPay, testOfferIds } from "./support/test-catalog.ts"
 import { makeTestPaymentLayer } from "./support/test-payment-provider.ts"
+
+const makeProviderPrice = (input: {
+  readonly id: string
+  readonly productId: string
+  readonly active?: boolean | undefined
+  readonly metadata?: Record<string, unknown> | undefined
+}): Price =>
+  ({
+    id: input.id,
+    productId: input.productId,
+    name: "Provider Price",
+    unitPrice: { amount: "2000", currencyCode: "USD" },
+    unitPriceOverride: [],
+    active: input.active ?? true,
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+    quantity: { minimum: 1, maximum: 1 },
+    metadata: input.metadata ?? {}
+  }) as unknown as Price
+
+const makeProviderProduct = (input: {
+  readonly id: string
+  readonly active?: boolean | undefined
+  readonly metadata?: Record<string, unknown> | undefined
+  readonly prices?: ReadonlyArray<Price> | undefined
+}): Product =>
+  ({
+    id: input.id,
+    name: "Provider Product",
+    description: "",
+    active: input.active ?? true,
+    metadata: input.metadata ?? {},
+    prices: input.prices ?? []
+  }) as unknown as Product
 
 describe("core catalog sync workflow", () => {
   it.effect("catalog.sync dry run does not call provider or write local rows", () => {
@@ -413,6 +449,143 @@ describe("core catalog sync workflow", () => {
         )
         const archivedProvider = parseJsonColumn(archived[0]?.provider)
         expect(archivedProvider["stripe:archivedAt"]).toBeDefined()
+      }),
+      payment.layer
+    )
+  })
+
+  it.effect("catalog.sync archives provider-side sdk-owned orphan objects", () => {
+    const orphanPrice = makeProviderPrice({
+      id: "price_provider_orphan",
+      productId: "prod_provider_orphan",
+      metadata: {
+        commercialProductId: "legacy_product",
+        commercialOfferId: "legacy_product:legacy_offer",
+        workflow: "catalog.sync"
+      }
+    })
+    const payment = makeTestPaymentLayer({
+      products: [
+        makeProviderProduct({
+          id: "prod_provider_orphan",
+          metadata: {
+            commercialProductId: "legacy_product",
+            workflow: "catalog.sync"
+          },
+          prices: [orphanPrice]
+        })
+      ]
+    })
+
+    return runPayEffect(
+      Effect.gen(function* () {
+        const sdk = yield* TestPay
+        const result = yield* sdk.catalog.sync()
+
+        expect(result.plan.archiveCandidates).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              ownerType: "offer",
+              ownerId: "legacy_product:legacy_offer",
+              providerId: "price_provider_orphan",
+              safeToArchive: true,
+              ownership: "sdk",
+              reason: "provider_orphan",
+              action: "provider_archive_if_supported"
+            }),
+            expect.objectContaining({
+              ownerType: "product",
+              ownerId: "legacy_product",
+              providerId: "prod_provider_orphan",
+              safeToArchive: true,
+              ownership: "sdk",
+              reason: "provider_orphan",
+              action: "provider_archive_if_supported"
+            })
+          ])
+        )
+        expect(payment.calls.prices.archive).toEqual([{ priceId: "price_provider_orphan" }])
+        expect(payment.calls.products.archive).toEqual([{ productId: "prod_provider_orphan" }])
+      }),
+      payment.layer
+    )
+  })
+
+  it.effect("catalog.sync skips provider-side external or unknown orphan objects", () => {
+    const externalPrice = makeProviderPrice({
+      id: "price_provider_external",
+      productId: "prod_provider_external",
+      metadata: {
+        commercialProductId: "external_product",
+        commercialOfferId: "external_product:external_offer"
+      }
+    })
+    const payment = makeTestPaymentLayer({
+      products: [
+        makeProviderProduct({
+          id: "prod_provider_external",
+          metadata: {
+            commercialProductId: "external_product"
+          },
+          prices: [externalPrice]
+        })
+      ]
+    })
+
+    return runPayEffect(
+      Effect.gen(function* () {
+        const sdk = yield* TestPay
+        const result = yield* sdk.catalog.sync()
+
+        expect(result.plan.archiveCandidates).not.toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ providerId: "price_provider_external" }),
+            expect.objectContaining({ providerId: "prod_provider_external" })
+          ])
+        )
+        expect(payment.calls.prices.archive).toHaveLength(0)
+        expect(payment.calls.products.archive).toHaveLength(0)
+      }),
+      payment.layer
+    )
+  })
+
+  it.effect("catalog.sync dry run plans provider-side orphans without archive calls", () => {
+    const orphanPrice = makeProviderPrice({
+      id: "price_provider_orphan_dry_run",
+      productId: "prod_provider_orphan_dry_run",
+      metadata: {
+        commercialProductId: "legacy_product",
+        commercialOfferId: "legacy_product:legacy_offer",
+        workflow: "catalog.sync"
+      }
+    })
+    const payment = makeTestPaymentLayer({
+      products: [
+        makeProviderProduct({
+          id: "prod_provider_orphan_dry_run",
+          metadata: {
+            commercialProductId: "legacy_product",
+            workflow: "catalog.sync"
+          },
+          prices: [orphanPrice]
+        })
+      ]
+    })
+
+    return runPayEffect(
+      Effect.gen(function* () {
+        const sdk = yield* TestPay
+        const result = yield* sdk.catalog.sync({ dryRun: true })
+
+        expect(result.plan.archiveCandidates).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ providerId: "price_provider_orphan_dry_run", reason: "provider_orphan" }),
+            expect.objectContaining({ providerId: "prod_provider_orphan_dry_run", reason: "provider_orphan" })
+          ])
+        )
+        expect(payment.calls.prices.archive).toHaveLength(0)
+        expect(payment.calls.products.archive).toHaveLength(0)
       }),
       payment.layer
     )

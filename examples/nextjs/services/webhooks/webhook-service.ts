@@ -2,7 +2,7 @@ import type { PaymentProviderTag } from "@effect-x/purchase"
 
 import { Context, Effect, Layer } from "effect"
 
-import { Pay } from "../../purchase.ts"
+import { PurchaseService } from "../purchase/purchase-service"
 
 export class WebhookService extends Context.Tag("WebhookService")<
   WebhookService,
@@ -30,14 +30,14 @@ export class WebhookService extends Context.Tag("WebhookService")<
   static Default = Layer.effect(
     WebhookService,
     Effect.gen(function* () {
-      const sdk = yield* Pay
+      const purchase = yield* PurchaseService
 
       const process = Effect.fn(function* (input: {
         readonly provider: PaymentProviderTag
         readonly body: string
         readonly signature: string
       }) {
-        const result = yield* sdk.webhooks.handle({
+        const result = yield* purchase.webhooks.handle({
           provider: input.provider,
           body: input.body,
           signature: input.signature

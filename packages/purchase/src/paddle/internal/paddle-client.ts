@@ -1,9 +1,9 @@
+import type * as HttpClientError from "@effect/platform/HttpClientError"
 import type { IEvents } from "@paddle/paddle-node-sdk"
 
 import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
 import * as HttpBody from "@effect/platform/HttpBody"
 import * as HttpClient from "@effect/platform/HttpClient"
-import * as HttpClientError from "@effect/platform/HttpClientError"
 import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Config from "effect/Config"
@@ -31,17 +31,18 @@ import {
   TransactionNotFound,
   WebhookUnmarshalError
 } from "../../errors.ts"
+import { failUnexpectedStatus, withProviderTransientRetry } from "../../internal/provider-http-retry.ts"
 import {
+  PaddleAdjustment,
   PaddleCustomer,
+  PaddleCustomerPortalSession,
+  PaddleError,
   PaddlePrice,
   PaddleProduct,
   PaddleSubscription,
   PaddleSubscriptionPreview,
   PaddleTransaction,
-  PaddleTransactionPreview,
-  PaddleAdjustment,
-  PaddleError,
-  PaddleCustomerPortalSession
+  PaddleTransactionPreview
 } from "./paddle-schema.ts"
 
 export const PaddleConfig = Config.all({
@@ -68,42 +69,6 @@ interface PaddlePartialRefundItem {
   readonly amount: string
 }
 
-const paddleTransientRetryStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504])
-
-const isPaddleTransientError = (error: HttpClientError.HttpClientError) =>
-  error._tag === "RequestError" ||
-  (error._tag === "ResponseError" && paddleTransientRetryStatuses.has(error.response.status))
-
-const retryAfterDelay = (error: HttpClientError.HttpClientError, attempt: number) => {
-  if (error._tag === "ResponseError") {
-    const retryAfter = error.response.headers["retry-after"]
-    const retryAfterSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN
-    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-      return `${Math.min(retryAfterSeconds, 30)} seconds` as const
-    }
-  }
-
-  return `${Math.min(2 ** attempt * 250, 5_000)} millis` as const
-}
-
-const retryPaddleTransient = <A, E extends HttpClientError.HttpClientError, R>(effect: Effect.Effect<A, E, R>) =>
-  Effect.gen(function* () {
-    let attempt = 0
-    while (true) {
-      const result = yield* Effect.either(effect)
-      if (result._tag === "Right") {
-        return result.right
-      }
-
-      if (attempt >= 4 || !isPaddleTransientError(result.left)) {
-        return yield* Effect.fail(result.left)
-      }
-
-      yield* Effect.sleep(retryAfterDelay(result.left, attempt))
-      attempt += 1
-    }
-  })
-
 export const makePaddleClient = (config: PaddleConfig) =>
   Effect.gen(function* () {
     const { apiToken, environment } = config
@@ -117,7 +82,8 @@ export const makePaddleClient = (config: PaddleConfig) =>
           HttpClientRequest.bearerToken(Redacted.value(apiToken)),
           HttpClientRequest.acceptJson
         )
-      )
+      ),
+      withProviderTransientRetry
     )
 
     const unexpectedStatus = (
@@ -130,15 +96,7 @@ export const makePaddleClient = (config: PaddleConfig) =>
           Effect.orElseSucceed(Schema.decodeUnknown(PaddleError)(response.json), () => {})
         ]),
         ([description, json]) =>
-          Effect.fail(
-            new HttpClientError.ResponseError({
-              request,
-              response,
-              reason: "StatusCode",
-              description: json ? json.error.detail : description,
-              cause: json ? json.error : undefined
-            })
-          )
+          failUnexpectedStatus(request, response, json ? json.error.detail : description, json ? json.error : undefined)
       )
 
     const clientOK = HttpClient.filterOrElse(
@@ -710,20 +668,16 @@ export const makePaddleClient = (config: PaddleConfig) =>
         })
 
         if (!price.billing_cycle) {
-          return yield* Effect.fail(
-            new PriceNotFound({
-              priceId: args.priceId
-            })
-          )
+          return yield* new PriceNotFound({
+            priceId: args.priceId
+          })
         }
 
         if (subscription.items.length === 0) {
-          return yield* Effect.fail(
-            new SubscriptionNotFound({
-              subscriptionId: args.subscriptionId,
-              message: "Subscription has no items to update"
-            })
-          )
+          return yield* new SubscriptionNotFound({
+            subscriptionId: args.subscriptionId,
+            message: "Subscription has no items to update"
+          })
         }
 
         const res = yield* clientOK.patch(`/subscriptions/${args.subscriptionId}`, {
@@ -808,20 +762,16 @@ export const makePaddleClient = (config: PaddleConfig) =>
         })
 
         if (!price.billing_cycle) {
-          return yield* Effect.fail(
-            new PriceNotFound({
-              priceId: args.priceId
-            })
-          )
+          return yield* new PriceNotFound({
+            priceId: args.priceId
+          })
         }
 
         if (subscription.items.length === 0) {
-          return yield* Effect.fail(
-            new SubscriptionNotFound({
-              subscriptionId: args.subscriptionId,
-              message: "Subscription has no items to preview"
-            })
-          )
+          return yield* new SubscriptionNotFound({
+            subscriptionId: args.subscriptionId,
+            message: "Subscription has no items to preview"
+          })
         }
 
         const res = yield* clientOK.patch(`/subscriptions/${args.subscriptionId}/preview`, {
@@ -906,11 +856,9 @@ export const makePaddleClient = (config: PaddleConfig) =>
         })
 
         if (price.billing_cycle) {
-          return yield* Effect.fail(
-            new PriceNotFound({
-              priceId: args.priceId
-            })
-          )
+          return yield* new PriceNotFound({
+            priceId: args.priceId
+          })
         }
 
         const res = yield* clientOK.post(`/subscriptions/${args.subscriptionId}/charge/preview`, {
@@ -998,11 +946,9 @@ export const makePaddleClient = (config: PaddleConfig) =>
         })
 
         if (price.billing_cycle) {
-          return yield* Effect.fail(
-            new PriceNotFound({
-              priceId: args.priceId
-            })
-          )
+          return yield* new PriceNotFound({
+            priceId: args.priceId
+          })
         }
 
         const effectiveFrom = args.effectiveFrom ?? "immediately"
@@ -1037,13 +983,11 @@ export const makePaddleClient = (config: PaddleConfig) =>
         args: PauseSubscriptionParams
       ): Effect.fn.Return<void, SubscriptionNotFound | ProviderOperationNotSupported, never> {
         if (args.mode !== "lifecycle") {
-          return yield* Effect.fail(
-            new ProviderOperationNotSupported({
-              provider: "paddle",
-              operation: "subscriptions.pause",
-              message: "Paddle only supports lifecycle pause; billing_collection pause is Stripe-specific"
-            })
-          )
+          return yield* new ProviderOperationNotSupported({
+            provider: "paddle",
+            operation: "subscriptions.pause",
+            message: "Paddle only supports lifecycle pause; billing_collection pause is Stripe-specific"
+          })
         }
 
         yield* client
@@ -1079,23 +1023,19 @@ export const makePaddleClient = (config: PaddleConfig) =>
         args: ResumeSubscriptionParams
       ): Effect.fn.Return<void, SubscriptionNotFound | ProviderOperationNotSupported, never> {
         if (args.mode !== "lifecycle") {
-          return yield* Effect.fail(
-            new ProviderOperationNotSupported({
-              provider: "paddle",
-              operation: "subscriptions.resume",
-              message: "Paddle only supports lifecycle resume; billing_collection resume is Stripe-specific"
-            })
-          )
+          return yield* new ProviderOperationNotSupported({
+            provider: "paddle",
+            operation: "subscriptions.resume",
+            message: "Paddle only supports lifecycle resume; billing_collection resume is Stripe-specific"
+          })
         }
 
         if (args.billingCycleAnchor || args.prorationBehavior || args.prorationDate) {
-          return yield* Effect.fail(
-            new ProviderOperationNotSupported({
-              provider: "paddle",
-              operation: "subscriptions.resume",
-              message: "Paddle lifecycle resume does not support Stripe billingCycleAnchor or proration parameters"
-            })
-          )
+          return yield* new ProviderOperationNotSupported({
+            provider: "paddle",
+            operation: "subscriptions.resume",
+            message: "Paddle lifecycle resume does not support Stripe billingCycleAnchor or proration parameters"
+          })
         }
 
         yield* client
@@ -1173,11 +1113,9 @@ export const makePaddleClient = (config: PaddleConfig) =>
         for (const item of args.items) {
           const priceOption = yield* prices.get({ priceId: item.priceId })
           if (Option.isNone(priceOption)) {
-            return yield* Effect.fail(
-              new PriceNotFound({
-                priceId: item.priceId
-              })
-            )
+            return yield* new PriceNotFound({
+              priceId: item.priceId
+            })
           }
         }
 

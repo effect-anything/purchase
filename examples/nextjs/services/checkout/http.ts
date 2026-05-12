@@ -13,7 +13,7 @@ export const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handle
     Effect.gen(function* () {
       const offerId = payload.offerId.trim()
       if (!offerId) {
-        return yield* Effect.fail(new MissingOfferId({ message: "Missing offerId" }))
+        return yield* new MissingOfferId({ message: "Missing offerId" })
       }
 
       const request = yield* HttpServerRequest.HttpServerRequest

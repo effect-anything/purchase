@@ -7,11 +7,10 @@ import * as Option from "effect/Option"
 
 import type { BillingPortalSession, CheckoutSession, SubscriptionChangePreview } from "../internal/provider-schema.ts"
 import type { ServicesReturns } from "../internal/types.ts"
-import type { PaymentClient, PaymentWebhookNormalization } from "../provider/client.ts"
 import type { PaymentProviderTag } from "../provider/type.ts"
 
 import { PayStorageAdapter } from "../db.ts"
-import { PaymentImpl } from "../provider/impl.ts"
+import { PaymentClient, type PaymentWebhookNormalization } from "../provider/client.ts"
 import { CommercialCatalogService } from "./catalog-service.ts"
 import {
   CommercialAgreementNotFound,
@@ -216,7 +215,7 @@ const resolveCustomerProfileUpdate = (normalizedEvent: PaymentWebhookNormalizati
 }
 
 const ensureProviderCustomer = (input: {
-  readonly payment: PaymentClient
+  readonly payment: PaymentClient.Methods
   readonly provider: PaymentProviderTag
   readonly customerId: string
   readonly workflowStore: CommercialWorkflowStore.Methods
@@ -287,35 +286,36 @@ const normalizeCommercialEvents = (input: {
 export const CommercialWorkflowServiceLayer = Layer.effect(
   CommercialWorkflowService,
   Effect.gen(function* () {
-    const paymentImpl = yield* PaymentImpl
-    const payment = yield* paymentImpl.make
+    const payment = yield* PaymentClient
     const catalogService = yield* CommercialCatalogService
     const workflowStore = yield* CommercialWorkflowStore
     const projectionService = yield* CommercialProjectionService
     const storage = yield* PayStorageAdapter
-    const provider = paymentImpl._tag
+    const providerTag = payment._tag
 
     const resolveOfferByProviderOfferId = Effect.fn("resolveOfferByProviderOfferId")(function* (
       providerOfferId: string
     ) {
-      return yield* workflowStore.findProviderRef({ provider, providerId: providerOfferId, kind: "offer" }).pipe(
-        Effect.flatMap(
-          Option.match({
-            onNone: () =>
-              storage.product.findMany({}).pipe(
-                Effect.map((rows) =>
-                  rows.find((row) => {
-                    const providerMap = asRecord(row.provider)
-                    return providerMap[provider] === providerOfferId
-                  })
+      return yield* workflowStore
+        .findProviderRef({ provider: providerTag, providerId: providerOfferId, kind: "offer" })
+        .pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () =>
+                storage.product.findMany({}).pipe(
+                  Effect.map((rows) =>
+                    rows.find((row) => {
+                      const providerMap = asRecord(row.provider)
+                      return providerMap[providerTag] === providerOfferId
+                    })
+                  ),
+                  Effect.map(Option.fromNullable),
+                  Effect.orDie
                 ),
-                Effect.map(Option.fromNullable),
-                Effect.orDie
-              ),
-            onSome: (ref) => storage.product.findFirst({ where: [["id", ref.ownerId]] }).pipe(Effect.orDie)
-          })
+              onSome: (ref) => storage.product.findFirst({ where: [["id", ref.ownerId]] }).pipe(Effect.orDie)
+            })
+          )
         )
-      )
     })
 
     const resolveOfferId = Effect.fn("resolveOfferId")(function* (input: {
@@ -357,7 +357,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       const providerCustomerId = input.normalizedEvent.providerCustomerId
       if (providerCustomerId) {
         const customer = yield* workflowStore.findCustomerByProviderRef({
-          provider,
+          provider: providerTag,
           providerCustomerId
         })
         if (Option.isSome(customer)) {
@@ -421,7 +421,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
           return
         }
         yield* workflowStore.upsertSubscriptionProjection({
-          provider,
+          provider: providerTag,
           id: providerSubscriptionId,
           customerId: input.customerId,
           productInternalId: product.value.internalId,
@@ -521,13 +521,13 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
         creditBenefits,
         (creditBenefit) =>
           workflowStore.recordCreditLedger({
-            id: `${provider}:${input.providerEventId}:credits:${creditBenefit.key}`,
+            id: `${providerTag}:${input.providerEventId}:credits:${creditBenefit.key}`,
             customerId: input.customerId,
             productId: creditBenefit.key,
             offerId: input.offerId,
             amount: creditBenefit.amount,
             direction: "grant",
-            idempotencyKey: `${provider}:${input.providerEventId}:credits:${creditBenefit.key}`,
+            idempotencyKey: `${providerTag}:${input.providerEventId}:credits:${creditBenefit.key}`,
             sourceEventId: input.eventId,
             reason:
               input.offer.type === "subscription" ? "provider_subscription_invoice_paid" : "provider_transaction_paid"
@@ -548,13 +548,13 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
         creditBenefits,
         (creditBenefit) =>
           workflowStore.recordCreditLedger({
-            id: `${provider}:${input.providerEventId}:credits-refund:${creditBenefit.key}`,
+            id: `${providerTag}:${input.providerEventId}:credits-refund:${creditBenefit.key}`,
             customerId: input.customerId,
             productId: creditBenefit.key,
             offerId: input.offerId,
             amount: creditBenefit.amount,
             direction: "refund",
-            idempotencyKey: `${provider}:${input.providerEventId}:credits-refund:${creditBenefit.key}`,
+            idempotencyKey: `${providerTag}:${input.providerEventId}:credits-refund:${creditBenefit.key}`,
             sourceEventId: input.eventId,
             reason: "provider_refund_updated"
           }),
@@ -656,19 +656,19 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     )(function* (input): CommercialWorkflowService.Returns<"startCheckout"> {
       const target = yield* catalogService.resolveCheckoutTarget({
         offerId: input.offerId,
-        provider
+        provider: providerTag
       })
 
       if (!target.providerOfferId) {
         return yield* new CommercialWorkflowConflict({
           workflow: "checkout.start",
-          message: `Offer "${input.offerId}" is missing a ${provider} provider mapping`
+          message: `Offer "${input.offerId}" is missing a ${providerTag} provider mapping`
         })
       }
 
       const providerCustomerId = yield* ensureProviderCustomer({
         payment,
-        provider,
+        provider: providerTag,
         customerId: input.customerId,
         workflowStore
       }).pipe(
@@ -708,7 +708,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       if (!checkoutSessionId) {
         return yield* new CommercialWorkflowConflict({
           workflow: "checkout.start",
-          message: `Provider ${provider} did not return a durable checkout session identifier`
+          message: `Provider ${providerTag} did not return a durable checkout session identifier`
         })
       }
 
@@ -716,7 +716,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
         intentId,
         customerId: input.customerId,
         offerId: input.offerId,
-        provider,
+        provider: providerTag,
         providerCheckoutSessionId: checkoutSessionId,
         ...(session.url ? { checkoutUrl: session.url } : {}),
         metadata: {
@@ -729,7 +729,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       yield* Effect.all(
         [
           workflowStore.upsertProviderRef({
-            provider,
+            provider: providerTag,
             ownerType: "customer",
             ownerId: input.customerId,
             providerId: providerCustomerId,
@@ -737,7 +737,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
           }),
           target.providerOfferId
             ? workflowStore.upsertProviderRef({
-                provider,
+                provider: providerTag,
                 ownerType: "offer",
                 ownerId: target.offerId,
                 providerId: target.providerOfferId,
@@ -746,7 +746,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
             : Effect.void,
           target.providerProductId
             ? workflowStore.upsertProviderRef({
-                provider,
+                provider: providerTag,
                 ownerType: "product",
                 ownerId: target.productId,
                 providerId: target.providerProductId,
@@ -759,7 +759,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
 
       return StartCheckoutResult.make({
         intentId: intentId as never,
-        provider,
+        provider: providerTag,
         target,
         checkoutSessionId: checkoutSessionId as never,
         ...(session.url ? { checkoutUrl: session.url } : {})
@@ -828,12 +828,12 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       }
 
       const target = yield* catalogService
-        .resolveCheckoutTarget({ offerId: input.targetOfferId, provider })
+        .resolveCheckoutTarget({ offerId: input.targetOfferId, provider: providerTag })
         .pipe(Effect.orDie)
       if (!target.providerOfferId) {
         return yield* new CommercialWorkflowConflict({
           workflow: "subscription.change",
-          message: `Offer "${input.targetOfferId}" has no provider mapping for ${provider}`
+          message: `Offer "${input.targetOfferId}" has no provider mapping for ${providerTag}`
         })
       }
 
@@ -889,12 +889,12 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       }
 
       const target = yield* catalogService
-        .resolveCheckoutTarget({ offerId: input.targetOfferId, provider })
+        .resolveCheckoutTarget({ offerId: input.targetOfferId, provider: providerTag })
         .pipe(Effect.orDie)
       if (!target.providerOfferId) {
         return yield* new CommercialWorkflowConflict({
           workflow: "subscription.preview_change",
-          message: `Offer "${input.targetOfferId}" has no provider mapping for ${provider}`
+          message: `Offer "${input.targetOfferId}" has no provider mapping for ${providerTag}`
         })
       }
 
@@ -922,8 +922,8 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const pauseSubscription: CommercialWorkflowService.Methods["pauseSubscription"] = Effect.fn(
       "CommercialWorkflowService.pauseSubscription"
     )(function* (input) {
-      const mode = resolvePauseMode({ provider, request: input })
-      const unsupportedReason = explainUnsupportedPause({ provider, request: input })
+      const mode = resolvePauseMode({ provider: providerTag, request: input })
+      const unsupportedReason = explainUnsupportedPause({ provider: providerTag, request: input })
       if (unsupportedReason) {
         return yield* new CommercialWorkflowConflict({
           workflow: "subscription.pause",
@@ -984,8 +984,8 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const resumeSubscription: CommercialWorkflowService.Methods["resumeSubscription"] = Effect.fn(
       "CommercialWorkflowService.resumeSubscription"
     )(function* (input) {
-      const mode = resolveResumeMode({ provider, request: input })
-      const unsupportedReason = explainUnsupportedResume({ provider, request: input })
+      const mode = resolveResumeMode({ provider: providerTag, request: input })
+      const unsupportedReason = explainUnsupportedResume({ provider: providerTag, request: input })
       if (unsupportedReason) {
         return yield* new CommercialWorkflowConflict({
           workflow: "subscription.resume",
@@ -1234,7 +1234,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     )(function* (input): CommercialWorkflowService.Returns<"createPortalSession"> {
       const providerCustomerId = yield* ensureProviderCustomer({
         payment,
-        provider,
+        provider: providerTag,
         customerId: input.customerId,
         workflowStore
       }).pipe(
@@ -1256,7 +1256,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
 
       const agreementValue = Option.getOrUndefined(agreement)
       const unsupportedReason = explainUnsupportedPortalFlow({
-        provider,
+        provider: providerTag,
         request: input,
         hasProviderSubscriptionId: Boolean(agreementValue?.providerSubscriptionId)
       })
@@ -1289,10 +1289,10 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const receiveWebhook: CommercialWorkflowService.Methods["receiveWebhook"] = Effect.fn(
       "CommercialWorkflowService.receiveWebhook"
     )(function* (input): CommercialWorkflowService.Returns<"receiveWebhook"> {
-      if (input.provider !== provider) {
+      if (input.provider !== providerTag) {
         return yield* new CommercialWebhookRejected({
           provider: input.provider,
-          message: `Webhook provider "${input.provider}" does not match active pay provider "${provider}"`
+          message: `Webhook provider "${input.provider}" does not match active pay provider "${providerTag}"`
         })
       }
 

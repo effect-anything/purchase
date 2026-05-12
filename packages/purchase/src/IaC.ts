@@ -7,14 +7,12 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 
-import type { NormalizedOffer, NormalizedPurchasePlan, ProductsModule, PurchasePlansModule } from "../dsl.ts"
-import type { ServicesReturns } from "../internal/types.ts"
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { CommercialCatalogSyncInput } from "./core/catalog-service.ts"
+import type { NormalizedOffer, NormalizedPurchasePlan, ProductsModule, PurchasePlansModule } from "./dsl.ts"
+import type { ServicesReturns } from "./internal/types.ts"
+import type { PaymentProviderTag } from "./provider/type.ts"
 
-import { PayStorageAdapter, type PayStorageProductRecord } from "../db.ts"
-import { normalizeCatalog, normalizeSchema } from "../dsl.ts"
-import { PaymentClient } from "../provider/client.ts"
-import { CatalogState } from "./catalog-builder.ts"
+import { CatalogState } from "./core/catalog-builder.ts"
 import {
   CommercialCatalogIssue,
   CommercialCheckoutTarget,
@@ -22,310 +20,108 @@ import {
   type CommercialCatalog,
   type CommercialOffer,
   type CommercialProduct
-} from "./commercial-schema.ts"
-import { CommercialWorkflowConflict } from "./workflow-schema.ts"
+} from "./core/commercial-schema.ts"
+import { CommercialWorkflowConflict } from "./core/workflow-schema.ts"
+import { PayStorageAdapter, type PayStorageProductRecord } from "./db.ts"
+import { normalizeCatalog, normalizeSchema } from "./dsl.ts"
+import { PaymentClient } from "./provider/client.ts"
 
-const offerMap = (catalog: CommercialCatalog) =>
-  new Map(catalog.products.flatMap((product) => product.offers.map((offer) => [offer.id, offer] as const)))
+// const paddleRequest = <A = unknown>(
+//   path: string,
+//   init: RequestInit = {},
+//   attempt = 0
+// ): Effect.Effect<A, PublicPaddleScenarioError> =>
+//   fetchJson<{ readonly data?: A }>(`${paddleBaseUrl(config.paddleEnvironment)}${path}`, {
+//     ...init,
+//     headers: {
+//       accept: "application/json",
+//       authorization: `Bearer ${Redacted.value(config.paddleApiToken)}`,
+//       ...(init.body ? { "content-type": "application/json" } : {}),
+//       ...init.headers
+//     }
+//   }).pipe(
+//     Effect.map(({ json }) => json.data as A),
+//     Effect.catchAll((error) =>
+//       attempt < 5 && /HTTP (429|5\d\d)/.test(error.message)
+//         ? sleep(Math.min(2 ** attempt * 300, 5_000)).pipe(Effect.zipRight(paddleRequest(path, init, attempt + 1)))
+//         : Effect.fail(error)
+//     )
+//   ) as Effect.Effect<A, PublicPaddleScenarioError>
 
-const findOffer = (catalog: CommercialCatalog, offerId: string) =>
-  Option.fromNullable(offerMap(catalog).get(offerId as never))
+// const ensureProviderReady = () =>
+//   Effect.gen(function* () {
+//     const destinationUrl = `${config.appBaseUrl}${config.webhookPath}`
+//     const destinations = yield* paddleRequest<ReadonlyArray<{ readonly id: string; readonly destination: string }>>(
+//       "/notification-settings?per_page=100"
+//     )
+//     const existing = destinations.find((destination) => destination.destination === destinationUrl)
 
-const findProduct = (catalog: CommercialCatalog, productId: string) =>
-  Option.fromNullable(catalog.products.find((product) => product.id === productId))
+//     if (existing) {
+//       yield* paddleRequest(`/notification-settings/${existing.id}`, {
+//         method: "PATCH",
+//         body: JSON.stringify({ active: true, destination: destinationUrl })
+//       })
+//       return
+//     }
 
-const offerGroupKey = (offer: CommercialOffer) => `${offer.productId}:${offer.group}`
+//     yield* paddleRequest("/notification-settings", {
+//       method: "POST",
+//       body: JSON.stringify({
+//         active: true,
+//         destination: destinationUrl,
+//         type: "url",
+//         subscribed_events: [
+//           "customer.created",
+//           "customer.updated",
+//           "transaction.created",
+//           "transaction.ready",
+//           "transaction.paid",
+//           "transaction.updated",
+//           "transaction.completed",
+//           "transaction.payment_failed",
+//           "subscription.created",
+//           "subscription.activated",
+//           "subscription.updated",
+//           "subscription.canceled",
+//           "subscription.paused",
+//           "subscription.resumed"
+//         ]
+//       })
+//     })
+//   })
 
-const toRecord = (value: unknown): Record<string, string> => {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, string>
-  }
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value)
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {}
-    } catch {
-      return {}
-    }
-  }
-
-  return {}
-}
-
-const providerProductKey = (providerTag: PaymentProviderTag) => `${providerTag}:product`
-const providerOfferOwnershipKey = (providerTag: PaymentProviderTag) => `${providerTag}:ownership:offer`
-const providerProductOwnershipKey = (providerTag: PaymentProviderTag) => `${providerTag}:ownership:product`
-const providerArchivedAtKey = (providerTag: PaymentProviderTag) => `${providerTag}:archivedAt`
-
-type CommercialCatalogProviderOwnership = "sdk" | "external" | "unknown"
-type CommercialCatalogSyncChangeReason =
-  | "missing"
-  | "removed_offer"
-  | "changed_price"
-  | "changed_billing_interval"
-  | "changed_product_metadata"
-
-export interface CommercialCatalogSyncPlanProductCreate {
-  readonly productId: string
-  readonly provider: PaymentProviderTag
-  readonly providerProductId: string
-  readonly ownership: CommercialCatalogProviderOwnership
-}
-
-export interface CommercialCatalogSyncPlanPriceCreate {
-  readonly offerId: string
-  readonly productId: string
-  readonly provider: PaymentProviderTag
-  readonly providerProductId: string
-  readonly providerOfferId: string
-  readonly reason: "missing" | "changed_price" | "changed_billing_interval"
-  readonly ownership: CommercialCatalogProviderOwnership
-}
-
-export interface CommercialCatalogSyncPlanLocalRow {
-  readonly offerId: string
-  readonly productId: string
-  readonly provider: PaymentProviderTag
-  readonly providerProductId?: string | undefined
-  readonly providerOfferId?: string | undefined
-  readonly reason: CommercialCatalogSyncChangeReason
-}
-
-export interface CommercialCatalogSyncPlanProviderRef {
-  readonly ownerType: "product" | "offer"
-  readonly ownerId: string
-  readonly provider: PaymentProviderTag
-  readonly providerId: string
-  readonly kind: "product" | "offer"
-}
-
-export interface CommercialCatalogSyncPlanStaleRow {
-  readonly offerId: string
-  readonly productId?: string | undefined
-  readonly reason: Exclude<CommercialCatalogSyncChangeReason, "missing">
-}
-
-export interface CommercialCatalogSyncPlanArchiveCandidate {
-  readonly ownerType: "product" | "offer"
-  readonly ownerId: string
-  readonly provider: PaymentProviderTag
-  readonly providerId: string
-  readonly kind: "product" | "offer"
-  readonly safeToArchive: boolean
-  readonly ownership: CommercialCatalogProviderOwnership
-  readonly reason: "removed_offer" | "changed_price" | "changed_billing_interval" | "provider_orphan"
-  /**
-   * Provider objects are archived only when this is `provider_archive_if_supported` and `dryRun` is false.
-   * External or unknown ownership is never destructively archived; stale local rows receive an archive marker instead.
-   */
-  readonly action: "provider_archive_if_supported" | "local_archive_marker" | "skip_external_or_unknown"
-}
-
-export interface CommercialCatalogSyncPlan {
-  readonly productsToCreate: ReadonlyArray<CommercialCatalogSyncPlanProductCreate>
-  readonly pricesToCreate: ReadonlyArray<CommercialCatalogSyncPlanPriceCreate>
-  readonly localRowsToInsert: ReadonlyArray<CommercialCatalogSyncPlanLocalRow>
-  readonly localRowsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanLocalRow>
-  readonly providerRefsToInsert: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
-  readonly providerRefsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
-  readonly staleRows: ReadonlyArray<CommercialCatalogSyncPlanStaleRow>
-  readonly archiveCandidates: ReadonlyArray<CommercialCatalogSyncPlanArchiveCandidate>
-}
-
-export interface CommercialCatalogSyncInput {
-  /**
-   * Builds the same sync plan without creating provider objects, writing provider refs,
-   * inserting or updating local rows, or archiving provider objects.
-   */
-  readonly dryRun?: boolean | undefined
-}
-
-export interface CommercialCatalogSyncResult {
-  readonly provider: PaymentProviderTag
-  readonly offers: number
-  readonly features: number
-  readonly dryRun: boolean
-  readonly plan: CommercialCatalogSyncPlan
-}
-
-const makeSyncPlan = (): {
-  productsToCreate: Array<CommercialCatalogSyncPlanProductCreate>
-  pricesToCreate: Array<CommercialCatalogSyncPlanPriceCreate>
-  localRowsToInsert: Array<CommercialCatalogSyncPlanLocalRow>
-  localRowsToUpdate: Array<CommercialCatalogSyncPlanLocalRow>
-  providerRefsToInsert: Array<CommercialCatalogSyncPlanProviderRef>
-  providerRefsToUpdate: Array<CommercialCatalogSyncPlanProviderRef>
-  staleRows: Array<CommercialCatalogSyncPlanStaleRow>
-  archiveCandidates: Array<CommercialCatalogSyncPlanArchiveCandidate>
-} => ({
-  productsToCreate: [],
-  pricesToCreate: [],
-  localRowsToInsert: [],
-  localRowsToUpdate: [],
-  providerRefsToInsert: [],
-  providerRefsToUpdate: [],
-  staleRows: [],
-  archiveCandidates: []
-})
-
-const stableStringify = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`
-  }
-
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
-      .join(",")}}`
-  }
-
-  return JSON.stringify(value)
-}
-
-const computeSyncHash = (input: {
-  readonly normalizedOffer: NormalizedOffer
-  readonly normalizedPlan: NormalizedPurchasePlan
-  readonly offer: CommercialOffer
-  readonly product: CommercialProduct
-}) =>
-  stableStringify({
-    normalizedOffer: {
-      id: input.normalizedOffer.id,
-      isDefault: input.normalizedOffer.isDefault,
-      metadata: input.normalizedOffer.metadata,
-      mode: input.normalizedOffer.mode,
-      name: input.normalizedOffer.name,
-      planId: input.normalizedOffer.planId,
-      priceAmount: input.normalizedOffer.priceAmount,
-      priceInterval: input.normalizedOffer.priceInterval,
-      productId: input.normalizedOffer.productId,
-      productProvider: input.normalizedOffer.productProvider,
-      provider: input.normalizedOffer.provider
-    },
-    normalizedPlan: {
-      group: input.normalizedPlan.group,
-      id: input.normalizedPlan.id,
-      includes: input.normalizedPlan.includes.map((include) => ({
-        config: include.config,
-        id: include.id,
-        limit: include.limit,
-        resetInterval: include.resetInterval,
-        type: include.type
-      })),
-      isDefault: input.normalizedPlan.isDefault,
-      metadata: input.normalizedPlan.metadata,
-      name: input.normalizedPlan.name,
-      priceAmount: input.normalizedPlan.priceAmount,
-      priceInterval: input.normalizedPlan.priceInterval,
-      provider: input.normalizedPlan.provider
-    },
-    offer: {
-      group: input.offer.group,
-      isDefault: input.offer.isDefault,
-      metadata: input.offer.metadata,
-      name: input.offer.name
-    },
-    product: {
-      description: input.product.description ?? null,
-      metadata: input.product.metadata,
-      name: input.product.name
-    }
-  })
-
-const providerRefKey = (input: { readonly ownerType: string; readonly ownerId: string; readonly kind: string }) =>
-  `${input.ownerType}:${input.ownerId}:${input.kind}`
-
-const offerProductIdFromStorageId = (offerId: string) => {
-  const separator = offerId.indexOf(":")
-  return separator === -1 ? undefined : offerId.slice(0, separator)
-}
-
-const recordOwnership = (record: Record<string, string>, key: string): CommercialCatalogProviderOwnership => {
-  const value = record[key]
-  return value === "sdk" || value === "external" ? value : "unknown"
-}
-
-const hasSameRecord = (left: Record<string, string>, right: Record<string, string>) =>
-  stableStringify(left) === stableStringify(right)
-
-const metadataString = (metadata: Record<string, unknown> | null | undefined, key: string) => {
-  const value = metadata?.[key]
-  return typeof value === "string" ? value : undefined
-}
-
-export class CommercialCatalogService extends Context.Tag("@pay/core/CommercialCatalogService")<
-  CommercialCatalogService,
-  {
-    /**
-     *
-     */
-    readonly getCatalog: () => Effect.Effect<CommercialCatalog, CommercialCatalogIssue>
-    /**
-     *
-     */
-    readonly getProduct: (input: {
-      readonly productId: string
-    }) => Effect.Effect<Option.Option<CommercialProduct>, CommercialCatalogIssue>
-    /**
-     *
-     */
-    readonly getOffer: (input: {
-      readonly offerId: string
-    }) => Effect.Effect<Option.Option<CommercialOffer>, CommercialCatalogIssue>
-    /**
-     *
-     */
-    readonly sync: (
-      input?: CommercialCatalogSyncInput | undefined
-    ) => Effect.Effect<CommercialCatalogSyncResult, unknown>
-    /**
-     *
-     */
-    readonly listOffersByProduct: (input: {
-      readonly productId: string
-    }) => Effect.Effect<ReadonlyArray<CommercialOffer>, CommercialCatalogIssue>
-    /**
-     *
-     */
-    readonly resolveDefaultOffer: (input: {
-      readonly productId: string
-      readonly group?: string | undefined
-    }) => Effect.Effect<Option.Option<CommercialOffer>, CommercialCatalogIssue>
-    /**
-     *
-     */
-    readonly listSubscriptionChangeTargets: (input: {
-      readonly currentOfferId: string
-    }) => Effect.Effect<ReadonlyArray<CommercialOffer>, CommercialOfferNotFound | CommercialCatalogIssue>
-    /**
-     *
-     */
-    readonly resolveCheckoutTarget: (input: {
-      readonly offerId: string
-      readonly provider: PaymentProviderTag
-    }) => Effect.Effect<CommercialCheckoutTarget, CommercialOfferNotFound | CommercialCatalogIssue>
-  }
->() {}
-export declare namespace CommercialCatalogService {
-  export type Methods = Context.Tag.Service<CommercialCatalogService>
-  export type Returns<key extends keyof Methods, R = never> = ServicesReturns<Methods[key], R>
-}
-
-export const CommercialCatalogServiceLayer = (input: {
-  readonly plans: PurchasePlansModule | undefined
-  readonly products: ProductsModule | undefined
-}) =>
-  Layer.effect(
-    CommercialCatalogService,
+export class IaC extends Context.Tag("IaC")<IaC, {}>() {
+  static Default = Layer.effect(
+    IaC,
     Effect.gen(function* () {
       const storage = yield* PayStorageAdapter
       const catalogState = yield* CatalogState
       const provider = yield* PaymentClient
       const activeProvider = provider._tag
 
+      const makeSyncPlan = (): {
+        productsToCreate: Array<CommercialCatalogSyncPlanProductCreate>
+        pricesToCreate: Array<CommercialCatalogSyncPlanPriceCreate>
+        localRowsToInsert: Array<CommercialCatalogSyncPlanLocalRow>
+        localRowsToUpdate: Array<CommercialCatalogSyncPlanLocalRow>
+        providerRefsToInsert: Array<CommercialCatalogSyncPlanProviderRef>
+        providerRefsToUpdate: Array<CommercialCatalogSyncPlanProviderRef>
+        staleRows: Array<CommercialCatalogSyncPlanStaleRow>
+        archiveCandidates: Array<CommercialCatalogSyncPlanArchiveCandidate>
+      } => ({
+        productsToCreate: [],
+        pricesToCreate: [],
+        localRowsToInsert: [],
+        localRowsToUpdate: [],
+        providerRefsToInsert: [],
+        providerRefsToUpdate: [],
+        staleRows: [],
+        archiveCandidates: []
+      })
+
       const getCatalog = () => Effect.succeed(catalogState.catalog)
+
+      const input: any = {}
 
       const getNormalizedCatalog = () =>
         Effect.try({
@@ -337,122 +133,6 @@ export const CommercialCatalogServiceLayer = (input: {
           try: () => normalizeSchema(input.plans, input.products),
           catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize plans: ${String(cause)}` })
         })
-
-      const getProduct = Effect.fn("CommercialCatalogService.getProduct")(function* ({
-        productId
-      }: {
-        readonly productId: string
-      }) {
-        const catalog = catalogState.catalog
-        return findProduct(catalog, productId)
-      })
-
-      const getOffer = Effect.fn("CommercialCatalogService.getOffer")(function* ({
-        offerId
-      }: {
-        readonly offerId: string
-      }) {
-        const catalog = catalogState.catalog
-        return findOffer(catalog, offerId)
-      })
-
-      const requireOffer = Effect.fn("CommercialCatalogService.requireOffer")(function* ({
-        offerId
-      }: {
-        readonly offerId: string
-      }) {
-        const offer = yield* getOffer({ offerId })
-
-        return yield* Option.match(offer, {
-          onNone: () => Effect.fail(new CommercialOfferNotFound({ offerId: offerId as never })),
-          onSome: Effect.succeed
-        })
-      })
-
-      const listOffersByProduct = Effect.fn("CommercialCatalogService.listOffersByProduct")(function* ({
-        productId
-      }: {
-        readonly productId: string
-      }) {
-        const product = yield* getProduct({ productId })
-
-        return Option.match(product, {
-          onNone: () => [] as const,
-          onSome: (resolvedProduct) => resolvedProduct.offers
-        })
-      })
-
-      const resolveDefaultOffer = Effect.fn("CommercialCatalogService.resolveDefaultOffer")(function* ({
-        productId,
-        group
-      }: {
-        readonly productId: string
-        readonly group?: string | undefined
-      }) {
-        const offers = yield* listOffersByProduct({ productId })
-
-        return Option.fromNullable(
-          offers.find((offer) => offer.isDefault && (group === undefined || offer.group === group))
-        )
-      })
-
-      const listSubscriptionChangeTargets = Effect.fn("CommercialCatalogService.listSubscriptionChangeTargets")(
-        function* ({ currentOfferId }: { readonly currentOfferId: string }) {
-          const currentOffer = yield* requireOffer({ offerId: currentOfferId })
-
-          if (currentOffer.type !== "subscription") {
-            return [] as const
-          }
-
-          const offers = yield* listOffersByProduct({ productId: currentOffer.productId })
-          const groupKey = offerGroupKey(currentOffer)
-
-          return offers.filter(
-            (offer) =>
-              offer.id !== currentOffer.id && offer.type === "subscription" && offerGroupKey(offer) === groupKey
-          )
-        }
-      )
-
-      const resolveCheckoutTarget = Effect.fn("CommercialCatalogService.resolveCheckoutTarget")(function* ({
-        offerId,
-        provider: providerTag
-      }: {
-        readonly offerId: string
-        readonly provider: PaymentProviderTag
-      }) {
-        const offer = yield* requireOffer({ offerId })
-        const product = yield* getProduct({ productId: offer.productId }).pipe(Effect.map(Option.getOrUndefined))
-        const persistedOffer = yield* storage.product
-          .findFirst({
-            where: [
-              ["id", offer.id],
-              ["version", 1]
-            ]
-          })
-          .pipe(Effect.orDie)
-        const persistedProvider: Record<string, string> = Option.match(persistedOffer, {
-          onNone: () => ({}),
-          onSome: (row) => toRecord(row.provider)
-        })
-
-        return CommercialCheckoutTarget.make({
-          provider: providerTag,
-          productId: offer.productId,
-          offerId: offer.id,
-          productType: offer.type,
-          ...(offer.billingInterval ? { billingInterval: offer.billingInterval } : {}),
-          ...((persistedProvider[providerProductKey(providerTag)] ?? product?.provider[providerTag])
-            ? {
-                providerProductId: (persistedProvider[providerProductKey(providerTag)] ??
-                  product?.provider[providerTag]) as never
-              }
-            : {}),
-          ...((persistedProvider[providerTag] ?? offer.provider[providerTag])
-            ? { providerOfferId: (persistedProvider[providerTag] ?? offer.provider[providerTag]) as never }
-            : {})
-        })
-      })
 
       const sync = Effect.fn("CommercialCatalogService.sync")(function* (
         syncInput?: CommercialCatalogSyncInput | undefined
@@ -1075,20 +755,217 @@ export const CommercialCatalogServiceLayer = (input: {
         } as const
       })
 
-      return CommercialCatalogService.of({
-        getCatalog,
-        getProduct,
-        getOffer,
-        sync,
-        listOffersByProduct,
-        resolveDefaultOffer,
-        listSubscriptionChangeTargets,
-        resolveCheckoutTarget
-      })
+      return {
+        sync
+      }
     })
   )
+}
+
+const providerProductKey = (providerTag: PaymentProviderTag) => `${providerTag}:product`
+
+const providerOfferOwnershipKey = (providerTag: PaymentProviderTag) => `${providerTag}:ownership:offer`
+
+const providerProductOwnershipKey = (providerTag: PaymentProviderTag) => `${providerTag}:ownership:product`
+
+const providerArchivedAtKey = (providerTag: PaymentProviderTag) => `${providerTag}:archivedAt`
+
+type CommercialCatalogProviderOwnership = "sdk" | "external" | "unknown"
+
+type CommercialCatalogSyncChangeReason =
+  | "missing"
+  | "removed_offer"
+  | "changed_price"
+  | "changed_billing_interval"
+  | "changed_product_metadata"
+
+export interface CommercialCatalogSyncPlanProductCreate {
+  readonly productId: string
+  readonly provider: PaymentProviderTag
+  readonly providerProductId: string
+  readonly ownership: CommercialCatalogProviderOwnership
+}
+
+export interface CommercialCatalogSyncPlanPriceCreate {
+  readonly offerId: string
+  readonly productId: string
+  readonly provider: PaymentProviderTag
+  readonly providerProductId: string
+  readonly providerOfferId: string
+  readonly reason: "missing" | "changed_price" | "changed_billing_interval"
+  readonly ownership: CommercialCatalogProviderOwnership
+}
+
+export interface CommercialCatalogSyncPlanLocalRow {
+  readonly offerId: string
+  readonly productId: string
+  readonly provider: PaymentProviderTag
+  readonly providerProductId?: string | undefined
+  readonly providerOfferId?: string | undefined
+  readonly reason: CommercialCatalogSyncChangeReason
+}
+
+export interface CommercialCatalogSyncPlanProviderRef {
+  readonly ownerType: "product" | "offer"
+  readonly ownerId: string
+  readonly provider: PaymentProviderTag
+  readonly providerId: string
+  readonly kind: "product" | "offer"
+}
+
+export interface CommercialCatalogSyncPlanStaleRow {
+  readonly offerId: string
+  readonly productId?: string | undefined
+  readonly reason: Exclude<CommercialCatalogSyncChangeReason, "missing">
+}
+
+export interface CommercialCatalogSyncPlanArchiveCandidate {
+  readonly ownerType: "product" | "offer"
+  readonly ownerId: string
+  readonly provider: PaymentProviderTag
+  readonly providerId: string
+  readonly kind: "product" | "offer"
+  readonly safeToArchive: boolean
+  readonly ownership: CommercialCatalogProviderOwnership
+  readonly reason: "removed_offer" | "changed_price" | "changed_billing_interval" | "provider_orphan"
+  /**
+   * Provider objects are archived only when this is `provider_archive_if_supported` and `dryRun` is false.
+   * External or unknown ownership is never destructively archived; stale local rows receive an archive marker instead.
+   */
+  readonly action: "provider_archive_if_supported" | "local_archive_marker" | "skip_external_or_unknown"
+}
+
+export interface CommercialCatalogSyncPlan {
+  readonly productsToCreate: ReadonlyArray<CommercialCatalogSyncPlanProductCreate>
+  readonly pricesToCreate: ReadonlyArray<CommercialCatalogSyncPlanPriceCreate>
+  readonly localRowsToInsert: ReadonlyArray<CommercialCatalogSyncPlanLocalRow>
+  readonly localRowsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanLocalRow>
+  readonly providerRefsToInsert: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
+  readonly providerRefsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
+  readonly staleRows: ReadonlyArray<CommercialCatalogSyncPlanStaleRow>
+  readonly archiveCandidates: ReadonlyArray<CommercialCatalogSyncPlanArchiveCandidate>
+}
+
+export interface CommercialCatalogSyncPlanArchiveCandidate {
+  readonly ownerType: "product" | "offer"
+  readonly ownerId: string
+  readonly provider: PaymentProviderTag
+  readonly providerId: string
+  readonly kind: "product" | "offer"
+  readonly safeToArchive: boolean
+  readonly ownership: CommercialCatalogProviderOwnership
+  readonly reason: "removed_offer" | "changed_price" | "changed_billing_interval" | "provider_orphan"
+  /**
+   * Provider objects are archived only when this is `provider_archive_if_supported` and `dryRun` is false.
+   * External or unknown ownership is never destructively archived; stale local rows receive an archive marker instead.
+   */
+  readonly action: "provider_archive_if_supported" | "local_archive_marker" | "skip_external_or_unknown"
+}
+
+const computeSyncHash = (input: {
+  readonly normalizedOffer: NormalizedOffer
+  readonly normalizedPlan: NormalizedPurchasePlan
+  readonly offer: CommercialOffer
+  readonly product: CommercialProduct
+}) =>
+  stableStringify({
+    normalizedOffer: {
+      id: input.normalizedOffer.id,
+      isDefault: input.normalizedOffer.isDefault,
+      metadata: input.normalizedOffer.metadata,
+      mode: input.normalizedOffer.mode,
+      name: input.normalizedOffer.name,
+      planId: input.normalizedOffer.planId,
+      priceAmount: input.normalizedOffer.priceAmount,
+      priceInterval: input.normalizedOffer.priceInterval,
+      productId: input.normalizedOffer.productId,
+      productProvider: input.normalizedOffer.productProvider,
+      provider: input.normalizedOffer.provider
+    },
+    normalizedPlan: {
+      group: input.normalizedPlan.group,
+      id: input.normalizedPlan.id,
+      includes: input.normalizedPlan.includes.map((include) => ({
+        config: include.config,
+        id: include.id,
+        limit: include.limit,
+        resetInterval: include.resetInterval,
+        type: include.type
+      })),
+      isDefault: input.normalizedPlan.isDefault,
+      metadata: input.normalizedPlan.metadata,
+      name: input.normalizedPlan.name,
+      priceAmount: input.normalizedPlan.priceAmount,
+      priceInterval: input.normalizedPlan.priceInterval,
+      provider: input.normalizedPlan.provider
+    },
+    offer: {
+      group: input.offer.group,
+      isDefault: input.offer.isDefault,
+      metadata: input.offer.metadata,
+      name: input.offer.name
+    },
+    product: {
+      description: input.product.description ?? null,
+      metadata: input.product.metadata,
+      name: input.product.name
+    }
+  })
+
+const providerRefKey = (input: { readonly ownerType: string; readonly ownerId: string; readonly kind: string }) =>
+  `${input.ownerType}:${input.ownerId}:${input.kind}`
+
+const offerProductIdFromStorageId = (offerId: string) => {
+  const separator = offerId.indexOf(":")
+  return separator === -1 ? undefined : offerId.slice(0, separator)
+}
+
+const recordOwnership = (record: Record<string, string>, key: string): CommercialCatalogProviderOwnership => {
+  const value = record[key]
+  return value === "sdk" || value === "external" ? value : "unknown"
+}
+
+const stableStringify = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
+      .join(",")}}`
+  }
+
+  return JSON.stringify(value)
+}
+
+const hasSameRecord = (left: Record<string, string>, right: Record<string, string>) =>
+  stableStringify(left) === stableStringify(right)
+
+const metadataString = (metadata: Record<string, unknown> | null | undefined, key: string) => {
+  const value = metadata?.[key]
+  return typeof value === "string" ? value : undefined
+}
 
 const toStorageUtc = (value: Date): Utc => value as unknown as Utc
+
+const toRecord = (value: unknown): Record<string, string> => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, string>
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {}
+    } catch {
+      return {}
+    }
+  }
+
+  return {}
+}
 
 const zeroDecimalCurrencies = new Set([
   "BIF",

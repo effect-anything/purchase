@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Option from "effect/Option"
 
-import { formatHumanResult, parseCatalogSyncOptions, parseDatabaseTarget } from "../src/cli.ts"
+import { formatHumanResult, parseCatalogSyncOptions, parseDatabaseTarget } from "../src/bin.ts"
 
 describe("purchase cli options", () => {
   it("parses sqlite database urls", () => {

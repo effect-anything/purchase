@@ -159,15 +159,7 @@ const checkout = Pay.checkout.start({
 })
 ```
 
-## Catalog Sync Safety
-
-`catalog.sync({ dryRun: true })` builds the same sync plan used by the write path, but it must not create provider products or prices, write local product rows, persist provider refs, or archive provider objects.
-
-A normal `catalog.sync()` may create missing provider objects for SDK-owned catalog entries, persist local offer rows, and store provider refs for later reuse. Provider ids declared directly in the catalog DSL are treated as externally owned; SDK-created ids are marked as SDK-owned in local provider metadata.
-
-Removal and replacement are intentionally ownership-aware. SDK-owned stale prices or products are archive candidates and are archived only when the provider supports the archive operation; external or unknown provider ids are not destructively archived and stale local rows are marked locally with a provider archive timestamp instead.
-
-## Current Status
+# Current Status
 
 The package already has the core runtime shape and a meaningful test suite, but it is still pre-1.0 and not yet at the level of a broadly adopted open-source billing SDK. The main gaps are around public API hardening, app-framework adapters, migration/setup ergonomics, docs depth, and release discipline.
 

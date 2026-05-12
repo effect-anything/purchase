@@ -31,7 +31,7 @@ import type {
   WorkflowReceipt
 } from "./core/workflow-schema.ts"
 import type { InferOfferId, InferProductId, ProductsModule, PurchasePlansModule } from "./dsl.ts"
-import type { PaymentImpl } from "./provider/impl.ts"
+import type { PaymentProviderTag } from "./provider.ts"
 import type { BillingPortalSession, SubscriptionChangePreview } from "./schema.ts"
 
 import { buildCommercialCatalog, CatalogState } from "./core/catalog-builder.ts"
@@ -40,6 +40,7 @@ import { CommercialProjectionService, CommercialProjectionServiceLayer } from ".
 import { CommercialWorkflowService, CommercialWorkflowServiceLayer } from "./core/workflow-service.ts"
 import { CommercialWorkflowStore, CommercialWorkflowStoreLayer } from "./core/workflow-store.ts"
 import { PayStorageAdapter, type PayStorageCheckoutIntentRecord, type PayStorageOverrides } from "./db.ts"
+import { PaymentClient } from "./provider/client.ts"
 
 /**
  * Public checkout entrypoint for the commercial runtime.
@@ -80,7 +81,7 @@ export type PurchaseCheckoutRequest<TProducts extends ReadonlyArray<unknown>> = 
  * The result keeps commercial ids (`offerId`, `productId`) and never echoes DSL-only ids.
  */
 export interface PayCheckoutResult<TProducts extends ReadonlyArray<unknown>> {
-  readonly provider: "paddle" | "stripe"
+  readonly provider: PaymentProviderTag
   /**
    * Customer that owns the checkout intent.
    */
@@ -133,6 +134,11 @@ export type PurchaseSDKOptions<
 > = BasePaySdkOptions<TPlans, TProducts>
 
 export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
+  /**
+   * Configured provider client used by the SDK runtime. Exposed for provider-level
+   * test harnesses and advanced integrations that need direct provider inspection.
+   */
+  readonly provider: PaymentClient.Methods
   /**
    * Commercial catalog access and provider sync.
    */
@@ -215,11 +221,11 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
     readonly products: TProducts
     readonly layer: <T extends Context.Tag<Self, Service>>(
       T: T
-    ) => Layer.Layer<Self, never, PaymentImpl | SqlClient.SqlClient>
+    ) => Layer.Layer<Self, never, PaymentClient | SqlClient.SqlClient>
     readonly make: <T extends Context.Tag<Self, Service>, E, R>(
       T: T,
       f: Effect.Effect<Shape, E, R | BasePay>
-    ) => Layer.Layer<Self, E, Exclude<R, BasePay> | PaymentImpl | SqlClient.SqlClient>
+    ) => Layer.Layer<Self, E, Exclude<R, BasePay> | PaymentClient | SqlClient.SqlClient>
   }
 
   const catalogStateLive = Layer.effect(
@@ -260,6 +266,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
         workflow: CommercialWorkflowService,
         workflowStore: CommercialWorkflowStore
       })
+      const provider = yield* PaymentClient
 
       const getCommerceSnapshot = ({ customerId }: { readonly customerId: string }) =>
         commerce.projection.refreshCustomerSnapshot({
@@ -283,6 +290,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
         )
 
       const state: BasePaySdkContract<TPlans, TProducts> = {
+        provider,
         catalog: commerce.catalog,
         checkout: {
           start: (input) =>

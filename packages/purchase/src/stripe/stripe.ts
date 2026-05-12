@@ -6,7 +6,6 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 
-import type { PaymentClient, PaymentWebhookKind, PaymentWebhookNormalization, StripeImpl } from "../provider/client.ts"
 import type { PaymentProviderTag } from "../provider/type.ts"
 import type {
   StripeCustomer,
@@ -32,11 +31,16 @@ import {
   SubscriptionChargeResult,
   SubscriptionId,
   Transaction,
-  TransactionPreviewResult,
-  TransactionId
+  TransactionId,
+  TransactionPreviewResult
 } from "../internal/provider-schema.ts"
-import { makePaymentClient } from "../provider/client.ts"
-import { PaymentImpl } from "../provider/impl.ts"
+import {
+  PaymentClient,
+  type PaymentWebhookKind,
+  type PaymentWebhookNormalization,
+  type StripeImpl,
+  makePaymentClient
+} from "../provider/client.ts"
 import { StripeClient, StripeConfig, makeStripeClient } from "./internal/stripe-client.ts"
 
 export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeImpl>() {
@@ -48,10 +52,10 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     const stripeHi: StripeImpl["stripeHi"] = Effect.succeed("hi")
 
-    const webhooksUnmarshal: PaymentClient["webhooksUnmarshal"] = ({ signature, payload }) =>
+    const webhooksUnmarshal: PaymentClient.Methods["webhooksUnmarshal"] = ({ signature, payload }) =>
       stripe.webhooksUnmarshal(payload, signature)
 
-    const webhooksNormalize: PaymentClient["webhooksNormalize"] = (event) =>
+    const webhooksNormalize: PaymentClient.Methods["webhooksNormalize"] = (event) =>
       Effect.succeed(normalizeStripeWebhook(event))
 
     // ----------------------------------------------------------------------------------------
@@ -634,39 +638,24 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       billingPortal: {
         createSession: billingPortalCreateSession
       }
-    } satisfies Omit<StripeImpl, "is" | "isPaddle" | "isStripe">
+    } satisfies Omit<StripeImpl, "onDialect" | "onDialectOrElse">
 
     return makePaymentClient<StripeImpl>(Stripe._tag, methods)
   })
 
   static layerConfig = (config: StripeConfig) =>
-    Layer.succeed(
-      PaymentImpl,
-      PaymentImpl.of({
-        _tag: Stripe._tag,
-        make: Stripe.make.pipe(Effect.provide(Layer.effect(StripeClient, makeStripeClient(config))))
-      })
-    )
+    Layer.effect(PaymentClient, Stripe.make).pipe(Layer.provide(Layer.effect(StripeClient, makeStripeClient(config))))
 
-  static layer = Layer.succeed(
-    PaymentImpl,
-    PaymentImpl.of({
-      _tag: Stripe._tag,
-      make: Stripe.make.pipe(
-        Effect.provide(
-          pipe(
-            Layer.unwrapEffect(
-              Effect.gen(function* () {
-                const config = yield* StripeConfig
+  static layer = Layer.effect(PaymentClient, Stripe.make).pipe(
+    Layer.provide(
+      Layer.unwrapEffect(
+        Effect.gen(function* () {
+          const config = yield* StripeConfig
 
-                return Layer.effect(StripeClient, makeStripeClient(config))
-              })
-            ),
-            Layer.orDie
-          )
-        )
+          return Layer.effect(StripeClient, makeStripeClient(config))
+        })
       )
-    })
+    )
   )
 }
 

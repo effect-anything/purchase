@@ -15,7 +15,6 @@ import { AccountHttpApiLive } from "./services/account/http.ts"
 import { AppApi } from "./services/api/http-api.ts"
 import { AuthService } from "./services/auth/auth-service.ts"
 import { AuthHttpLive } from "./services/auth/http.ts"
-import { CatalogService } from "./services/catalog/catalog-service.ts"
 import { CatalogHttpLive } from "./services/catalog/http.ts"
 import { CheckoutHttpLive } from "./services/checkout/http.ts"
 import { CreditsHttpLive } from "./services/credits/http.ts"
@@ -30,22 +29,6 @@ const SimpleRoute = Layer.scopedDiscard(
     const auth = yield* AuthService
 
     yield* router.add("GET", "/api/health", HttpServerResponse.text("ok"))
-
-    yield* router.add(
-      "POST",
-      "/api/catalog/sync",
-      Effect.gen(function* () {
-        const catalog = yield* CatalogService
-        yield* catalog.sync()
-        return HttpServerResponse.unsafeJson({ synced: true })
-      }).pipe(
-        Effect.catchAllCause((cause) =>
-          Effect.logError(cause).pipe(
-            Effect.as(HttpServerResponse.unsafeJson({ error: "Catalog sync failed" }, { status: 500 }))
-          )
-        )
-      )
-    )
 
     yield* router.add(
       "POST",

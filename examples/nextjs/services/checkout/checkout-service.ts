@@ -6,8 +6,8 @@ import type { CheckoutStartResult } from "./checkout-domain.ts"
 
 import { BASE_PUBLIC_URL, PADDLE_CHECKOUT_URL } from "../../config.ts"
 import { ProviderNotConfigured } from "../../errors.ts"
-import { Pay } from "../../purchase.ts"
 import { CustomerSyncService } from "../customer-sync-service.ts"
+import { PurchaseService } from "../purchase/purchase-service"
 
 export class CheckoutService extends Context.Tag("CheckoutService")<
   CheckoutService,
@@ -21,7 +21,7 @@ export class CheckoutService extends Context.Tag("CheckoutService")<
   static Default = Layer.effect(
     CheckoutService,
     Effect.gen(function* () {
-      const sdk = yield* Pay
+      const purchase = yield* PurchaseService
       const publicUrl = yield* BASE_PUBLIC_URL
       const paddleCheckoutUrl = yield* PADDLE_CHECKOUT_URL
       const customerSync = yield* CustomerSyncService
@@ -32,7 +32,7 @@ export class CheckoutService extends Context.Tag("CheckoutService")<
       }): Effect.Effect<CheckoutStartResult, ProviderNotConfigured> =>
         customerSync.ensureCustomer(input.user).pipe(
           Effect.zipRight(
-            sdk.checkout.start({
+            purchase.checkout.start({
               customerId: CustomerId.make(input.user.id),
               offerId: input.offerId as never,
               successUrl: `${publicUrl}/account?checkout=success&offer=${encodeURIComponent(input.offerId)}`,

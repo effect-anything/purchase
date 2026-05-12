@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 
-import type { PaymentImpl } from "./provider/impl.ts"
+import type { PaymentClient } from "./provider/client.ts"
 
 import { PaymentProviderTag } from "./provider/type.ts"
 
@@ -17,8 +17,8 @@ export const PayProviderConfig = PurchaseProviderConfig
 export const PurchaseProvider = {
   config: PurchaseProviderConfig,
   fromTags: (input: {
-    readonly paddle: Layer.Layer<PaymentImpl, unknown, unknown>
-    readonly stripe: Layer.Layer<PaymentImpl, unknown, unknown>
+    readonly paddle: Layer.Layer<PaymentClient, unknown, unknown>
+    readonly stripe: Layer.Layer<PaymentClient, unknown, unknown>
   }) =>
     Layer.unwrapEffect(
       Effect.gen(function* () {
@@ -28,14 +28,14 @@ export const PurchaseProvider = {
       })
     ),
   FromTags: (input: {
-    readonly paddle: Layer.Layer<PaymentImpl, unknown, unknown>
-    readonly stripe: Layer.Layer<PaymentImpl, unknown, unknown>
+    readonly paddle: Layer.Layer<PaymentClient, unknown, unknown>
+    readonly stripe: Layer.Layer<PaymentClient, unknown, unknown>
   }) => PurchaseProvider.fromTags(input)
 } as const
 
 export const PayProvider = PurchaseProvider
 
 export { PaymentEnvironmentTag, PaymentProviderTag } from "./provider/type.ts"
-export type { PaymentImpl } from "./provider/impl.ts"
+export type { PaymentClient } from "./provider/client.ts"
 export { Paddle } from "./paddle/paddle.ts"
 export { Stripe } from "./stripe/stripe.ts"

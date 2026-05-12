@@ -17,15 +17,17 @@ import * as EffectString from "effect/String"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
+import type { PaymentProviderTag, PaymentEnvironmentTag } from "./provider/type.ts"
+
 import * as CloudflareD1HttpClient from "./internal/cloudflare-d1-http-client.ts"
 import { Paddle } from "./paddle.ts"
 import { BaseSDK } from "./sdk.ts"
 import { Stripe } from "./stripe.ts"
 
 type CliCommand = "catalog.sync"
-type PaymentProviderTag = "paddle" | "stripe"
-type PaymentEnvironmentTag = "sandbox" | "production"
+
 type DatabaseKind = "cloudflare-d1" | "postgres" | "sqlite"
+
 type DatabaseTarget =
   | { readonly _tag: "postgres"; readonly url: string }
   | { readonly _tag: "sqlite"; readonly filename: string; readonly label: string }
@@ -37,7 +39,7 @@ type DatabaseTarget =
       readonly baseUrl?: string | undefined
     }
 
-export interface CommercialCatalogSyncPlan {
+interface CommercialCatalogSyncPlan {
   readonly productsToCreate: ReadonlyArray<{
     readonly productId: string
     readonly providerProductId: string
@@ -71,14 +73,14 @@ export interface CommercialCatalogSyncPlan {
   }>
 }
 
-export interface CommercialCatalogSyncResult {
+interface CommercialCatalogSyncResult {
   readonly provider: PaymentProviderTag
   readonly offers: number
   readonly dryRun: boolean
   readonly plan: CommercialCatalogSyncPlan
 }
 
-export interface CliOptions {
+interface CliOptions {
   readonly command: CliCommand
   readonly modulePath: string
   readonly exportName?: string | undefined
@@ -123,7 +125,9 @@ const loadCatalogModule = async (options: CliOptions): Promise<CatalogModule> =>
   const importModule = new Function("specifier", `return ${"imp"}ort(specifier)`) as (
     specifier: string
   ) => Promise<Record<string, unknown>>
+
   const loaded = await importModule(pathToFileURL(resolveModulePath(options.modulePath)).href)
+
   const selected = options.exportName
     ? loaded[options.exportName]
     : (loaded.Pay ??
@@ -147,10 +151,12 @@ const loadCatalogModule = async (options: CliOptions): Promise<CatalogModule> =>
     readonly plans?: ReadonlyArray<unknown> | undefined
     readonly products?: ReadonlyArray<unknown> | undefined
   }
+
   const plans =
     candidate.plans ??
     (loaded.plans as ReadonlyArray<unknown> | undefined) ??
     (loaded.CommercialPlans as ReadonlyArray<unknown> | undefined)
+
   const products =
     candidate.products ??
     (loaded.products as ReadonlyArray<unknown> | undefined) ??

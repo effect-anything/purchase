@@ -1,7 +1,8 @@
+import type * as Effect from "effect/Effect"
 import type * as Option from "effect/Option"
 import type * as Stream from "effect/Stream"
 
-import * as Effect from "effect/Effect"
+import * as Context from "effect/Context"
 
 import type { CommercialOfferId } from "../core/commercial-schema.ts"
 import type { BillingPortalFlow, SubscriptionMutationMode } from "../core/common-schema.ts"
@@ -235,21 +236,19 @@ export interface PaymentWebhookNormalization {
   readonly periodEndAt?: Date | undefined
 }
 
-export interface PaymentClient {
+interface PaymentClientShape {
   readonly _tag: PaymentProviderTag
 
-  readonly isPaddle: boolean
+  readonly onDialect: <A, B>(options: {
+    readonly stripe: (client: Omit<StripeImpl, "onDialect" | "onDialectOrElse"> & { _tag: "stripe" }) => A
+    readonly paddle: (client: Omit<PaddleImpl, "onDialect" | "onDialectOrElse"> & { _tag: "paddle" }) => B
+  }) => A | B
 
-  readonly isStripe: boolean
-
-  readonly is: <A, E, R, T extends PaymentProviderTag>(
-    tag: T,
-    effect: (
-      _: T extends "paddle"
-        ? Omit<PaddleImpl, "is" | "isPaddle" | "isStripe">
-        : Omit<StripeImpl, "is" | "isPaddle" | "isStripe">
-    ) => Effect.Effect<A, E, R>
-  ) => Effect.Effect<A, E, R>
+  readonly onDialectOrElse: <A, B = never, C = never>(options: {
+    readonly orElse: (client: PaymentClientShape) => A
+    readonly stripe?: (client: Omit<StripeImpl, "onDialect" | "onDialectOrElse"> & { _tag: "stripe" }) => B
+    readonly paddle?: (client: Omit<PaddleImpl, "onDialect" | "onDialectOrElse"> & { _tag: "paddle" }) => C
+  }) => A | B | C
 
   readonly webhooksUnmarshal: ({
     payload,
@@ -435,36 +434,40 @@ export interface PaymentClient {
   }
 }
 
+export class PaymentClient extends Context.Tag("PaymentClient")<PaymentClient, PaymentClientShape>() {}
+
 export declare namespace PaymentClient {
-  export type Methods = PaymentClient
+  export type Methods = Context.Tag.Service<PaymentClient>
   export type Returns<key extends keyof Methods, R = never> = ServicesReturns<Methods[key], R>
 }
 
-export interface PaddleImpl extends PaymentClient {
+export interface PaddleImpl extends PaymentClientShape {
   // Test. Provider-specific methods
   readonly paddleHi: Effect.Effect<string, never, never>
 }
 
-export interface StripeImpl extends PaymentClient {
+export interface StripeImpl extends PaymentClientShape {
   // Test. Provider-specific methods
   readonly stripeHi: Effect.Effect<string, never, never>
 }
 
-type ProviderMethods<T extends PaymentClient> = Omit<T, "is" | "isPaddle" | "isStripe">
+type ProviderMethods<T extends PaymentClientShape> = Omit<T, "onDialect" | "onDialectOrElse">
 
-export const makePaymentClient = <T extends PaymentClient>(tag: PaymentProviderTag, methods: ProviderMethods<T>): T => {
-  const is: PaymentClient["is"] = (target, effect) => {
-    if (target === tag) {
-      return effect(methods as never) as never
-    }
+export const makePaymentClient = <T extends PaymentClientShape>(
+  tag: PaymentProviderTag,
+  methods: ProviderMethods<T>
+): T => {
+  const onDialect: PaymentClient.Methods["onDialect"] = (options) => {
+    return options[tag](methods as never)
+  }
 
-    return Effect.void as never
+  const onDialectOrElse: PaymentClient.Methods["onDialectOrElse"] = (options) => {
+    return options[tag] !== undefined ? options[tag](methods as never) : options.orElse(methods as never)
   }
 
   return {
     ...methods,
-    isPaddle: tag === "paddle",
-    isStripe: tag === "stripe",
-    is
+    onDialect,
+    onDialectOrElse
   } as unknown as T
 }

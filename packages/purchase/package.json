@@ -39,6 +39,7 @@
     "./errors": "./src/errors.ts",
     "./paddle": "./src/paddle.ts",
     "./provider": "./src/provider.ts",
+    "./test": "./src/test.ts",
     "./schema": "./src/schema.ts",
     "./sdk": "./src/sdk.ts",
     "./stripe": "./src/stripe.ts",
@@ -56,6 +57,7 @@
       "./errors": "./dist/errors.js",
       "./paddle": "./dist/paddle.js",
       "./provider": "./dist/provider.js",
+      "./test": "./dist/test.js",
       "./schema": "./dist/schema.js",
       "./sdk": "./dist/sdk.js",
       "./stripe": "./dist/stripe.js",
@@ -73,6 +75,8 @@
     "test:core": "vitest run test/core",
     "test:provider": "vitest run test/provider test/provider-live-harness.test.ts",
     "test:provider-live": "vitest run e2e/provider-live",
+    "test:e2e:paddle-public": "RUN_PUBLIC_PADDLE_E2E=1 vitest run e2e/paddle-public-subscription.e2e.test.ts",
+    "e2e:paddle-public": "node --env-file=../../examples/nextjs/.env --experimental-strip-types e2e/run-paddle-public-subscription.ts",
     "coverage": "vitest --coverage"
   },
   "dependencies": {
@@ -89,7 +93,14 @@
     "@effect/sql-sqlite-node": "^0.52.0",
     "@effect/vitest": "^0.29.0",
     "@paddle/paddle-node-sdk": "^3.7.0",
+    "effect-playwright": "^0.4.2",
+    "playwright-core": "^1.60.0",
+    "vitest": "catalog:",
     "stripe": "^22.0.1"
+  },
+  "optionalDependencies": {
+    "effect-playwright": "^0.4.2",
+    "playwright-core": "^1.60.0"
   },
   "tags": [
     "typescript",

@@ -3,7 +3,6 @@ import type StripeSdk from "stripe"
 import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
 import * as HttpBody from "@effect/platform/HttpBody"
 import * as HttpClient from "@effect/platform/HttpClient"
-import * as HttpClientError from "@effect/platform/HttpClientError"
 import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Config from "effect/Config"
@@ -32,6 +31,7 @@ import {
   TransactionNotFound,
   WebhookUnmarshalError
 } from "../../errors.ts"
+import { failUnexpectedStatus, withProviderTransientRetry } from "../../internal/provider-http-retry.ts"
 import {
   StripeBillingPortalSession,
   StripeCheckoutSession,
@@ -68,7 +68,8 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         HttpClientRequest.acceptJson,
         HttpClientRequest.setHeader("Stripe-Version", stripeApiVersion)
       )
-    )
+    ),
+    withProviderTransientRetry
   )
   const unexpectedStatus = (
     request: HttpClientRequest.HttpClientRequest,
@@ -83,15 +84,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         )
       ]),
       ([description, json]) =>
-        Effect.fail(
-          new HttpClientError.ResponseError({
-            request,
-            response,
-            reason: "StatusCode",
-            description: json ? json.error.message : description,
-            cause: json?.error
-          })
-        )
+        failUnexpectedStatus(request, response, json ? json.error.message : description, json?.error)
     )
   const decodeJson =
     <A, I, R>(schema: Schema.Schema<A, I, R>) =>
@@ -369,20 +362,16 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         Effect.catchAll((error) => (error._tag === "ProductNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (isDeletedStripeObject(product)) {
-        return yield* Effect.fail(
-          new ProductNotFound({
-            productId: args.productId
-          })
-        )
+        return yield* new ProductNotFound({
+          productId: args.productId
+        })
       }
       if (args.trialPeriod && args.trialPeriod.interval !== "day") {
-        return yield* Effect.fail(
-          new ProviderOperationNotSupported({
-            provider: "stripe",
-            operation: "prices.create",
-            message: "Stripe only supports trial periods expressed in days"
-          })
-        )
+        return yield* new ProviderOperationNotSupported({
+          provider: "stripe",
+          operation: "prices.create",
+          message: "Stripe only supports trial periods expressed in days"
+        })
       }
       const params = withOptional({
         active: args.active,
@@ -489,12 +478,10 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         Effect.catchAll(Effect.die)
       )
       if (existing) {
-        return yield* Effect.fail(
-          new CustomerAlreadyExists({
-            email: args.email,
-            userId: args.userId
-          })
-        )
+        return yield* new CustomerAlreadyExists({
+          email: args.email,
+          userId: args.userId
+        })
       }
       const params = withOptional({
         email: args.email,
@@ -519,11 +506,9 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         Effect.catchAll((error) => (error._tag === "CustomerNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (isDeletedStripeCustomer(current)) {
-        return yield* Effect.fail(
-          new CustomerNotFound({
-            customerId: args.customerId
-          })
-        )
+        return yield* new CustomerNotFound({
+          customerId: args.customerId
+        })
       }
       const params = withOptional({
         email: args.email,
@@ -695,31 +680,25 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
       const item = current.items.data[0]
       if (!item) {
-        return yield* Effect.fail(
-          new SubscriptionNotFound({
-            subscriptionId: args.subscriptionId,
-            message: "Subscription has no items to preview"
-          })
-        )
+        return yield* new SubscriptionNotFound({
+          subscriptionId: args.subscriptionId,
+          message: "Subscription has no items to preview"
+        })
       }
       const price = yield* getPriceById(args.priceId).pipe(
         Effect.catchAll((error) => (error._tag === "PriceNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (price.type !== "recurring") {
-        return yield* Effect.fail(
-          new PriceNotFound({
-            priceId: args.priceId
-          })
-        )
+        return yield* new PriceNotFound({
+          priceId: args.priceId
+        })
       }
       const customerId = resolveStripeCustomerId(current.customer)
       if (!customerId) {
-        return yield* Effect.fail(
-          new SubscriptionNotFound({
-            subscriptionId: args.subscriptionId,
-            message: "Subscription has no customer"
-          })
-        )
+        return yield* new SubscriptionNotFound({
+          subscriptionId: args.subscriptionId,
+          message: "Subscription has no customer"
+        })
       }
       const previewInput = {
         customer: customerId,
@@ -776,22 +755,18 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
       const customerId = resolveStripeCustomerId(current.customer)
       if (!customerId) {
-        return yield* Effect.fail(
-          new SubscriptionNotFound({
-            subscriptionId: args.subscriptionId,
-            message: "Subscription has no customer"
-          })
-        )
+        return yield* new SubscriptionNotFound({
+          subscriptionId: args.subscriptionId,
+          message: "Subscription has no customer"
+        })
       }
       const price = yield* getPriceById(args.priceId).pipe(
         Effect.catchAll((error) => (error._tag === "PriceNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (price.type !== "one_time") {
-        return yield* Effect.fail(
-          new PriceNotFound({
-            priceId: args.priceId
-          })
-        )
+        return yield* new PriceNotFound({
+          priceId: args.priceId
+        })
       }
       const params = {
         customer: customerId,
@@ -832,22 +807,18 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
       const customerId = resolveStripeCustomerId(current.customer)
       if (!customerId) {
-        return yield* Effect.fail(
-          new SubscriptionNotFound({
-            subscriptionId: args.subscriptionId,
-            message: "Subscription has no customer"
-          })
-        )
+        return yield* new SubscriptionNotFound({
+          subscriptionId: args.subscriptionId,
+          message: "Subscription has no customer"
+        })
       }
       const price = yield* getPriceById(args.priceId).pipe(
         Effect.catchAll((error) => (error._tag === "PriceNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (price.type !== "one_time") {
-        return yield* Effect.fail(
-          new PriceNotFound({
-            priceId: args.priceId
-          })
-        )
+        return yield* new PriceNotFound({
+          priceId: args.priceId
+        })
       }
       const quantity = args.quantity ?? 1
       const effectiveFrom = args.effectiveFrom ?? "immediately"
@@ -923,23 +894,19 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       args: PauseSubscriptionParams
     ): Effect.fn.Return<void, SubscriptionNotFound | ProviderOperationNotSupported> {
       if (args.mode !== "billing_collection") {
-        return yield* Effect.fail(
-          new ProviderOperationNotSupported({
-            provider: "stripe",
-            operation: "subscriptions.pause",
-            message:
-              "Stripe only supports billing_collection pause through pause_collection; lifecycle pause is not supported"
-          })
-        )
+        return yield* new ProviderOperationNotSupported({
+          provider: "stripe",
+          operation: "subscriptions.pause",
+          message:
+            "Stripe only supports billing_collection pause through pause_collection; lifecycle pause is not supported"
+        })
       }
       if (args.effectiveFrom && args.effectiveFrom !== "immediately") {
-        return yield* Effect.fail(
-          new ProviderOperationNotSupported({
-            provider: "stripe",
-            operation: "subscriptions.pause",
-            message: "Stripe pause_collection starts immediately and does not support next_billing_period"
-          })
-        )
+        return yield* new ProviderOperationNotSupported({
+          provider: "stripe",
+          operation: "subscriptions.pause",
+          message: "Stripe pause_collection starts immediately and does not support next_billing_period"
+        })
       }
       const params = {
         expand: ["items.data.price.product", "latest_invoice"],
@@ -973,13 +940,11 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
     ): Effect.fn.Return<void, SubscriptionNotFound | ProviderOperationNotSupported> {
       if (args.mode === "billing_collection") {
         if (typeof args.effectiveFrom !== "undefined" && args.effectiveFrom !== "immediately") {
-          return yield* Effect.fail(
-            new ProviderOperationNotSupported({
-              provider: "stripe",
-              operation: "subscriptions.resume",
-              message: "Stripe cannot schedule a future billing_collection resume; unpausing happens immediately"
-            })
-          )
+          return yield* new ProviderOperationNotSupported({
+            provider: "stripe",
+            operation: "subscriptions.resume",
+            message: "Stripe cannot schedule a future billing_collection resume; unpausing happens immediately"
+          })
         }
         const params = {
           expand: ["items.data.price.product", "latest_invoice"],
@@ -1006,23 +971,19 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         Effect.catchAll((error) => (error instanceof SubscriptionNotFound ? Effect.fail(error) : Effect.die(error)))
       )
       if (current.status !== "paused") {
-        return yield* Effect.fail(
-          new ProviderOperationNotSupported({
-            provider: "stripe",
-            operation: "subscriptions.resume",
-            message:
-              "Stripe lifecycle resume only works for subscriptions already in status=paused; use billing_collection mode for pause_collection"
-          })
-        )
+        return yield* new ProviderOperationNotSupported({
+          provider: "stripe",
+          operation: "subscriptions.resume",
+          message:
+            "Stripe lifecycle resume only works for subscriptions already in status=paused; use billing_collection mode for pause_collection"
+        })
       }
       if (args.resumePolicy) {
-        return yield* Effect.fail(
-          new ProviderOperationNotSupported({
-            provider: "stripe",
-            operation: "subscriptions.resume",
-            message: "Stripe lifecycle resume does not support Paddle-style resumePolicy values"
-          })
-        )
+        return yield* new ProviderOperationNotSupported({
+          provider: "stripe",
+          operation: "subscriptions.resume",
+          message: "Stripe lifecycle resume does not support Paddle-style resumePolicy values"
+        })
       }
       const params = withOptional({
         billing_cycle_anchor: args.billingCycleAnchor,
@@ -1086,11 +1047,9 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
           Effect.catchAll((error) => (error._tag === "PriceNotFound" ? Effect.fail(error) : Effect.die(error)))
         )
         if (price.type !== "one_time") {
-          return yield* Effect.fail(
-            new PriceNotFound({
-              priceId: item.priceId
-            })
-          )
+          return yield* new PriceNotFound({
+            priceId: item.priceId
+          })
         }
       }
       const params = withOptional({
@@ -1134,21 +1093,17 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         Effect.catchAll((error) => (error._tag === "CustomerNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (isDeletedStripeCustomer(customer)) {
-        return yield* Effect.fail(
-          new CustomerNotFound({
-            customerId: args.customerId
-          })
-        )
+        return yield* new CustomerNotFound({
+          customerId: args.customerId
+        })
       }
       const price = yield* getPriceById(args.priceId).pipe(
         Effect.catchAll((error) => (error._tag === "PriceNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (price.type !== "one_time") {
-        return yield* Effect.fail(
-          new PriceNotFound({
-            priceId: args.priceId
-          })
-        )
+        return yield* new PriceNotFound({
+          priceId: args.priceId
+        })
       }
       const invoiceItemParams = {
         customer: args.customerId,
@@ -1200,12 +1155,10 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         Effect.catchAll((error) => (error instanceof TransactionNotFound ? Effect.fail(error) : Effect.die(error)))
       )
       if (!invoice.invoice_pdf) {
-        return yield* Effect.fail(
-          new TransactionNotFound({
-            transactionId: args.transactionId,
-            message: "Invoice PDF not found"
-          })
-        )
+        return yield* new TransactionNotFound({
+          transactionId: args.transactionId,
+          message: "Invoice PDF not found"
+        })
       }
       return invoice.invoice_pdf
     }),
@@ -1220,12 +1173,10 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
       const paymentIntentId = resolveStripePaymentIntentId(invoice)
       if (!paymentIntentId) {
-        return yield* Effect.fail(
-          new TransactionNotFound({
-            transactionId: args.transactionId,
-            message: "Transaction has no payment intent to refund"
-          })
-        )
+        return yield* new TransactionNotFound({
+          transactionId: args.transactionId,
+          message: "Transaction has no payment intent to refund"
+        })
       }
       const params = withOptional({
         amount: args.amount ? parseMinorUnitAmount(args.amount, "amount") : undefined,
@@ -1356,13 +1307,11 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       subscriptionId?: string | undefined
     }): Effect.fn.Return<StripeBillingPortalSession, CustomerNotFound | ProviderOperationNotSupported> {
       if ((args.flow === "subscription_cancel" || args.flow === "subscription_update") && !args.subscriptionId) {
-        return yield* Effect.fail(
-          new ProviderOperationNotSupported({
-            provider: "stripe",
-            operation: "billingPortal.createSession",
-            message: `Stripe ${args.flow} portal flow requires subscriptionId`
-          })
-        )
+        return yield* new ProviderOperationNotSupported({
+          provider: "stripe",
+          operation: "billingPortal.createSession",
+          message: `Stripe ${args.flow} portal flow requires subscriptionId`
+        })
       }
       const flow =
         args.flow && args.flow !== "general"

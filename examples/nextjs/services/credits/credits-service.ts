@@ -4,8 +4,8 @@ import { Context, Effect, Layer } from "effect"
 import type { AuthenticatedUser } from "../authenticated-user.ts"
 import type { CreditWallet } from "./credits-domain.ts"
 
-import { Pay } from "../../purchase.ts"
 import { CustomerSyncService } from "../customer-sync-service.ts"
+import { PurchaseService } from "../purchase/purchase-service"
 
 export class CreditsService extends Context.Tag("CreditsService")<
   CreditsService,
@@ -20,7 +20,7 @@ export class CreditsService extends Context.Tag("CreditsService")<
   static Default = Layer.effect(
     CreditsService,
     Effect.gen(function* () {
-      const sdk = yield* Pay
+      const purchase = yield* PurchaseService
       const customerSync = yield* CustomerSyncService
 
       const consume = (input: {
@@ -31,7 +31,7 @@ export class CreditsService extends Context.Tag("CreditsService")<
         customerSync.ensureCustomer(input.user).pipe(
           Effect.orDie,
           Effect.zipRight(
-            sdk.credits
+            purchase.credits
               .consume({
                 customerId: CustomerId.make(input.user.id),
                 creditKey: "ai_credits",

@@ -7,7 +7,6 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 import * as Stream from "effect/Stream"
 
-import type { PaddleImpl, PaymentClient, PaymentWebhookKind, PaymentWebhookNormalization } from "../provider/client.ts"
 import type { PaymentProviderTag } from "../provider/type.ts"
 import type {
   PaddleCustomer,
@@ -35,8 +34,13 @@ import {
   TransactionId,
   TransactionPreviewResult
 } from "../internal/provider-schema.ts"
-import { makePaymentClient } from "../provider/client.ts"
-import { PaymentImpl } from "../provider/impl.ts"
+import {
+  makePaymentClient,
+  type PaddleImpl,
+  PaymentClient,
+  type PaymentWebhookKind,
+  type PaymentWebhookNormalization
+} from "../provider/client.ts"
 import { makePaddleClient, PaddleClient, PaddleConfig } from "./internal/paddle-client.ts"
 
 export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleImpl>() {
@@ -48,10 +52,10 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     const paddleHi: PaddleImpl["paddleHi"] = Effect.succeed("hi")
 
-    const webhooksUnmarshal: PaymentClient["webhooksUnmarshal"] = ({ signature, payload }) =>
+    const webhooksUnmarshal: PaymentClient.Methods["webhooksUnmarshal"] = ({ signature, payload }) =>
       paddle.webhooksUnmarshal(payload, Redacted.value(config.webhookToken), signature)
 
-    const webhooksNormalize: PaymentClient["webhooksNormalize"] = (event) =>
+    const webhooksNormalize: PaymentClient.Methods["webhooksNormalize"] = (event) =>
       Effect.succeed(normalizePaddleWebhook(event))
 
     // ----------------------------------------------------------------------------------------
@@ -528,11 +532,9 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       })
 
       if (price.billing_cycle) {
-        return yield* Effect.fail(
-          new PriceNotFound({
-            priceId: args.providerOfferId
-          })
-        )
+        return yield* new PriceNotFound({
+          priceId: args.providerOfferId
+        })
       }
 
       const transaction = yield* paddle.transactions
@@ -644,13 +646,11 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
         const url = selectPaddlePortalUrl(session, nextFlow, args.providerSubscriptionId)
         if (!url) {
-          return yield* Effect.fail(
-            new ProviderOperationNotSupported({
-              provider: "paddle",
-              operation: "billingPortal.createSession",
-              message: `Unable to create Paddle portal URL for flow "${nextFlow}"`
-            })
-          )
+          return yield* new ProviderOperationNotSupported({
+            provider: "paddle",
+            operation: "billingPortal.createSession",
+            message: `Unable to create Paddle portal URL for flow "${nextFlow}"`
+          })
         }
 
         return yield* BillingPortalSession.decode({
@@ -725,39 +725,24 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       billingPortal: {
         createSession: billingPortalCreateSession
       }
-    } satisfies Omit<PaddleImpl, "is" | "isPaddle" | "isStripe">
+    } satisfies Omit<PaddleImpl, "onDialect" | "onDialectOrElse">
 
     return makePaymentClient<PaddleImpl>(Paddle._tag, methods)
   })
 
   static layerConfig = (config: PaddleConfig) =>
-    Layer.succeed(
-      PaymentImpl,
-      PaymentImpl.of({
-        _tag: Paddle._tag,
-        make: Paddle.make.pipe(Effect.provide(Layer.effect(PaddleClient, makePaddleClient(config))))
-      })
-    )
+    Layer.effect(PaymentClient, Paddle.make).pipe(Layer.provide(Layer.effect(PaddleClient, makePaddleClient(config))))
 
-  static layer = Layer.succeed(
-    PaymentImpl,
-    PaymentImpl.of({
-      _tag: Paddle._tag,
-      make: Paddle.make.pipe(
-        Effect.provide(
-          pipe(
-            Layer.unwrapEffect(
-              Effect.gen(function* () {
-                const config = yield* PaddleConfig
+  static layer = Layer.effect(PaymentClient, Paddle.make).pipe(
+    Layer.provide(
+      Layer.unwrapEffect(
+        Effect.gen(function* () {
+          const config = yield* PaddleConfig
 
-                return Layer.effect(PaddleClient, makePaddleClient(config))
-              })
-            ),
-            Layer.orDie
-          )
-        )
+          return Layer.effect(PaddleClient, makePaddleClient(config))
+        })
       )
-    })
+    )
   )
 }
 

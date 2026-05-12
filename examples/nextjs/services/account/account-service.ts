@@ -6,8 +6,8 @@ import { Context, Effect, Layer } from "effect"
 
 import type { AuthenticatedUser } from "../authenticated-user.ts"
 
-import { Pay } from "../../purchase.ts"
 import { CustomerSyncService } from "../customer-sync-service.ts"
+import { PurchaseService } from "../purchase/purchase-service"
 import { makeAccountOverview, type AccountActivity, type AccountOverview } from "./account-domain.ts"
 
 export class AccountService extends Context.Tag("AccountService")<
@@ -27,15 +27,15 @@ export class AccountService extends Context.Tag("AccountService")<
   static Default = Layer.effect(
     AccountService,
     Effect.gen(function* () {
-      const sdk = yield* Pay
+      const purchase = yield* PurchaseService
       const sql = yield* SqlClient.SqlClient
       const customerSync = yield* CustomerSyncService
 
       const loadCommerce = Effect.fn(function* (user: AuthenticatedUser) {
         yield* customerSync.ensureCustomer(user)
         const customerId = CustomerId.make(user.id)
-        const snapshot = yield* sdk.customer.getSnapshot({ customerId })
-        const entitlements = yield* sdk.customer.getEntitlements({ customerId })
+        const snapshot = yield* purchase.customer.getSnapshot({ customerId })
+        const entitlements = yield* purchase.customer.getEntitlements({ customerId })
 
         return { snapshot, entitlements } as const
       })
