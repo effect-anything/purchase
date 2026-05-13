@@ -69,7 +69,7 @@ export const capturePaddleVendorSession = (input: {
       )
     }
     if (!xsrfToken) {
-      return yield* Effect.fail(new Error("Paddle vendor login completed but XSRF-TOKEN cookie was not found."))
+      return yield* Effect.dieMessage("Paddle vendor login completed but XSRF-TOKEN cookie was not found.")
     }
 
     return yield* decodePaddleVendorSessionState({

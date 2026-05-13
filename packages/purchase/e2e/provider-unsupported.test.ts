@@ -3,10 +3,10 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 
-import { syncCatalog } from "../src/config.ts"
+import { syncCatalog } from "../src/sync/config-service.ts"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import { countCoreRows, insertTestCustomer, queryOne } from "../test/support/sqlite-pay-harness.ts"
-import { TestPay, testCustomerId, testOfferIds, testSubscriptionAgreementId } from "../test/support/test-catalog.ts"
+import { testCustomerId, testOfferIds, TestPay, testSubscriptionAgreementId } from "../test/support/test-catalog.ts"
 import { makeTestPaymentLayer, TEST_SUBSCRIPTION_ID } from "../test/support/test-payment-provider.ts"
 
 const seedSubscription = (provider: "stripe" | "paddle") =>

@@ -1,5 +1,5 @@
 /** @effect-diagnostics preferSchemaOverJson:off */
-import { BASE_PUBLIC_URL } from "@/config"
+// import { BASE_PUBLIC_URL } from "@/config"
 import { PaymentHarness } from "@effect-x/purchase/test"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"

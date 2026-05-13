@@ -1,29 +1,22 @@
-import * as SQLite from "@effect/sql-sqlite-node"
 import * as SqlClient from "@effect/sql/SqlClient"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as EffectString from "effect/String"
 import fs from "node:fs"
-import { createRequire } from "node:module"
 import os from "node:os"
 import path from "node:path"
+import { DatabaseSync } from "node:sqlite"
 import { afterEach, describe, expect, it } from "vitest"
 
 import type { Product, PurchasePlan } from "../src/dsl.ts"
 
-import { PurchaseConfigLayer, syncCatalog } from "../src/config.ts"
 import { creditPackProduct, oneTimeProduct, plan, subscriptionProduct } from "../src/dsl.ts"
+import * as SQLite from "../src/internal/node-sqlite-client.ts"
 import { BaseSDK } from "../src/sdk.ts"
+import { PurchaseConfigLayer, syncCatalog } from "../src/sync/config-service.ts"
 import { CommercialPay, CommercialPlans, CommercialProducts } from "../test/support/commercial-catalog.ts"
 import { payTableDdl } from "../test/support/sqlite-pay-harness.ts"
 import { makeTestPaymentLayer } from "../test/support/test-payment-provider.ts"
-
-interface MigrationDatabase {
-  readonly exec: (sql: string) => unknown
-  readonly close: () => void
-}
-
-const Database = createRequire(import.meta.url)("better-sqlite3") as new (filename: string) => MigrationDatabase
 
 const tmpDirs: Array<string> = []
 
@@ -38,7 +31,7 @@ const createMigratedDatabase = () => {
   tmpDirs.push(tmpDir)
 
   const dbPath = path.join(tmpDir, "catalog.sqlite")
-  const db = new Database(dbPath)
+  const db = new DatabaseSync(dbPath)
   try {
     for (const statement of payTableDdl) {
       db.exec(statement)
@@ -134,7 +127,7 @@ describe("catalog sync e2e flow", () => {
   it("applies migrations, syncs the example catalog, detects a catalog change, and converges", async () => {
     const dbPath = createMigratedDatabase()
     const payment = makeTestPaymentLayer({ provider: "stripe" })
-    const dbLayer = SQLite.SqliteClient.layer({
+    const dbLayer = SQLite.layer({
       filename: dbPath,
       disableWAL: true,
       transformQueryNames: EffectString.camelToSnake,
@@ -146,10 +139,13 @@ describe("catalog sync e2e flow", () => {
         effect.pipe(
           Effect.provide(
             Layer.provideMerge(
-              PurchaseConfigLayer({
-                plans: CommercialPlans as never,
-                products: CommercialProducts as never
-              }),
+              Layer.mergeAll(
+                CommercialPay.Layer,
+                PurchaseConfigLayer({
+                  plans: CommercialPlans as never,
+                  products: CommercialProducts as never
+                })
+              ),
               Layer.mergeAll(payment.layer, dbLayer)
             )
           )
@@ -217,10 +213,13 @@ describe("catalog sync e2e flow", () => {
         effect.pipe(
           Effect.provide(
             Layer.provideMerge(
-              PurchaseConfigLayer({
-                plans: ModifiedPay.plans as never,
-                products: ModifiedPay.products as never
-              }),
+              Layer.mergeAll(
+                ModifiedPay.layer(ModifiedPay),
+                PurchaseConfigLayer({
+                  plans: ModifiedPay.plans as never,
+                  products: ModifiedPay.products as never
+                })
+              ),
               Layer.mergeAll(payment.layer, dbLayer)
             )
           )

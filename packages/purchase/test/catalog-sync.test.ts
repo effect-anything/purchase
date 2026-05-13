@@ -4,7 +4,7 @@ import * as Either from "effect/Either"
 
 import type { Price, Product } from "../src/internal/provider-schema.ts"
 
-import { syncCatalog } from "../src/config.ts"
+import { syncCatalog } from "../src/sync/config-service.ts"
 import { runPayEffect } from "./support/run-pay-effect.ts"
 import { countRows, parseJsonColumn, queryAll } from "./support/sqlite-pay-harness.ts"
 import { TestPay, testOfferIds } from "./support/test-catalog.ts"

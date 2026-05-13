@@ -150,7 +150,7 @@ export const ensurePaddleNotificationSetting = (options: {
       options.env?.PADDLE_NOTIFICATION_WEBHOOK_SECRET ?? process.env.PADDLE_NOTIFICATION_WEBHOOK_SECRET
 
     if (!apiToken) {
-      return yield* Effect.fail(new Error("PADDLE_SIMULATOR_API_TOKEN is required for simulator-backed tests"))
+      return yield* Effect.dieMessage("PADDLE_SIMULATOR_API_TOKEN is required for simulator-backed tests")
     }
 
     if (notificationSettingId && webhookSecret) {
@@ -245,7 +245,7 @@ const runPaddleSimulation = (options: {
     const apiToken = options.env?.PADDLE_SIMULATOR_API_TOKEN ?? process.env.PADDLE_SIMULATOR_API_TOKEN
 
     if (!apiToken) {
-      return yield* Effect.fail(new Error("PADDLE_SIMULATOR_API_TOKEN is required for simulator-backed tests"))
+      return yield* Effect.dieMessage("PADDLE_SIMULATOR_API_TOKEN is required for simulator-backed tests")
     }
 
     const headers = getPaddleHeaders(apiToken)
@@ -327,7 +327,7 @@ export const capturePaddleSimulation = (options: {
     const firstEvent = simulation.events[0]
 
     if (!firstEvent) {
-      return yield* Effect.fail(new Error(`Paddle simulator did not emit any events for ${options.eventType}`))
+      return yield* Effect.dieMessage(`Paddle simulator did not emit any events for ${options.eventType}`)
     }
 
     const payload = toStoredPaddlePayload(firstEvent)

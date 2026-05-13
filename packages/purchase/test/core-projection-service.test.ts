@@ -1,14 +1,14 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 
-import { syncCatalog } from "../src/config.ts"
+import { CommercialCatalogService } from "../src/core/catalog-service.ts"
 import { CustomerCommercialSnapshot } from "../src/core/commercial-schema.ts"
 import {
   buildCustomerCommercialSnapshot,
   buildCustomerEntitlementSnapshot,
   CommercialProjectionService
 } from "../src/core/projection-service.ts"
-import { CommercialCatalogService } from "../src/sync/catalog-service.ts"
+import { syncCatalog } from "../src/sync/config-service.ts"
 import { runCorePayEffect } from "./support/run-core-pay-effect.ts"
 import { queryAll } from "./support/sqlite-pay-harness.ts"
 import { testCustomerId, testOfferIds } from "./support/test-catalog.ts"

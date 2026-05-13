@@ -34,7 +34,7 @@ export const getSessionOrThrow = Next.serverFunction(() =>
     const session = yield* auth.getSession({ headers: new Headers(requestHeaders) })
 
     if (!session) {
-      return yield* Effect.fail(new Error("Authentication required."))
+      return yield* Effect.dieMessage("Authentication required.")
     }
 
     return session

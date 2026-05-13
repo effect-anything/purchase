@@ -11,11 +11,11 @@ import {
 import { env } from "cloudflare:workers"
 import { Effect, Layer, Ref, Stream } from "effect"
 
-import { Live } from "../context.ts"
-import { CloudflareBindings } from "../lib/cloudflare/bindings.ts"
-import { CloudflareExecutionContext } from "../lib/cloudflare/execution-context.ts"
-import { AllRoutes } from "../router.ts"
-import { AppApi } from "../services/api/http-api.ts"
+import { Live } from "../context"
+import { CloudflareBindings } from "../lib/cloudflare/bindings"
+import { CloudflareExecutionContext } from "../lib/cloudflare/execution-context"
+import { AllRoutes } from "../router"
+import { AppApi } from "../services/api/http-api"
 
 const demoSchemaSql = `
 CREATE TABLE IF NOT EXISTS paykit_customer (
@@ -365,12 +365,12 @@ export const signUpTestUser = (input?: {
     })
 
     if (response.status >= 400) {
-      return yield* Effect.fail(new Error(`sign-up failed with status ${response.status}`))
+      return yield* Effect.dieMessage(`sign-up failed with status ${response.status}`)
     }
 
     const cookie = convertSetCookieToCookie(new globalThis.Headers(response.headers))
     if (!cookie) {
-      return yield* Effect.fail(new Error("missing auth cookie after sign-up"))
+      return yield* Effect.dieMessage("missing auth cookie after sign-up")
     }
 
     return cookie
@@ -381,7 +381,7 @@ export const ensureServerRuntime = Effect.sync(async () => {
     return
   }
 
-  const { make } = await import("../runtime.ts")
+  const { make } = await import("../runtime")
   make()
   runtimesInitialized = true
 }).pipe(Effect.flatMap((promise) => Effect.promise(() => promise)))

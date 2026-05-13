@@ -1,4 +1,4 @@
-import { Paddle } from "@effect-x/purchase"
+import { Paddle } from "@effect-x/purchase/paddle"
 import { PaymentHarness } from "@effect-x/purchase/test"
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
@@ -7,7 +7,7 @@ import { Effect, Layer, ConfigProvider } from "effect"
 
 import { syncCatalog, prepareProvider } from "../../src/sync/config-service.ts"
 import * as Harness from "../harness.ts"
-import { HttpApiTesting } from "./api-utils.ts"
+// import { HttpApiTesting } from "./api-utils.ts"
 
 // const DefaultConfig = Config.all({
 //   appBaseUrl: Config.string("BASE_PUBLIC_URL"),
@@ -30,7 +30,7 @@ const Live = PaymentHarness.make({ browser: { headless: true } }).pipe(
 
 // NodeRuntime.runMain(program.pipe(Effect.provide(Live)))
 
-describe("todo", () => {
+describe.skip("todo", () => {
   it.effect("pass", () =>
     Effect.gen(function* () {
       yield* Effect.logTrace("OK")

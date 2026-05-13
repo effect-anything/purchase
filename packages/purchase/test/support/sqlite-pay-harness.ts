@@ -1,9 +1,10 @@
-import * as SQLite from "@effect/sql-sqlite-node"
 import * as SqlClient from "@effect/sql/SqlClient"
 import * as Effect from "effect/Effect"
 import * as String from "effect/String"
 
-export const SqlitePayHarnessLive = SQLite.SqliteClient.layer({
+import * as SQLite from "../../src/internal/node-sqlite-client.ts"
+
+export const SqlitePayHarnessLive = SQLite.layer({
   filename: ":memory:",
   disableWAL: true,
   transformQueryNames: String.camelToSnake,

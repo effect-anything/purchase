@@ -6,7 +6,7 @@ import * as Option from "effect/Option"
 import type { PaymentWebhookKind, PaymentWebhookNormalization } from "../src/provider/client.ts"
 import type { PaymentProviderTag } from "../src/provider/types.ts"
 
-import { syncCatalog } from "../src/config.ts"
+import { syncCatalog } from "../src/sync/config-service.ts"
 import { makePaddleProvider, makeStripeProvider } from "./provider/support/fixture-providers.ts"
 import { loadGeneratedWebhookFixture } from "./provider/support/generated-fixture.ts"
 import { runPayEffect } from "./support/run-pay-effect.ts"

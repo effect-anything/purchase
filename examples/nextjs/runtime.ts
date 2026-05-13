@@ -27,7 +27,7 @@ export const HttpApiLive = AllRoutes.pipe(Layer.provideMerge(ServerLive))
 
 export type ServerRuntime = ManagedRuntime.ManagedRuntime<Layer.Layer.Success<typeof ServerLive>, never>
 
-export type ClientRuntime = ManagedRuntime.ManagedRuntime<>
+export type ClientRuntime = ManagedRuntime.ManagedRuntime<never, never>
 
 declare global {
   var serverRuntime: ServerRuntime | undefined

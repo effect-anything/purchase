@@ -2,7 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
-import { CustomerEmail, CustomerId } from "../src/core/identity-schema.ts"
+import { CustomerEmail, CustomerId } from "../src/core/common-schema.ts"
 
 describe("core identity schema", () => {
   it("accepts branded customer ids", () => {

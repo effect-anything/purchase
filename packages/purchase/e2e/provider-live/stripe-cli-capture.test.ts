@@ -3,12 +3,13 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 
-import { Stripe } from "../../src/provider.ts"
+import { Stripe } from "../../src/stripe.ts"
 import { StripeClientLayer, StripeConfigFromRecord } from "../../src/stripe/internal/stripe-client.ts"
 import { captureStripeWebhook, stripeCliAvailable } from "../../test/provider/support/stripe-cli.ts"
 
-if (process.env.STRIPE_LIVE_TESTS === "1" && stripeCliAvailable) {
-  describe("provider-live Stripe CLI capture", () => {
+describe.runIf(() => process.env.STRIPE_LIVE_TESTS === "1" && stripeCliAvailable)(
+  "provider-live Stripe CLI capture",
+  () => {
     it.effect("captures a real Stripe CLI webhook and validates it through the provider", () =>
       Effect.scoped(
         Effect.gen(function* () {
@@ -40,5 +41,5 @@ if (process.env.STRIPE_LIVE_TESTS === "1" && stripeCliAvailable) {
         })
       )
     )
-  })
-}
+  }
+)

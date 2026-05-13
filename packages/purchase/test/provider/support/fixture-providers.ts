@@ -6,8 +6,9 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
 import { ProviderOperationNotSupported } from "../../../src/errors.ts"
+import { Paddle } from "../../../src/paddle.ts"
 import { PaddleClient, PaddleClientLayer, PaddleConfigFromRecord } from "../../../src/paddle/internal/paddle-client.ts"
-import { Stripe, Paddle } from "../../../src/provider.ts"
+import { Stripe } from "../../../src/stripe.ts"
 import { StripeClient, StripeClientLayer, StripeConfigFromRecord } from "../../../src/stripe/internal/stripe-client.ts"
 import {
   paddleAnnualPriceFixture,

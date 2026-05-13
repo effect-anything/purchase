@@ -90,7 +90,7 @@ export const captureStripeWebhook = (options: {
     const webhookSecret = output.match(webhookSecretPattern)?.[0]
 
     if (!webhookSecret) {
-      return yield* Effect.fail(new Error(`Unable to parse Stripe webhook secret from CLI output:\n${output}`))
+      return yield* Effect.dieMessage(`Unable to parse Stripe webhook secret from CLI output:\n${output}`)
     }
 
     yield* execFileText(stripeCliCommand, options.triggerArgs ?? ["trigger", options.event], options.env)
@@ -122,7 +122,7 @@ export const captureStripeSubscriptionResumedWebhook = (options?: {
     const subscriptionId = pausedPayload.data?.object?.id
 
     if (!subscriptionId) {
-      return yield* Effect.fail(new Error("Unable to resolve paused subscription id from Stripe webhook payload"))
+      return yield* Effect.dieMessage("Unable to resolve paused subscription id from Stripe webhook payload")
     }
 
     const server = yield* makeLocalWebhookServer
@@ -137,7 +137,7 @@ export const captureStripeSubscriptionResumedWebhook = (options?: {
     const webhookSecret = output.match(webhookSecretPattern)?.[0]
 
     if (!webhookSecret) {
-      return yield* Effect.fail(new Error(`Unable to parse Stripe webhook secret from CLI output:\n${output}`))
+      return yield* Effect.dieMessage(`Unable to parse Stripe webhook secret from CLI output:\n${output}`)
     }
 
     const resumedSubscription = yield* execFileText(

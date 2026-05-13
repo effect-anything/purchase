@@ -3,7 +3,7 @@ import * as Layer from "effect/Layer"
 
 import type { PaymentClient } from "../../src/provider/client.ts"
 
-import { PurchaseConfigLayer } from "../../src/config.ts"
+import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { setupPayTables, SqlitePayHarnessLive } from "./sqlite-pay-harness.ts"
 import { TestPay, testPlans, testProducts } from "./test-catalog.ts"
 
