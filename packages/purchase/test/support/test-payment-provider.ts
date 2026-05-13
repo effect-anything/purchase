@@ -23,7 +23,7 @@ import type {
   RefundTransactionParams,
   ResumeSubscriptionParams
 } from "../../src/provider/client.ts"
-import type { PaymentProviderTag } from "../../src/provider/type.ts"
+import type { PaymentProviderTag } from "../../src/provider/types.ts"
 
 import { ProviderOperationNotSupported, WebhookUnmarshalError } from "../../src/errors.ts"
 import { makePaymentClient, PaymentClient } from "../../src/provider/client.ts"
@@ -75,7 +75,7 @@ export const makeTestPaymentLayer = (options?: {
   readonly prices?: ReadonlyArray<Price> | undefined
   readonly unsupported?: Partial<Record<string, true>> | undefined
   readonly normalizedWebhook?: PaymentWebhookNormalization | undefined
-  readonly normalizeWebhook?: ((event: unknown) => Effect.Effect<PaymentWebhookNormalization, never, never>) | undefined
+  readonly normalizeWebhook?: ((event: unknown) => Effect.Effect<PaymentWebhookNormalization>) | undefined
 }) => {
   const provider = options?.provider ?? "stripe"
   const unsupported = options?.unsupported ?? {}

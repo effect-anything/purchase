@@ -2,7 +2,7 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 
 import { PaymentClient } from "../provider/client.ts"
 import { makePaddleTestDriver } from "./provider-drivers/paddle-driver.ts"

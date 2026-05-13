@@ -1,4 +1,4 @@
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 import type { BillingPortalFlow, SubscriptionMutationMode } from "./common-schema.ts"
 import type { CreatePortalSessionInput, PauseSubscriptionInput, ResumeSubscriptionInput } from "./workflow-schema.ts"
 

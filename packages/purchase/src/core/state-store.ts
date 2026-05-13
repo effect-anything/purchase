@@ -3,20 +3,35 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 
+import { CommercialCatalogService } from "../core/catalog-service.ts"
 import { PayStorageAdapter, type PayStorageSubscriptionRecord } from "../db.ts"
-import { CommercialCatalogService } from "../sync/catalog-service.ts"
 import { CreditsWalletState, PurchaseGrantState, SubscriptionAgreementState } from "./commercial-schema.ts"
 
+/**
+ * Read model store for commercial agreements, purchases, and wallets.
+ */
 export class CommercialStateStore extends Context.Tag("@pay/core/CommercialStateStore")<
   CommercialStateStore,
   {
+    /**
+     * Get a subscription agreement by agreement id.
+     */
     readonly getSubscriptionAgreement: (input: {
       readonly agreementId: string
     }) => Effect.Effect<Option.Option<SubscriptionAgreementState>>
+    /**
+     * List subscription agreements for a customer.
+     */
     readonly listSubscriptions: (input: {
       readonly customerId: string
     }) => Effect.Effect<ReadonlyArray<SubscriptionAgreementState>>
+    /**
+     * List purchases for a customer.
+     */
     readonly listPurchases: (input: { readonly customerId: string }) => Effect.Effect<ReadonlyArray<PurchaseGrantState>>
+    /**
+     * List credit wallets for a customer.
+     */
     readonly listWallets: (input: { readonly customerId: string }) => Effect.Effect<ReadonlyArray<CreditsWalletState>>
   }
 >() {}

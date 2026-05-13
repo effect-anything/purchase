@@ -10,7 +10,7 @@ import { cookies, headers } from "next/headers"
  * @since 0.30.0
  * @category request
  */
-export const Cookies: Effect.Effect<Awaited<ReturnType<typeof cookies>>, never, never> = Effect.promise(() => cookies())
+export const Cookies: Effect.Effect<Awaited<ReturnType<typeof cookies>>> = Effect.promise(() => cookies())
 
 /**
  * Access request headers.
@@ -18,4 +18,4 @@ export const Cookies: Effect.Effect<Awaited<ReturnType<typeof cookies>>, never, 
  * @since 0.30.0
  * @category request
  */
-export const Headers: Effect.Effect<Awaited<ReturnType<typeof headers>>, never, never> = Effect.promise(() => headers())
+export const Headers: Effect.Effect<Awaited<ReturnType<typeof headers>>> = Effect.promise(() => headers())

@@ -39,3 +39,5 @@ scratchpad/**/*
 .source/
 .wrangler
 **/*.db
+
+.sisyphus/

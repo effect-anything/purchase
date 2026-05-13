@@ -6,11 +6,11 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 
 import type { ServicesReturns } from "../internal/types.ts"
-import type { CustomerId } from "./identity-schema.ts"
+import type { CustomerId } from "./common-schema.ts"
 import type { RefreshCustomerSnapshotInput } from "./workflow-schema.ts"
 
 import { PayStorageAdapter, type PayStorageSubscriptionRecord } from "../db.ts"
-import { CommercialCatalogService } from "../sync/catalog-service.tsice"
+import { CommercialCatalogService } from "./catalog-service.ts"
 import {
   type CommercialBenefit,
   type CommercialCatalog,
@@ -26,234 +26,43 @@ import {
   type CommercialCatalogIssue
 } from "./commercial-schema.ts"
 
-const hasSubscriptionAccess = (status: SubscriptionAgreementState["status"]) =>
-  status === "trialing" || status === "active" || status === "grace" || status === "paused"
-
-const hasPurchaseAccess = (status: PurchaseGrantState["status"]) =>
-  status === "trialing" || status === "active" || status === "grace"
-
-const offerMap = (catalog: CommercialCatalog) =>
-  new Map(catalog.products.flatMap((product) => product.offers.map((offer) => [offer.id, offer] as const)))
-
-const defaultSubscriptionOfferIds = (catalog: CommercialCatalog) => {
-  const groups = new Map<string, string>()
-
-  for (const product of catalog.products) {
-    if (product.type !== "subscription") {
-      continue
-    }
-
-    for (const offer of product.offers) {
-      if (!offer.isDefault) {
-        continue
-      }
-
-      groups.set(`${product.id}:${offer.group}`, offer.id)
-    }
-  }
-
-  return groups
-}
-
-const activeSubscriptionGroups = (input: {
-  readonly catalog: CommercialCatalog
-  readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
-}) => {
-  const offers = offerMap(input.catalog)
-  const groups = new Set<string>()
-
-  for (const subscription of input.subscriptions) {
-    if (!hasSubscriptionAccess(subscription.status)) {
-      continue
-    }
-
-    const offer = offers.get(subscription.offerId)
-    if (!offer) {
-      continue
-    }
-
-    groups.add(`${offer.productId}:${offer.group}`)
-  }
-
-  return groups
-}
-
-const deriveActiveOfferIds = (input: {
-  readonly catalog: CommercialCatalog
-  readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
-  readonly purchases: ReadonlyArray<PurchaseGrantState>
-}) => {
-  const ids = new Set<string>()
-
-  for (const subscription of input.subscriptions) {
-    if (hasSubscriptionAccess(subscription.status)) {
-      ids.add(subscription.offerId)
-    }
-  }
-
-  for (const purchase of input.purchases) {
-    if (hasPurchaseAccess(purchase.status)) {
-      ids.add(purchase.offerId)
-    }
-  }
-
-  const coveredSubscriptionGroups = activeSubscriptionGroups({
-    catalog: input.catalog,
-    subscriptions: input.subscriptions
-  })
-
-  for (const [groupKey, offerId] of defaultSubscriptionOfferIds(input.catalog)) {
-    if (!coveredSubscriptionGroups.has(groupKey)) {
-      ids.add(offerId)
-    }
-  }
-
-  return Array.from(ids) as unknown as ReadonlyArray<string & Brand.Brand<"CommercialOfferId">>
-}
-
-const walletBenefitUnit = (input: { readonly catalog: CommercialCatalog; readonly productId: string }) => {
-  for (const product of input.catalog.products) {
-    for (const offer of product.offers) {
-      for (const benefit of offer.benefits) {
-        if (benefit.type === "credit_balance" && benefit.key === input.productId) {
-          return benefit.unit
-        }
-      }
-    }
-  }
-
-  const product = input.catalog.products.find((item) => item.id === input.productId)
-  if (!product) {
-    return input.productId
-  }
-
-  for (const offer of product.offers) {
-    for (const benefit of offer.benefits) {
-      if (benefit.type === "credit_balance") {
-        return benefit.unit
-      }
-    }
-  }
-
-  return input.productId
-}
-
-const aggregateCatalogBenefits = (benefits: ReadonlyArray<CommercialBenefit>) => {
-  const featureFlags = new Map<string, typeof FeatureFlagBenefit.Type>()
-  const licenseGrants = new Map<string, typeof LicenseGrantBenefit.Type>()
-  const quotaLimits = new Map<string, typeof QuotaLimitBenefit.Type>()
-
-  for (const benefit of benefits) {
-    switch (benefit.type) {
-      case "feature_flag": {
-        const existing = featureFlags.get(benefit.key)
-        featureFlags.set(
-          benefit.key,
-          FeatureFlagBenefit.make({
-            ...benefit,
-            enabled: existing ? existing.enabled || benefit.enabled : benefit.enabled
-          })
-        )
-        break
-      }
-      case "quota_limit": {
-        const existing = quotaLimits.get(benefit.key)
-        if (!existing || benefit.limit > existing.limit) {
-          quotaLimits.set(benefit.key, QuotaLimitBenefit.make(benefit))
-        }
-        break
-      }
-      case "license_grant": {
-        licenseGrants.set(`${benefit.key}:${benefit.scope}`, LicenseGrantBenefit.make(benefit))
-        break
-      }
-      case "credit_balance":
-        break
-    }
-  }
-
-  return [
-    ...featureFlags.values(),
-    ...quotaLimits.values(),
-    ...licenseGrants.values()
-  ] satisfies ReadonlyArray<CommercialBenefit>
-}
-
-const walletBenefits = (input: {
-  readonly catalog: CommercialCatalog
-  readonly snapshot: CustomerCommercialSnapshot
-}) =>
-  input.snapshot.wallets
-    .filter((wallet) => wallet.available > 0)
-    .map((wallet) =>
-      CreditBalanceBenefit.make({
-        id: `wallet:${wallet.id}` as never,
-        type: "credit_balance",
-        key: wallet.productId,
-        unit: walletBenefitUnit({ catalog: input.catalog, productId: wallet.productId }),
-        amount: wallet.available
-      })
-    )
-
-export const buildCustomerCommercialSnapshot = (input: {
-  readonly catalog: CommercialCatalog
-  readonly customerId: typeof CustomerId.Type
-  readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
-  readonly purchases: ReadonlyArray<PurchaseGrantState>
-  readonly wallets: ReadonlyArray<CreditsWalletState>
-  readonly now?: Date | undefined
-}): CustomerCommercialSnapshot =>
-  CustomerCommercialSnapshot.make({
-    customerId: input.customerId,
-    subscriptions: [...input.subscriptions],
-    purchases: [...input.purchases],
-    wallets: [...input.wallets],
-    activeOfferIds: deriveActiveOfferIds({
-      catalog: input.catalog,
-      subscriptions: input.subscriptions,
-      purchases: input.purchases
-    }),
-    updatedAt: input.now ?? new Date()
-  })
-
-export const buildCustomerEntitlementSnapshot = (input: {
-  readonly catalog: CommercialCatalog
-  readonly snapshot: CustomerCommercialSnapshot
-  readonly now?: Date | undefined
-}): CustomerEntitlementSnapshot => {
-  const offers = offerMap(input.catalog)
-  const catalogBenefits = input.snapshot.activeOfferIds.flatMap((offerId) => {
-    const offer = offers.get(offerId)
-    if (!offer) {
-      return []
-    }
-
-    return offer.benefits.filter((benefit) => benefit.type !== "credit_balance")
-  })
-
-  return CustomerEntitlementSnapshot.make({
-    customerId: input.snapshot.customerId,
-    benefits: [...aggregateCatalogBenefits(catalogBenefits), ...walletBenefits(input)],
-    updatedAt: input.now ?? new Date()
-  })
-}
-
+/**
+ * Projection service for customer-facing commercial snapshots.
+ */
 export class CommercialProjectionService extends Context.Tag("@pay/core/CommercialProjectionService")<
   CommercialProjectionService,
   {
+    /**
+     * Rebuild the customer commercial snapshot from stored state.
+     */
     readonly refreshCustomerSnapshot: (
       input: RefreshCustomerSnapshotInput
     ) => Effect.Effect<CustomerCommercialSnapshot, CommercialCatalogIssue>
+    /**
+     * Compute effective customer entitlements from a snapshot.
+     */
     readonly computeCustomerEntitlements: (input: {
       readonly customerSnapshot: CustomerCommercialSnapshot
     }) => Effect.Effect<CustomerEntitlementSnapshot, CommercialCatalogIssue>
+    /**
+     * Get a subscription agreement by agreement id.
+     */
     readonly getSubscriptionAgreement: (input: {
       readonly agreementId: string
     }) => Effect.Effect<Option.Option<SubscriptionAgreementState>>
+    /**
+     * List subscription agreements for a customer.
+     */
     readonly listSubscriptions: (input: {
       readonly customerId: string
     }) => Effect.Effect<ReadonlyArray<SubscriptionAgreementState>>
+    /**
+     * List purchase grants for a customer.
+     */
     readonly listPurchases: (input: { readonly customerId: string }) => Effect.Effect<ReadonlyArray<PurchaseGrantState>>
+    /**
+     * List credit wallets for a customer.
+     */
     readonly listWallets: (input: { readonly customerId: string }) => Effect.Effect<ReadonlyArray<CreditsWalletState>>
   }
 >() {}
@@ -609,6 +418,218 @@ export const CommercialProjectionServiceLayer = Layer.effect(
     })
   })
 )
+
+const hasSubscriptionAccess = (status: SubscriptionAgreementState["status"]) =>
+  status === "trialing" || status === "active" || status === "grace" || status === "paused"
+
+const hasPurchaseAccess = (status: PurchaseGrantState["status"]) =>
+  status === "trialing" || status === "active" || status === "grace"
+
+const offerMap = (catalog: CommercialCatalog) =>
+  new Map(catalog.products.flatMap((product) => product.offers.map((offer) => [offer.id, offer] as const)))
+
+const defaultSubscriptionOfferIds = (catalog: CommercialCatalog) => {
+  const groups = new Map<string, string>()
+
+  for (const product of catalog.products) {
+    if (product.type !== "subscription") {
+      continue
+    }
+
+    for (const offer of product.offers) {
+      if (!offer.isDefault) {
+        continue
+      }
+
+      groups.set(`${product.id}:${offer.group}`, offer.id)
+    }
+  }
+
+  return groups
+}
+
+const activeSubscriptionGroups = (input: {
+  readonly catalog: CommercialCatalog
+  readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
+}) => {
+  const offers = offerMap(input.catalog)
+  const groups = new Set<string>()
+
+  for (const subscription of input.subscriptions) {
+    if (!hasSubscriptionAccess(subscription.status)) {
+      continue
+    }
+
+    const offer = offers.get(subscription.offerId)
+    if (!offer) {
+      continue
+    }
+
+    groups.add(`${offer.productId}:${offer.group}`)
+  }
+
+  return groups
+}
+
+const deriveActiveOfferIds = (input: {
+  readonly catalog: CommercialCatalog
+  readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
+  readonly purchases: ReadonlyArray<PurchaseGrantState>
+}) => {
+  const ids = new Set<string>()
+
+  for (const subscription of input.subscriptions) {
+    if (hasSubscriptionAccess(subscription.status)) {
+      ids.add(subscription.offerId)
+    }
+  }
+
+  for (const purchase of input.purchases) {
+    if (hasPurchaseAccess(purchase.status)) {
+      ids.add(purchase.offerId)
+    }
+  }
+
+  const coveredSubscriptionGroups = activeSubscriptionGroups({
+    catalog: input.catalog,
+    subscriptions: input.subscriptions
+  })
+
+  for (const [groupKey, offerId] of defaultSubscriptionOfferIds(input.catalog)) {
+    if (!coveredSubscriptionGroups.has(groupKey)) {
+      ids.add(offerId)
+    }
+  }
+
+  return Array.from(ids) as unknown as ReadonlyArray<string & Brand.Brand<"CommercialOfferId">>
+}
+
+const walletBenefitUnit = (input: { readonly catalog: CommercialCatalog; readonly productId: string }) => {
+  for (const product of input.catalog.products) {
+    for (const offer of product.offers) {
+      for (const benefit of offer.benefits) {
+        if (benefit.type === "credit_balance" && benefit.key === input.productId) {
+          return benefit.unit
+        }
+      }
+    }
+  }
+
+  const product = input.catalog.products.find((item) => item.id === input.productId)
+  if (!product) {
+    return input.productId
+  }
+
+  for (const offer of product.offers) {
+    for (const benefit of offer.benefits) {
+      if (benefit.type === "credit_balance") {
+        return benefit.unit
+      }
+    }
+  }
+
+  return input.productId
+}
+
+const aggregateCatalogBenefits = (benefits: ReadonlyArray<CommercialBenefit>) => {
+  const featureFlags = new Map<string, typeof FeatureFlagBenefit.Type>()
+  const licenseGrants = new Map<string, typeof LicenseGrantBenefit.Type>()
+  const quotaLimits = new Map<string, typeof QuotaLimitBenefit.Type>()
+
+  for (const benefit of benefits) {
+    switch (benefit.type) {
+      case "feature_flag": {
+        const existing = featureFlags.get(benefit.key)
+        featureFlags.set(
+          benefit.key,
+          FeatureFlagBenefit.make({
+            ...benefit,
+            enabled: existing ? existing.enabled || benefit.enabled : benefit.enabled
+          })
+        )
+        break
+      }
+      case "quota_limit": {
+        const existing = quotaLimits.get(benefit.key)
+        if (!existing || benefit.limit > existing.limit) {
+          quotaLimits.set(benefit.key, QuotaLimitBenefit.make(benefit))
+        }
+        break
+      }
+      case "license_grant": {
+        licenseGrants.set(`${benefit.key}:${benefit.scope}`, LicenseGrantBenefit.make(benefit))
+        break
+      }
+      case "credit_balance":
+        break
+    }
+  }
+
+  return [
+    ...featureFlags.values(),
+    ...quotaLimits.values(),
+    ...licenseGrants.values()
+  ] satisfies ReadonlyArray<CommercialBenefit>
+}
+
+const walletBenefits = (input: {
+  readonly catalog: CommercialCatalog
+  readonly snapshot: CustomerCommercialSnapshot
+}) =>
+  input.snapshot.wallets
+    .filter((wallet) => wallet.available > 0)
+    .map((wallet) =>
+      CreditBalanceBenefit.make({
+        id: `wallet:${wallet.id}` as never,
+        type: "credit_balance",
+        key: wallet.productId,
+        unit: walletBenefitUnit({ catalog: input.catalog, productId: wallet.productId }),
+        amount: wallet.available
+      })
+    )
+
+export const buildCustomerCommercialSnapshot = (input: {
+  readonly catalog: CommercialCatalog
+  readonly customerId: typeof CustomerId.Type
+  readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
+  readonly purchases: ReadonlyArray<PurchaseGrantState>
+  readonly wallets: ReadonlyArray<CreditsWalletState>
+  readonly now?: Date | undefined
+}): CustomerCommercialSnapshot =>
+  CustomerCommercialSnapshot.make({
+    customerId: input.customerId,
+    subscriptions: [...input.subscriptions],
+    purchases: [...input.purchases],
+    wallets: [...input.wallets],
+    activeOfferIds: deriveActiveOfferIds({
+      catalog: input.catalog,
+      subscriptions: input.subscriptions,
+      purchases: input.purchases
+    }),
+    updatedAt: input.now ?? new Date()
+  })
+
+export const buildCustomerEntitlementSnapshot = (input: {
+  readonly catalog: CommercialCatalog
+  readonly snapshot: CustomerCommercialSnapshot
+  readonly now?: Date | undefined
+}): CustomerEntitlementSnapshot => {
+  const offers = offerMap(input.catalog)
+  const catalogBenefits = input.snapshot.activeOfferIds.flatMap((offerId) => {
+    const offer = offers.get(offerId)
+    if (!offer) {
+      return []
+    }
+
+    return offer.benefits.filter((benefit) => benefit.type !== "credit_balance")
+  })
+
+  return CustomerEntitlementSnapshot.make({
+    customerId: input.snapshot.customerId,
+    benefits: [...aggregateCatalogBenefits(catalogBenefits), ...walletBenefits(input)],
+    updatedAt: input.now ?? new Date()
+  })
+}
 
 const toDate = (value: unknown): Date | undefined => {
   if (value instanceof Date) {

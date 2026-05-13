@@ -6,7 +6,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 import type {
   StripeCustomer,
   StripeInvoice,
@@ -43,6 +43,9 @@ import {
 } from "../provider/client.ts"
 import { StripeClient, StripeConfig, makeStripeClient } from "./internal/stripe-client.ts"
 
+/**
+ * Stripe payment client service.
+ */
 export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeImpl>() {
   static readonly _tag: PaymentProviderTag = "stripe"
 
@@ -1128,7 +1131,7 @@ const formatTransaction = (invoice: StripeInvoice): typeof Transaction.Encoded =
 
 const paginateByLastId = <A extends { id: string }>(
   after: string | undefined,
-  getPage: (cursor: string | undefined) => Effect.Effect<ReadonlyArray<A>, never, never>
+  getPage: (cursor: string | undefined) => Effect.Effect<ReadonlyArray<A>>
 ) =>
   Stream.paginateChunkEffect(after, (cursor) =>
     Effect.map(getPage(cursor), (results) => [

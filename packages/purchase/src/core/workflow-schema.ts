@@ -1,6 +1,6 @@
 import * as Schema from "effect/Schema"
 
-import { PaymentProviderTag } from "../provider/type.ts"
+import { PaymentProviderTag } from "../provider/types.ts"
 import {
   CommercialAgreementId,
   CommercialEvent,
@@ -16,9 +16,9 @@ import {
   SubscriptionCancelTiming,
   SubscriptionChangeProrationMode,
   SubscriptionMutationMode,
-  SubscriptionPreviewProrationMode
+  SubscriptionPreviewProrationMode,
+  CustomerId
 } from "./common-schema.ts"
-import { CustomerId } from "./identity-schema.ts"
 
 /**
  * Stable workflow names emitted by the commercial runtime.

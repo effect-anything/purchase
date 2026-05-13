@@ -21,108 +21,48 @@ import {
   type CommercialCustomerProfile as CommercialCustomerProfileType
 } from "./commercial-schema.ts"
 
-const mapCustomer = (row: {
-  readonly id: string
-  readonly email: unknown
-  readonly name: unknown
-  readonly provider: unknown
-  readonly createdAt: unknown
-  readonly updatedAt: unknown
-}): CommercialCustomerProfileType =>
-  CommercialCustomerProfile.make({
-    id: row.id as never,
-    ...(typeof row.email === "string" && row.email.length > 0 ? { email: row.email } : {}),
-    ...(typeof row.name === "string" && row.name.length > 0 ? { name: row.name } : {}),
-    provider: toRecord(row.provider) as Record<string, string>,
-    createdAt: toDate(row.createdAt),
-    updatedAt: toDate(row.updatedAt)
-  })
-
-export interface CommercialEntitlementProjectionInput {
-  readonly id: string
-  readonly featureId: string
-  readonly subscriptionId?: string | undefined
-  readonly limit?: number | undefined
-  readonly balance?: number | undefined
-}
-
-export interface CommercialInvoiceProjectionInput {
-  readonly id: string
-  readonly customerId: string
-  readonly subscriptionId?: string | undefined
-  readonly type: string
-  readonly status: string
-  readonly amount: number
-  readonly currency: string
-  readonly description?: string | undefined
-  readonly hostedUrl?: string | undefined
-  readonly providerId: string
-  readonly providerData: Readonly<Record<string, unknown>>
-  readonly periodStartAt?: Date | undefined
-  readonly periodEndAt?: Date | undefined
-}
-
-export interface CommercialSubscriptionProjectionInput {
-  readonly provider: PaymentProviderTag
-  readonly id: string
-  readonly customerId: string
-  readonly productInternalId: string
-  readonly providerId?: string | undefined
-  readonly providerData?: Readonly<Record<string, unknown>> | undefined
-  readonly status: string
-  readonly canceled?: boolean | undefined
-  readonly cancelAtPeriodEnd?: boolean | undefined
-  readonly startedAt?: Date | undefined
-  readonly trialEndsAt?: Date | undefined
-  readonly currentPeriodStartAt?: Date | undefined
-  readonly currentPeriodEndAt?: Date | undefined
-  readonly canceledAt?: Date | undefined
-  readonly endedAt?: Date | undefined
-  readonly scheduledProductId?: string | undefined
-  readonly quantity?: number | undefined
-}
-
-export interface CommercialProviderRefInput {
-  readonly provider: PaymentProviderTag
-  readonly ownerType: "customer" | "product" | "offer" | "subscription" | "invoice"
-  readonly ownerId: string
-  readonly providerId: string
-  readonly kind: string
-}
-
-export interface CommercialCreditLedgerInput {
-  readonly id: string
-  readonly customerId: string
-  readonly productId: string
-  readonly offerId?: string | undefined
-  readonly amount: number
-  readonly direction: "grant" | "consume" | "refund" | "adjustment"
-  readonly idempotencyKey: string
-  readonly sourceEventId?: string | undefined
-  readonly reason?: string | undefined
-}
-
+/**
+ * Write-side store for workflow state and provider references.
+ */
 export class CommercialWorkflowStore extends Context.Tag("@pay/core/CommercialWorkflowStore")<
   CommercialWorkflowStore,
   {
+    /**
+     * Get a customer profile by customer id.
+     */
     readonly getCustomerProfile: (input: {
       readonly customerId: string
     }) => Effect.Effect<Option.Option<CommercialCustomerProfile>>
+    /**
+     * Find a customer profile by provider customer reference.
+     */
     readonly findCustomerByProviderRef: (input: {
       readonly provider: PaymentProviderTag
       readonly providerCustomerId: string
     }) => Effect.Effect<Option.Option<CommercialCustomerProfile>>
+    /**
+     * Attach a provider customer id to a local customer.
+     */
     readonly attachProviderCustomer: (input: {
       readonly customerId: string
       readonly provider: PaymentProviderTag
       readonly providerCustomerId: string
     }) => Effect.Effect<CommercialCustomerProfile, CommercialCustomerNotFound>
+    /**
+     * Find a checkout intent by provider session id.
+     */
     readonly findCheckoutIntentByProviderSession: (input: {
       readonly providerCheckoutSessionId: string
     }) => Effect.Effect<Option.Option<PayStorageCheckoutIntentRecord>>
+    /**
+     * Find a checkout intent by intent id.
+     */
     readonly findCheckoutIntentById: (input: {
       readonly intentId: string
     }) => Effect.Effect<Option.Option<PayStorageCheckoutIntentRecord>>
+    /**
+     * Persist a checkout intent for later reconciliation.
+     */
     readonly persistCheckoutIntent: (input: {
       readonly intentId: string
       readonly customerId: string
@@ -132,43 +72,79 @@ export class CommercialWorkflowStore extends Context.Tag("@pay/core/CommercialWo
       readonly checkoutUrl?: string | undefined
       readonly metadata: Readonly<Record<string, unknown>>
     }) => Effect.Effect<void>
+    /**
+     * Update the status of a persisted checkout intent.
+     */
     readonly markCheckoutIntentStatus: (input: {
       readonly providerCheckoutSessionId: string
       readonly status: string
     }) => Effect.Effect<void>
+    /**
+     * Persist a webhook receipt and detect duplicates.
+     */
     readonly persistWebhookReceipt: (input: {
       readonly provider: PaymentProviderTag
       readonly providerEventId: string
       readonly type: string
       readonly payload: Readonly<Record<string, unknown>>
     }) => Effect.Effect<{ readonly duplicate: boolean }>
+    /**
+     * Mark a webhook as processed.
+     */
     readonly markWebhookProcessed: (input: {
       readonly provider: PaymentProviderTag
       readonly providerEventId: string
     }) => Effect.Effect<void>
+    /**
+     * Mark a webhook as failed.
+     */
     readonly markWebhookFailed: (input: {
       readonly provider: PaymentProviderTag
       readonly providerEventId: string
       readonly error: string
     }) => Effect.Effect<void>
+    /**
+     * Persist normalized commercial events.
+     */
     readonly persistCommercialEvents: (input: {
       readonly events: ReadonlyArray<CommercialEventType>
     }) => Effect.Effect<void>
+    /**
+     * Find a stored provider reference.
+     */
     readonly findProviderRef: (input: {
       readonly provider: PaymentProviderTag
       readonly providerId: string
       readonly kind?: string | undefined
     }) => Effect.Effect<Option.Option<PayStorageProviderRefRecord>>
+    /**
+     * Upsert a provider reference mapping.
+     */
     readonly upsertProviderRef: (input: CommercialProviderRefInput) => Effect.Effect<void>
+    /**
+     * Upsert a subscription projection row.
+     */
     readonly upsertSubscriptionProjection: (input: CommercialSubscriptionProjectionInput) => Effect.Effect<void>
+    /**
+     * Upsert an invoice projection row.
+     */
     readonly upsertInvoiceProjection: (input: CommercialInvoiceProjectionInput) => Effect.Effect<void>
+    /**
+     * Record a credit ledger mutation.
+     */
     readonly recordCreditLedger: (
       input: CommercialCreditLedgerInput
     ) => Effect.Effect<{ readonly duplicate: boolean; readonly row: PayStorageCreditLedgerRecord }>
+    /**
+     * List credit ledger rows for a customer.
+     */
     readonly listCreditLedger: (input: {
       readonly customerId: string
       readonly productId?: string | undefined
     }) => Effect.Effect<ReadonlyArray<PayStorageCreditLedgerRecord>>
+    /**
+     * Replace persisted entitlements for a customer.
+     */
     readonly replaceEntitlements: (input: {
       readonly customerId: string
       readonly entitlements: ReadonlyArray<CommercialEntitlementProjectionInput>
@@ -703,6 +679,102 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
     })
   })
 )
+
+const mapCustomer = (row: {
+  readonly id: string
+  readonly email: unknown
+  readonly name: unknown
+  readonly provider: unknown
+  readonly createdAt: unknown
+  readonly updatedAt: unknown
+}): CommercialCustomerProfileType =>
+  CommercialCustomerProfile.make({
+    id: row.id as never,
+    ...(typeof row.email === "string" && row.email.length > 0 ? { email: row.email } : {}),
+    ...(typeof row.name === "string" && row.name.length > 0 ? { name: row.name } : {}),
+    provider: toRecord(row.provider) as Record<string, string>,
+    createdAt: toDate(row.createdAt),
+    updatedAt: toDate(row.updatedAt)
+  })
+
+/**
+ * Projection input for entitlement persistence.
+ */
+export interface CommercialEntitlementProjectionInput {
+  readonly id: string
+  readonly featureId: string
+  readonly subscriptionId?: string | undefined
+  readonly limit?: number | undefined
+  readonly balance?: number | undefined
+}
+
+/**
+ * Projection input for invoice persistence.
+ */
+export interface CommercialInvoiceProjectionInput {
+  readonly id: string
+  readonly customerId: string
+  readonly subscriptionId?: string | undefined
+  readonly type: string
+  readonly status: string
+  readonly amount: number
+  readonly currency: string
+  readonly description?: string | undefined
+  readonly hostedUrl?: string | undefined
+  readonly providerId: string
+  readonly providerData: Readonly<Record<string, unknown>>
+  readonly periodStartAt?: Date | undefined
+  readonly periodEndAt?: Date | undefined
+}
+
+/**
+ * Projection input for subscription persistence.
+ */
+export interface CommercialSubscriptionProjectionInput {
+  readonly provider: PaymentProviderTag
+  readonly id: string
+  readonly customerId: string
+  readonly productInternalId: string
+  readonly providerId?: string | undefined
+  readonly providerData?: Readonly<Record<string, unknown>> | undefined
+  readonly status: string
+  readonly canceled?: boolean | undefined
+  readonly cancelAtPeriodEnd?: boolean | undefined
+  readonly startedAt?: Date | undefined
+  readonly trialEndsAt?: Date | undefined
+  readonly currentPeriodStartAt?: Date | undefined
+  readonly currentPeriodEndAt?: Date | undefined
+  readonly canceledAt?: Date | undefined
+  readonly endedAt?: Date | undefined
+  readonly scheduledProductId?: string | undefined
+  readonly quantity?: number | undefined
+}
+
+/**
+ * Provider reference mapping persisted for reconciliation.
+ */
+export interface CommercialProviderRefInput {
+  readonly provider: PaymentProviderTag
+  readonly ownerType: "customer" | "product" | "offer" | "subscription" | "invoice"
+  readonly ownerId: string
+  readonly providerId: string
+  readonly kind: string
+}
+
+/**
+ * Ledger input for credit balance updates.
+ */
+export interface CommercialCreditLedgerInput {
+  readonly id: string
+  readonly customerId: string
+  readonly productId: string
+  readonly offerId?: string | undefined
+  readonly amount: number
+  readonly direction: "grant" | "consume" | "refund" | "adjustment"
+  readonly idempotencyKey: string
+  readonly sourceEventId?: string | undefined
+  readonly reason?: string | undefined
+}
 
 const toRecord = (value: unknown): Record<string, unknown> => {
   if (value && typeof value === "object" && !Array.isArray(value)) {

@@ -1,19 +1,28 @@
 import * as Schema from "effect/Schema"
 
-import { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type.ts"
+import { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 import { BillingPortalFlow } from "./common-schema.ts"
 
+/**
+ * Start and end timestamps for a preview billing period.
+ */
 export const PreviewBillingPeriod = Schema.Struct({
   startsAt: Schema.Date,
   endsAt: Schema.Date
 })
 
+/**
+ * Item included in a subscription change preview.
+ */
 export const SubscriptionChangePreviewItem = Schema.Struct({
   priceId: Schema.String,
   productId: Schema.String,
   quantity: Schema.Number
 })
 
+/**
+ * Charge line item returned by a subscription change preview.
+ */
 export const SubscriptionChangePreviewChargeLineItem = Schema.Struct({
   priceId: Schema.String,
   productId: Schema.String,
@@ -24,6 +33,9 @@ export const SubscriptionChangePreviewChargeLineItem = Schema.Struct({
   billingPeriod: Schema.optionalWith(PreviewBillingPeriod, { exact: true, nullable: true })
 })
 
+/**
+ * Charge summary returned by a subscription change preview.
+ */
 export const SubscriptionChangePreviewCharge = Schema.Struct({
   subtotal: Schema.String,
   tax: Schema.String,
@@ -33,6 +45,9 @@ export const SubscriptionChangePreviewCharge = Schema.Struct({
   lineItems: Schema.Array(SubscriptionChangePreviewChargeLineItem)
 })
 
+/**
+ * Provider-normalized preview of a subscription change.
+ */
 export class SubscriptionChangePreview extends Schema.Class<SubscriptionChangePreview>(
   "@pay/core/SubscriptionChangePreview"
 )({
@@ -46,6 +61,9 @@ export class SubscriptionChangePreview extends Schema.Class<SubscriptionChangePr
   static decode = Schema.decode(SubscriptionChangePreview)
 }
 
+/**
+ * Hosted billing portal session returned by a provider.
+ */
 export class BillingPortalSession extends Schema.Class<BillingPortalSession>("@pay/core/BillingPortalSession")({
   id: Schema.String,
   flow: BillingPortalFlow,

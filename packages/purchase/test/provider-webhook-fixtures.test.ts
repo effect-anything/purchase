@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 
 import type { PaymentWebhookKind, PaymentWebhookNormalization } from "../src/provider/client.ts"
-import type { PaymentProviderTag } from "../src/provider/type.ts"
+import type { PaymentProviderTag } from "../src/provider/types.ts"
 
 import { syncCatalog } from "../src/config.ts"
 import { makePaddleProvider, makeStripeProvider } from "./provider/support/fixture-providers.ts"

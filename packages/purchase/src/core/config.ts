@@ -1,19 +1,28 @@
-import type { PaymentProviderTag } from '../provider.ts';
+import type { PaymentProviderTag } from "../provider.ts"
 
+/**
+ * Provider-scoped runtime settings.
+ */
 export interface PurchaseProviderSettings {
   readonly checkoutUrl?: string | undefined
   readonly webhookUrl?: string | undefined
   readonly checkout?: PurchaseCheckoutSettings | undefined
 }
 
-interface PurchaseCheckoutSettings {
+/**
+ * Checkout configuration for a provider.
+ */
+export interface PurchaseCheckoutSettings {
   readonly settings?: PurchaseCheckoutBehaviorSettings | undefined
   readonly paymentMethods?: Partial<PurchaseCheckoutPaymentMethods> | undefined
   readonly overlay?: PurchaseCheckoutOverlaySettings | undefined
   readonly styles?: PurchaseCheckoutStyles | undefined
 }
 
-interface PurchaseCheckoutBehaviorSettings {
+/**
+ * Behavioral flags for hosted checkout.
+ */
+export interface PurchaseCheckoutBehaviorSettings {
   readonly audienceOptin?: boolean | undefined
   readonly checkoutDiscounts?: boolean | undefined
   readonly enableSavedPaymentMethods?: boolean | undefined
@@ -25,7 +34,10 @@ interface PurchaseCheckoutBehaviorSettings {
     | undefined
 }
 
-interface PurchaseCheckoutPaymentMethods {
+/**
+ * Enabled payment methods for hosted checkout.
+ */
+export interface PurchaseCheckoutPaymentMethods {
   readonly card: boolean
   readonly paypal: boolean
   readonly wireTransfer: boolean
@@ -46,11 +58,17 @@ interface PurchaseCheckoutPaymentMethods {
   readonly payco: boolean
 }
 
-interface PurchaseCheckoutOverlaySettings {
+/**
+ * Overlay appearance settings for checkout.
+ */
+export interface PurchaseCheckoutOverlaySettings {
   readonly brandColor?: string | null | undefined
 }
 
-interface PurchaseCheckoutStyles {
+/**
+ * Theme overrides for hosted checkout.
+ */
+export interface PurchaseCheckoutStyles {
   readonly theme?:
     | {
         readonly globals?: PurchaseCheckoutStyleGlobals | undefined
@@ -64,7 +82,10 @@ interface PurchaseCheckoutStyles {
     | undefined
 }
 
-interface PurchaseCheckoutStyleGlobals {
+/**
+ * Global style tokens for checkout.
+ */
+export interface PurchaseCheckoutStyleGlobals {
   readonly activeFocusBorderColor?: string | undefined
   readonly activeFocusBoxShadowColor?: string | undefined
   readonly borderRadius?: string | undefined
@@ -75,7 +96,10 @@ interface PurchaseCheckoutStyleGlobals {
   readonly maxWidth?: string | undefined
 }
 
-interface PurchaseCheckoutStyleInputs {
+/**
+ * Input style overrides for checkout.
+ */
+export interface PurchaseCheckoutStyleInputs {
   readonly text?: PurchaseCheckoutInputStyle | undefined
   readonly checkbox?:
     | {
@@ -88,7 +112,10 @@ interface PurchaseCheckoutStyleInputs {
   readonly inputFieldWithLabel?: PurchaseCheckoutFieldLabelStyle | undefined
 }
 
-interface PurchaseCheckoutInputStyle {
+/**
+ * Shared text input style options.
+ */
+export interface PurchaseCheckoutInputStyle {
   readonly activeColor?: string | undefined
   readonly backgroundColor?: string | undefined
   readonly borderColor?: string | undefined
@@ -101,7 +128,10 @@ interface PurchaseCheckoutInputStyle {
   readonly withBoxShadow?: boolean | undefined
 }
 
-interface PurchaseCheckoutSelectStyle {
+/**
+ * Shared select input style options.
+ */
+export interface PurchaseCheckoutSelectStyle {
   readonly backgroundColor?: string | undefined
   readonly borderColor?: string | undefined
   readonly borderRadius?: string | undefined
@@ -113,16 +143,25 @@ interface PurchaseCheckoutSelectStyle {
   readonly withBoxShadow?: boolean | undefined
 }
 
+/**
+ * Label layout options for checkout fields.
+ */
 interface PurchaseCheckoutFieldLabelStyle {
   readonly labelVisible?: boolean | undefined
   readonly labelPosition?: "left" | "right" | "top" | "bottom" | undefined
 }
 
-interface PurchaseCheckoutStyleButtons {
+/**
+ * Button style overrides for checkout.
+ */
+export interface PurchaseCheckoutStyleButtons {
   readonly primary?: PurchaseCheckoutButtonStyle | undefined
   readonly secondary?: PurchaseCheckoutButtonStyle | undefined
 }
 
+/**
+ * Shared button style options.
+ */
 interface PurchaseCheckoutButtonStyle {
   readonly activeFocusBorderColor?: string | undefined
   readonly activeFocusBoxShadowColor?: string | undefined
@@ -139,37 +178,58 @@ interface PurchaseCheckoutButtonStyle {
   readonly width?: string | undefined
 }
 
-interface PurchaseCheckoutPaddleBarStyles {
+/**
+ * Paddle bar styling options.
+ */
+export interface PurchaseCheckoutPaddleBarStyles {
   readonly container?: PurchaseCheckoutContainerStyle | undefined
   readonly dataSharedAndPaddleAddress?: PurchaseCheckoutFontStyle | undefined
   readonly paddleMerchantOrderProcess?: PurchaseCheckoutFontStyle | undefined
 }
 
-interface PurchaseCheckoutTextStyle extends PurchaseCheckoutFontStyle {
+/**
+ * Text styling options.
+ */
+export interface PurchaseCheckoutTextStyle extends PurchaseCheckoutFontStyle {
   readonly color?: string | undefined
   readonly fontWeight?: string | undefined
 }
 
-interface PurchaseCheckoutLinkStyle extends PurchaseCheckoutFontStyle {
+/**
+ * Link styling options.
+ */
+export interface PurchaseCheckoutLinkStyle extends PurchaseCheckoutFontStyle {
   readonly color?: string | undefined
   readonly colorHover?: string | undefined
 }
 
-interface PurchaseCheckoutNotificationStyles {
+/**
+ * Notification styling options.
+ */
+export interface PurchaseCheckoutNotificationStyles {
   readonly container?: PurchaseCheckoutContainerStyle | undefined
   readonly text?: PurchaseCheckoutFontStyle | undefined
 }
 
-interface PurchaseCheckoutContainerStyle {
+/**
+ * Container styling options.
+ */
+export interface PurchaseCheckoutContainerStyle {
   readonly backgroundColor?: string | undefined
   readonly borderColor?: string | undefined
   readonly borderRadius?: string | undefined
 }
 
-interface PurchaseCheckoutFontStyle {
+/**
+ * Shared font styling options.
+ */
+export interface PurchaseCheckoutFontStyle {
   readonly fontSize?: string | undefined
 }
 
+/**
+ * Root purchase configuration object.
+ */
 export interface PurchaseConfig<
   TPlans extends ReadonlyArray<unknown> = ReadonlyArray<unknown>,
   TProducts extends ReadonlyArray<unknown> = ReadonlyArray<unknown>

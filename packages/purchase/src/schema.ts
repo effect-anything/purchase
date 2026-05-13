@@ -4,9 +4,10 @@
  * Provider adapter schemas live under `src/internal` or provider `internal`
  * folders and should not be imported by client-facing code.
  */
-export { CustomerEmail, CustomerId } from "./core/identity-schema.ts"
 
 export {
+  CustomerEmail,
+  CustomerId,
   BillingPortalFlow,
   SubscriptionCancelTiming,
   SubscriptionChangeProrationMode,

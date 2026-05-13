@@ -4,7 +4,7 @@ import type {
   PurchaseCheckoutOverlaySettings,
   PurchaseCheckoutSettings,
   PurchaseCheckoutStyles
-} from "../../sync/config-service.ts"
+} from "../../core/config.ts"
 
 const NullableString = Schema.NullOr(Schema.String)
 

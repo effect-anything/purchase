@@ -5,10 +5,19 @@ import { Context, Effect, Layer } from "effect"
 
 import { PurchaseService } from "../purchase/purchase-service"
 
+/**
+ * Example app catalog service.
+ */
 export class CatalogService extends Context.Tag("CatalogService")<
   CatalogService,
   {
+    /**
+     * Active payment provider for the example app.
+     */
     readonly activeProvider: PaymentProviderTag
+    /**
+     * Load the current commercial catalog.
+     */
     readonly loadCatalog: () => Effect.Effect<CommercialCatalog, unknown>
   }
 >() {

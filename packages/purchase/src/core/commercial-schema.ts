@@ -1,7 +1,7 @@
 import * as Schema from "effect/Schema"
 
-import { PaymentProviderTag } from "../provider/type.ts"
-import { CustomerId } from "./identity-schema.ts"
+import { PaymentProviderTag } from "../provider/types.ts"
+import { CustomerId } from "./common-schema.ts"
 
 /**
  * Provider mapping record keyed by provider tag or provider-scoped mapping key.

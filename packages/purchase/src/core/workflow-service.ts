@@ -7,7 +7,7 @@ import * as Option from "effect/Option"
 
 import type { BillingPortalSession, CheckoutSession, SubscriptionChangePreview } from "../internal/provider-schema.ts"
 import type { ServicesReturns } from "../internal/types.ts"
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 
 import { PayStorageAdapter } from "../db.ts"
 import { PaymentClient, type PaymentWebhookNormalization } from "../provider/client.ts"
@@ -53,56 +53,101 @@ import {
 } from "./workflow-schema.ts"
 import { CommercialWorkflowStore } from "./workflow-store.ts"
 
+/**
+ * Orchestrates provider-backed commercial workflows.
+ */
 export class CommercialWorkflowService extends Context.Tag("@pay/core/CommercialWorkflowService")<
   CommercialWorkflowService,
   {
+    /**
+     * Start a provider-backed checkout flow.
+     */
     readonly startCheckout: (
       input: StartCheckoutInput
     ) => Effect.Effect<
       StartCheckoutResult,
       CommercialCustomerNotFound | CommercialOfferNotFound | CommercialCatalogIssue | CommercialWorkflowConflict
     >
+    /**
+     * Cancel an existing subscription agreement.
+     */
     readonly cancelSubscription: (
       input: CancelSubscriptionInput
     ) => Effect.Effect<WorkflowReceipt, CommercialAgreementNotFound | CommercialWorkflowConflict>
+    /**
+     * Change a subscription to a different offer.
+     */
     readonly changeSubscription: (
       input: ChangeSubscriptionInput
     ) => Effect.Effect<
       WorkflowReceipt,
       CommercialAgreementNotFound | CommercialOfferNotFound | CommercialWorkflowConflict
     >
+    /**
+     * Pause an existing subscription agreement.
+     */
     readonly pauseSubscription: (
       input: PauseSubscriptionInput
     ) => Effect.Effect<WorkflowReceipt, CommercialAgreementNotFound | CommercialWorkflowConflict>
+    /**
+     * Resume a paused subscription agreement.
+     */
     readonly resumeSubscription: (
       input: ResumeSubscriptionInput
     ) => Effect.Effect<WorkflowReceipt, CommercialAgreementNotFound | CommercialWorkflowConflict>
+    /**
+     * Preview the result of a subscription change.
+     */
     readonly previewSubscriptionChange: (
       input: PreviewSubscriptionChangeInput
     ) => Effect.Effect<SubscriptionChangePreview, CommercialAgreementNotFound | CommercialWorkflowConflict>
+    /**
+     * Refund a purchase agreement.
+     */
     readonly refundPurchase: (
       input: RefundPurchaseInput
     ) => Effect.Effect<WorkflowReceipt, CommercialAgreementNotFound | CommercialWorkflowConflict>
+    /**
+     * Get a purchase grant by agreement id.
+     */
     readonly getPurchaseGrant: (input: {
       readonly customerId: string
       readonly agreementId: string
     }) => Effect.Effect<Option.Option<PurchaseGrantState>>
+    /**
+     * Get a customer's credit wallet snapshot.
+     */
     readonly getCreditWallet: (input: {
       readonly customerId: string
       readonly creditKey: string
     }) => Effect.Effect<CreditWalletResult>
+    /**
+     * Grant credits to a customer.
+     */
     readonly grantCredits: (
       input: CreditGrantInput
     ) => Effect.Effect<CreditWalletResult, CommercialWorkflowConflict | CommercialCatalogIssue>
+    /**
+     * Consume credits from a customer wallet.
+     */
     readonly consumeCredits: (
       input: CreditConsumeInput
     ) => Effect.Effect<CreditWalletResult, CommercialWorkflowConflict | CommercialCatalogIssue>
+    /**
+     * Create a provider billing portal session.
+     */
     readonly createPortalSession: (
       input: CreatePortalSessionInput
     ) => Effect.Effect<BillingPortalSession, CommercialCustomerNotFound | CommercialWorkflowConflict>
+    /**
+     * Receive and process a provider webhook.
+     */
     readonly receiveWebhook: (
       input: ReceiveWebhookInput
     ) => Effect.Effect<ReceiveWebhookResult, CommercialWebhookRejected | CommercialWorkflowConflict>
+    /**
+     * Replay a stored provider webhook.
+     */
     readonly replayWebhook: (
       input: ReplayWebhookInput
     ) => Effect.Effect<ReceiveWebhookResult, CommercialWebhookRejected | CommercialWorkflowConflict>
@@ -782,10 +827,20 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
         })
       }
 
-      yield* payment.subscriptions.cancel({
-        subscriptionId: agreement.providerSubscriptionId as never,
-        effectiveFrom: input.effectiveAt === "period_end" ? "next_billing_period" : "immediately"
-      })
+      yield* payment.subscriptions
+        .cancel({
+          subscriptionId: agreement.providerSubscriptionId as never,
+          effectiveFrom: input.effectiveAt === "period_end" ? "next_billing_period" : "immediately"
+        })
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new CommercialWorkflowConflict({
+                workflow: "subscription.cancel",
+                message: `subscription.cancel provider call failed for "${input.agreementId}": ${String(cause)}`
+              })
+          )
+        )
 
       return WorkflowReceipt.make({
         workflow: "subscription.cancel",

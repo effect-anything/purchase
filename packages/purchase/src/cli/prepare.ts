@@ -7,7 +7,7 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
 import type { PurchaseConfig } from "../core/config.ts"
-import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
 import { Paddle } from "../paddle.ts"
 import { Stripe } from "../stripe.ts"
@@ -35,7 +35,7 @@ const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(opt
 
 const envFallback = (value: Option.Option<string>, envName: string) => optionalValue(value) ?? process.env[envName]
 
-const makeProviderLayer = (options: PrepareOptions): Layer.Layer<any, unknown, never> => {
+const makeProviderLayer = (options: PrepareOptions): Layer.Layer<any, unknown> => {
   if (options.provider === "stripe") {
     return Stripe.layerConfig({
       apiKey: Redacted.make(options.stripeApiKey ?? ""),

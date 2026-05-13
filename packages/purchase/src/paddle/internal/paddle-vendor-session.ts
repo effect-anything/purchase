@@ -5,7 +5,7 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 import { chromium } from "playwright-core"
 
-import type { PaymentEnvironmentTag } from "../../provider/type.ts"
+import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
 const PaddleVendorSessionStateSchema = Schema.Struct({
   environment: Schema.Literal("sandbox", "production"),

@@ -13,4 +13,4 @@ Adjusted provider-call assertion to match the SDK contract: the checkout prepare
 
 - Final remediation: removed generated .codemogger WAL and run-continuation JSON artifacts, and replaced the runtime HttpApiLive broad any cast with typed global runtime slots plus direct HttpLayerRouter wiring.
 
-- Final runtime remediation: aligned the Next.js `ClientRuntime` global slot with `ManagedRuntime.make(Layer.empty, serverRuntime.memoMap)` by using `ManagedRuntime<never, never>` while preserving typed `HttpApiLive` router wiring.
+- Final runtime remediation: aligned the Next.js `ClientRuntime` global slot with `ManagedRuntime.make(Layer.empty, serverRuntime.memoMap)` by using `ManagedRuntime<>` while preserving typed `HttpApiLive` router wiring.

@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect"
 
-import type { PaymentProviderTag } from "../../src/provider/type.ts"
+import type { PaymentProviderTag } from "../../src/provider/types.ts"
 import type { BasePaySdkContract } from "../../src/sdk.ts"
 
 import { loadGeneratedWebhookFixture, type StoredWebhookFixture } from "../provider/support/generated-fixture.ts"
@@ -12,13 +12,13 @@ export interface ProviderLiveHarnessOptions {
   readonly supportsTestClock?: boolean | undefined
   readonly supportsWebhookSimulation?: boolean | undefined
   readonly attachPaymentMethod?:
-    | ((input: { readonly customerId: string }) => Effect.Effect<{ readonly attached: true }, unknown, never>)
+    | ((input: { readonly customerId: string }) => Effect.Effect<{ readonly attached: true }, unknown>)
     | undefined
   readonly advanceClock?:
     | ((input: {
         readonly customerId: string
         readonly by: string
-      }) => Effect.Effect<{ readonly advanced: true }, unknown, never>)
+      }) => Effect.Effect<{ readonly advanced: true }, unknown>)
     | undefined
 }
 
@@ -53,12 +53,12 @@ export interface ProviderLiveHarness {
     unknown
   >
   readonly waitForProjectionSettled: <A, E>(
-    effect: Effect.Effect<A, E, never>,
+    effect: Effect.Effect<A, E>,
     options?: {
       readonly retries?: number | undefined
       readonly delayMs?: number | undefined
     }
-  ) => Effect.Effect<A, unknown, never>
+  ) => Effect.Effect<A, unknown>
 }
 
 const unsupported = (provider: PaymentProviderTag, capability: string) =>

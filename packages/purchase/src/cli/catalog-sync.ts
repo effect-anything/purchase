@@ -11,7 +11,7 @@ import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
 import * as EffectString from "effect/String"
 
-import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
 import * as CloudflareD1HttpClient from "../internal/cloudflare-d1-http-client.ts"
 import { Paddle } from "../paddle.ts"
@@ -70,7 +70,7 @@ class PayCatalogCliInvalidDatabase extends Schema.TaggedError<PayCatalogCliInval
   }
 ) {}
 
-const makeProviderLayer = (options: CliOptions): Layer.Layer<any, unknown, never> => {
+const makeProviderLayer = (options: CliOptions): Layer.Layer<any, unknown> => {
   if (options.provider === "stripe") {
     return Stripe.layerConfig({
       apiKey: Redacted.make(options.stripeApiKey ?? ""),
@@ -102,13 +102,13 @@ const sqliteFilenameFromUrl = (databaseUrl: string) => {
   return databaseUrl
 }
 
-const makeDatabaseLayer = (options: CliOptions): Layer.Layer<SqlClient.SqlClient, unknown, never> => {
+const makeDatabaseLayer = (options: CliOptions): Layer.Layer<SqlClient.SqlClient, unknown> => {
   if (options.database._tag === "postgres") {
     return PgClient.layer({
       url: Redacted.make(options.database.url),
       transformQueryNames: EffectString.camelToSnake,
       transformResultNames: EffectString.snakeToCamel
-    }) as Layer.Layer<SqlClient.SqlClient, unknown, never>
+    }) as Layer.Layer<SqlClient.SqlClient, unknown>
   }
 
   if (options.database._tag === "cloudflare-d1") {
@@ -119,7 +119,7 @@ const makeDatabaseLayer = (options: CliOptions): Layer.Layer<SqlClient.SqlClient
       baseUrl: options.database.baseUrl,
       transformQueryNames: EffectString.camelToSnake,
       transformResultNames: EffectString.snakeToCamel
-    }) as Layer.Layer<SqlClient.SqlClient, unknown, never>
+    }) as Layer.Layer<SqlClient.SqlClient, unknown>
   }
 
   return SQLite.layer({
@@ -127,7 +127,7 @@ const makeDatabaseLayer = (options: CliOptions): Layer.Layer<SqlClient.SqlClient
     disableWAL: true,
     transformQueryNames: EffectString.camelToSnake,
     transformResultNames: EffectString.snakeToCamel
-  }) as Layer.Layer<SqlClient.SqlClient, unknown, never>
+  }) as Layer.Layer<SqlClient.SqlClient, unknown>
 }
 
 const databaseLabel = (database: DatabaseTarget) => {
@@ -246,7 +246,7 @@ export const printHumanResult = (options: CliOptions, result: CommercialCatalogS
 const runCatalogSync = (
   options: CliOptions,
   catalog: PurchaseConfigModule
-): Effect.Effect<CommercialCatalogSyncResult, unknown, never> =>
+): Effect.Effect<CommercialCatalogSyncResult, unknown> =>
   Effect.gen(function* () {
     yield* checkCatalogSchema
     return yield* syncCatalog({ dryRun: options.dryRun })
@@ -259,7 +259,7 @@ const runCatalogSync = (
     ),
     Effect.provide(makeProviderLayer(options)),
     Effect.provide(makeDatabaseLayer(options))
-  ) as Effect.Effect<CommercialCatalogSyncResult, unknown, never>
+  ) as Effect.Effect<CommercialCatalogSyncResult, unknown>
 
 const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(option)
 

@@ -153,7 +153,7 @@ describe("catalog sync e2e flow", () => {
               Layer.mergeAll(payment.layer, dbLayer)
             )
           )
-        ) as Effect.Effect<A, E, never>
+        ) as Effect.Effect<A, E>
       )
 
     const initial = await runOriginal(
@@ -224,7 +224,7 @@ describe("catalog sync e2e flow", () => {
               Layer.mergeAll(payment.layer, dbLayer)
             )
           )
-        ) as Effect.Effect<A, E, never>
+        ) as Effect.Effect<A, E>
       )
 
     const providerCallsBeforeModifiedApply = {

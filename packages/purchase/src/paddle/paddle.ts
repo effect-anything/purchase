@@ -7,7 +7,7 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 import * as Stream from "effect/Stream"
 
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 import type {
   PaddleCustomer,
   PaddlePrice,
@@ -43,6 +43,9 @@ import {
 } from "../provider/client.ts"
 import { makePaddleClient, PaddleClient, PaddleConfig } from "./internal/paddle-client.ts"
 
+/**
+ * Paddle payment client service.
+ */
 export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleImpl>() {
   static readonly _tag: PaymentProviderTag = "paddle"
 

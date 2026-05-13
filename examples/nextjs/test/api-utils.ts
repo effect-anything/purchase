@@ -275,7 +275,7 @@ const requestBody = (body: HttpBody.HttpBody): Effect.Effect<BodyInit | undefine
     case "FormData":
       return Effect.succeed(body.formData)
     case "Stream":
-      return (body.stream as Stream.Stream<Uint8Array<ArrayBufferLike>, never, never>).pipe(
+      return (body.stream as Stream.Stream<Uint8Array<ArrayBufferLike>>).pipe(
         Stream.runCollect,
         Effect.map((chunks) => new Blob(chunks as any))
       )

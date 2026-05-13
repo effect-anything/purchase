@@ -12,7 +12,7 @@ import type {
   PurchaseGrantState,
   SubscriptionAgreementState
 } from "./core/commercial-schema.ts"
-import type { CustomerId } from "./core/identity-schema.ts"
+import type { CustomerId } from "./core/common-schema.ts"
 import type {
   CancelSubscriptionInput,
   ChangeSubscriptionInput,
@@ -35,7 +35,7 @@ import type { PaymentProviderTag } from "./provider.ts"
 import type { BillingPortalSession, SubscriptionChangePreview } from "./schema.ts"
 
 import { buildCommercialCatalog, CatalogState } from "./core/catalog-builder.ts"
-import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./sync/catalog-service.ts
+import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./core/catalog-service.ts"
 import { CommercialProjectionService, CommercialProjectionServiceLayer } from "./core/projection-service.ts"
 import { CommercialWorkflowService, CommercialWorkflowServiceLayer } from "./core/workflow-service.ts"
 import { CommercialWorkflowStore, CommercialWorkflowStoreLayer } from "./core/workflow-store.ts"

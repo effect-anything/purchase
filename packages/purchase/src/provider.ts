@@ -5,7 +5,7 @@ import * as Schema from "effect/Schema"
 
 import type { PaymentClient } from "./provider/client.ts"
 
-import { PaymentProviderTag } from "./provider/type.ts"
+import { PaymentProviderTag } from "./provider/types.ts"
 
 export const PurchaseProviderConfig = Config.string("PROVIDER").pipe(
   Config.withDefault("paddle"),
@@ -35,6 +35,5 @@ export const PurchaseProvider = {
 
 export const PayProvider = PurchaseProvider
 
-export { PaymentEnvironmentTag, PaymentProviderTag } from "./provider/type.ts"
+export { PaymentEnvironmentTag, PaymentProviderTag } from "./provider/types.ts"
 export type { PaymentClient } from "./provider/client.ts"
-

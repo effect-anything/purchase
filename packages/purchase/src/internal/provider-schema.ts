@@ -1,12 +1,15 @@
 import * as Schema from "effect/Schema"
 
 import { CommercialOfferId } from "../core/commercial-schema.ts"
-import { CustomerEmail } from "../core/identity-schema.ts"
+import { CustomerEmail } from "../core/common-schema.ts"
 import { SubscriptionChangePreviewCharge } from "../core/session-schema.ts"
-import { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type.ts"
+import { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
 export { BillingPortalSession, SubscriptionChangePreview } from "../core/session-schema.ts"
 
+/**
+ * Provider product identifier.
+ */
 export const ProductId = Schema.NonEmptyString.pipe(
   Schema.brand("productId"),
   Schema.annotations({
@@ -15,6 +18,9 @@ export const ProductId = Schema.NonEmptyString.pipe(
 )
 export type ProductId = typeof ProductId.Type
 
+/**
+ * Provider price identifier.
+ */
 export const PriceId = Schema.NonEmptyString.pipe(
   Schema.brand("PriceId"),
   Schema.annotations({
@@ -23,6 +29,9 @@ export const PriceId = Schema.NonEmptyString.pipe(
 )
 export type PriceId = typeof PriceId.Type
 
+/**
+ * Provider price display name.
+ */
 export const PriceName = Schema.String.pipe(
   Schema.brand("PriceName"),
   Schema.annotations({
@@ -31,6 +40,9 @@ export const PriceName = Schema.String.pipe(
 )
 export type PriceName = typeof PriceName.Type
 
+/**
+ * Provider product display name.
+ */
 export const ProductName = Schema.String.pipe(
   Schema.brand("ProductName"),
   Schema.annotations({
@@ -39,6 +51,9 @@ export const ProductName = Schema.String.pipe(
 )
 export type ProductName = typeof ProductName.Type
 
+/**
+ * Provider customer identifier.
+ */
 export const CustomerProviderId = Schema.NonEmptyString.pipe(
   Schema.brand("CustomerProviderId"),
   Schema.annotations({
@@ -47,6 +62,9 @@ export const CustomerProviderId = Schema.NonEmptyString.pipe(
 )
 export type CustomerProviderId = typeof CustomerProviderId.Type
 
+/**
+ * Provider subscription identifier.
+ */
 export const SubscriptionId = Schema.String.pipe(
   Schema.brand("SubscriptionId"),
   Schema.annotations({
@@ -55,6 +73,9 @@ export const SubscriptionId = Schema.String.pipe(
 )
 export type SubscriptionId = typeof SubscriptionId.Type
 
+/**
+ * Provider transaction identifier.
+ */
 export const TransactionId = Schema.NonEmptyString.pipe(
   Schema.brand("TransactionId"),
   Schema.annotations({
@@ -63,32 +84,56 @@ export const TransactionId = Schema.NonEmptyString.pipe(
 )
 export type TransactionId = typeof TransactionId.Type
 
+/**
+ * Billing interval supported by provider pricing.
+ */
 export const BillingInterval = Schema.Literal("day", "week", "month", "year")
 
+/**
+ * Currency code used by provider amounts.
+ */
 export const CurrencyCode = Schema.String
 
+/**
+ * Country code used by provider addresses.
+ */
 export const CountryCode = Schema.String
 
+/**
+ * Monetary amount and currency pair.
+ */
 export const UnitPrice = Schema.Struct({
   amount: Schema.String,
   currencyCode: Schema.String
 })
 
+/**
+ * Recurring billing cycle configuration.
+ */
 export const BillingCycle = Schema.Struct({
   interval: BillingInterval,
   frequency: Schema.Number
 })
 
+/**
+ * Trial period configuration.
+ */
 export const TrialPeriod = Schema.Struct({
   interval: BillingInterval,
   frequency: Schema.Number
 })
 
+/**
+ * Quantity constraints for a price.
+ */
 export const PriceQuantity = Schema.Struct({
   minimum: Schema.Number,
   maximum: Schema.Number
 })
 
+/**
+ * Optional metadata payload forwarded to providers.
+ */
 export const Metadata = Schema.Record({ key: Schema.String, value: Schema.Any }).pipe(
   Schema.optionalWith({ exact: true, nullable: true })
 )
@@ -101,13 +146,22 @@ export const Metadata = Schema.Record({ key: Schema.String, value: Schema.Any })
  * - past_due: 付款逾期
  * - trialing: 试用期内
  */
+/**
+ * Current subscription lifecycle status.
+ */
 export const SubscriptionStatus = Schema.Literal("active", "paused", "past_due", "trialing", "canceled")
 
+/**
+ * Billing period boundaries.
+ */
 export const BillingPeriod = Schema.Struct({
   startsAt: Schema.Date,
   endsAt: Schema.Date
 })
 
+/**
+ * Preview of the next subscription transaction.
+ */
 export const NextSubscriptionTransaction = Schema.Struct({
   billingPeriod: BillingPeriod,
   taxRatesUsed: Schema.Array(
@@ -163,6 +217,9 @@ export const NextSubscriptionTransaction = Schema.Struct({
   )
 })
 
+/**
+ * Normalized subscription line item.
+ */
 export const SubscriptionItem = Schema.Struct({
   /**
    * 数量
@@ -199,16 +256,28 @@ export const SubscriptionItem = Schema.Struct({
   trialDates: Schema.optional(BillingPeriod)
 })
 
+/**
+ * Scheduled subscription mutation.
+ */
 export const SubscriptionScheduledChange = Schema.Struct({
   action: Schema.Literal("cancel", "pause", "resume"),
   effectiveAt: Schema.Date,
   resumeAt: Schema.optionalWith(Schema.Date, { nullable: true })
 })
 
+/**
+ * Normalized transaction status.
+ */
 export const TransactionStatus = Schema.Literal("draft", "ready", "billed", "paid", "completed", "canceled", "past_due")
+/**
+ * How a transaction is collected.
+ */
 export const TransactionCollectionMode = Schema.Literal("automatic", "manual")
 export type TransactionCollectionMode = typeof TransactionCollectionMode.Type
 
+/**
+ * Origin for a provider transaction.
+ */
 export const TransactionOrigin = Schema.Literal(
   "api",
   "subscription_charge",
@@ -218,6 +287,9 @@ export const TransactionOrigin = Schema.Literal(
   "web"
 )
 
+/**
+ * Payment attempt lifecycle status.
+ */
 export const PaymentAttemptStatus = Schema.Literal(
   "canceled",
   "authorized",
@@ -231,12 +303,24 @@ export const PaymentAttemptStatus = Schema.Literal(
   "dropped"
 )
 
+/**
+ * Payment method type label.
+ */
 export const PaymentMethodType = Schema.String
 
+/**
+ * Payment card type label.
+ */
 export const PaymentCardType = Schema.String
 
+/**
+ * Provider-specific payment error code.
+ */
 export const ErrorCode = Schema.String
 
+/**
+ * Card details captured on a payment attempt.
+ */
 export const PaymentCard = Schema.Struct({
   type: PaymentCardType,
   last4: Schema.String,
@@ -245,6 +329,9 @@ export const PaymentCard = Schema.Struct({
   cardholderName: Schema.String
 })
 
+/**
+ * Payment attempt details for a transaction.
+ */
 export const PaymentAttempt = Schema.Struct({
   id: Schema.String,
   amount: Schema.String,

@@ -3,60 +3,63 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 
-import type { ServicesReturns } from "../internal/types"
-import type { PaymentProviderTag } from "../provider/type"
+import type { ServicesReturns } from "../internal/types.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 
-import { PayStorageAdapter } from "../db"
-import { CatalogState } from "../core/catalog-builder.tsder"
+import { CatalogState } from "../core/catalog-builder.ts"
 import {
-  type CommercialCatalogIssue,
   CommercialCheckoutTarget,
   CommercialOfferNotFound,
   type CommercialCatalog,
+  type CommercialCatalogIssue,
   type CommercialOffer,
   type CommercialProduct
-} from "../core/commercial-schema.tsema"
+} from "../core/commercial-schema.ts"
+import { PayStorageAdapter } from "../db.ts"
 
+/**
+ * Read-side service for resolved commercial catalog data.
+ */
 export class CommercialCatalogService extends Context.Tag("@pay/core/CommercialCatalogService")<
   CommercialCatalogService,
   {
     /**
-     *
+     * Load the full commercial catalog snapshot.
      */
     readonly getCatalog: () => Effect.Effect<CommercialCatalog, CommercialCatalogIssue>
     /**
-     *
+     * Get a product by commercial product id.
      */
     readonly getProduct: (input: {
       readonly productId: string
     }) => Effect.Effect<Option.Option<CommercialProduct>, CommercialCatalogIssue>
     /**
-     *
+     * Get an offer by commercial offer id.
      */
     readonly getOffer: (input: {
       readonly offerId: string
     }) => Effect.Effect<Option.Option<CommercialOffer>, CommercialCatalogIssue>
     /**
-     *
+     * List offers belonging to a commercial product.
      */
     readonly listOffersByProduct: (input: {
       readonly productId: string
     }) => Effect.Effect<ReadonlyArray<CommercialOffer>, CommercialCatalogIssue>
     /**
-     *
+     * Resolve the default offer for a product and optional group.
      */
     readonly resolveDefaultOffer: (input: {
       readonly productId: string
       readonly group?: string | undefined
     }) => Effect.Effect<Option.Option<CommercialOffer>, CommercialCatalogIssue>
     /**
-     *
+     * List valid subscription change targets for the current offer.
      */
     readonly listSubscriptionChangeTargets: (input: {
       readonly currentOfferId: string
     }) => Effect.Effect<ReadonlyArray<CommercialOffer>, CommercialOfferNotFound | CommercialCatalogIssue>
     /**
-     *
+     * Resolve checkout data for an offer and provider.
      */
     readonly resolveCheckoutTarget: (input: {
       readonly offerId: string

@@ -9,14 +9,14 @@ import * as Stream from "effect/Stream"
 
 import type { NormalizedOffer, NormalizedPurchasePlan, ProductsModule, PurchasePlansModule } from "../dsl.ts"
 import type { ServicesReturns } from "../internal/types.ts"
-import type { PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentProviderTag } from "../provider/types.ts"
 
+import { CatalogState } from "../core/catalog-builder.ts"
+import { CommercialCatalogIssue, type CommercialOffer, type CommercialProduct } from "../core/commercial-schema.ts"
+import { CommercialWorkflowConflict } from "../core/workflow-schema.ts"
 import { PayStorageAdapter, type PayStorageProductRecord } from "../db.ts"
 import { normalizeCatalog, normalizeSchema } from "../dsl.ts"
 import { PaymentClient } from "../provider/client.ts"
-import { CatalogState } from "./catalog-builder.ts"
-import { CommercialCatalogIssue, type CommercialOffer, type CommercialProduct } from "./commercial-schema.ts"
-import { CommercialWorkflowConflict } from "./workflow-schema.ts"
 
 export class CommercialCatalogSyncService extends Context.Tag("@pay/core/CommercialCatalogSyncService")<
   CommercialCatalogSyncService,

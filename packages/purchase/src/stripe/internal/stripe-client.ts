@@ -19,7 +19,7 @@ import type {
   PauseSubscriptionParams,
   ResumeSubscriptionParams
 } from "../../provider/client.ts"
-import type { PaymentEnvironmentTag } from "../../provider/type.ts"
+import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
 import {
   CustomerAlreadyExists,

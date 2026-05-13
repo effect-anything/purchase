@@ -6,7 +6,7 @@ import path from "node:path"
 
 import type { PurchaseProviderSettings } from "../core/config.ts"
 import type { ProductsModule, PurchasePlansModule } from "../dsl.ts"
-import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type.ts"
+import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
 import { buildCommercialCatalog, CatalogState } from "../core/catalog-builder.ts"
 import { PayStorageAdapter, type PayStorageOverrides } from "../db.ts"

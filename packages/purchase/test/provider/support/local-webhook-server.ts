@@ -11,7 +11,7 @@ export interface CapturedWebhookRequest {
 
 export interface LocalWebhookServer {
   readonly url: string
-  readonly waitForRequest: (timeoutMs?: number | undefined) => Effect.Effect<CapturedWebhookRequest, unknown, never>
+  readonly waitForRequest: (timeoutMs?: number | undefined) => Effect.Effect<CapturedWebhookRequest, unknown>
 }
 
 const readBody = (request: IncomingMessage) =>

@@ -16,25 +16,25 @@ interface CloudflareContext {
    * Extends the lifetime of the Worker, allowing work to continue after a response is returned.
    * Accepts a Promise that the Workers runtime will continue executing.
    */
-  readonly waitUntil: (promise: Promise<any>) => Effect.Effect<void, never, never>
+  readonly waitUntil: (promise: Promise<any>) => Effect.Effect<void>
 
   /**
    * Allows a Worker to fail open and pass a request through to an origin server
    * when the Worker throws an unhandled exception.
    */
-  readonly passThroughOnException: () => Effect.Effect<void, never, never>
+  readonly passThroughOnException: () => Effect.Effect<void>
 
   /**
    * Get the raw ExecutionContext object for direct access if needed.
    */
-  readonly getRawContext: () => Effect.Effect<ExecutionContext, never, never>
+  readonly getRawContext: () => Effect.Effect<ExecutionContext>
 }
 
 const make = (ctx: ExecutionContext): CloudflareContext => {
   return {
-    waitUntil: (promise: Promise<any>): Effect.Effect<void, never, never> => Effect.sync(() => ctx.waitUntil(promise)),
-    passThroughOnException: (): Effect.Effect<void, never, never> => Effect.sync(() => ctx.passThroughOnException?.()),
-    getRawContext: (): Effect.Effect<ExecutionContext, never, never> => Effect.succeed(ctx)
+    waitUntil: (promise: Promise<any>): Effect.Effect<void> => Effect.sync(() => ctx.waitUntil(promise)),
+    passThroughOnException: (): Effect.Effect<void> => Effect.sync(() => ctx.passThroughOnException?.()),
+    getRawContext: (): Effect.Effect<ExecutionContext> => Effect.succeed(ctx)
   }
 }
 
@@ -42,10 +42,7 @@ export class CloudflareExecutionContext extends Context.Tag("@cloudflare:executi
   CloudflareExecutionContext,
   CloudflareContext
 >() {
-  static fromContext(
-    ctx: ExecutionContext,
-    env: Record<string, any>
-  ): Layer.Layer<CloudflareExecutionContext, never, never> {
+  static fromContext(ctx: ExecutionContext, env: Record<string, any>): Layer.Layer<CloudflareExecutionContext> {
     let waitUntil = (promise: Promise<void>) => ctx.waitUntil(promise)
 
     // @ts-ignore
@@ -89,14 +86,14 @@ export class CloudflareExecutionContext extends Context.Tag("@cloudflare:executi
     )
   }
 
-  static use<A>(fn: (ctx: CloudflareContext) => Effect.Effect<A, never, never>): Effect.Effect<A, never, never> {
+  static use<A>(fn: (ctx: CloudflareContext) => Effect.Effect<A>): Effect.Effect<A> {
     return pipe(
       Effect.context<never>(),
       Effect.flatMap((ctx) => fn(Context.unsafeGet(ctx, CloudflareExecutionContext)))
     )
   }
 
-  static getRawContext(): Effect.Effect<ExecutionContext, never, never> {
+  static getRawContext(): Effect.Effect<ExecutionContext> {
     return CloudflareExecutionContext.use((ctx) => ctx.getRawContext())
   }
 }
