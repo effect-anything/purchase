@@ -1,4 +1,6 @@
-import { Paddle, PurchaseSDK, Stripe } from "@effect-x/purchase"
+import { PurchaseSDK } from "@effect-x/purchase"
+import { Paddle } from "@effect-x/purchase/paddle"
+import { Stripe } from "@effect-x/purchase/stripe"
 import { Effect, Layer } from "effect"
 
 import { CommercialPlans, CommercialProducts } from "../../catalog.ts"

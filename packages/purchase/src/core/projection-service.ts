@@ -10,7 +10,7 @@ import type { CustomerId } from "./identity-schema.ts"
 import type { RefreshCustomerSnapshotInput } from "./workflow-schema.ts"
 
 import { PayStorageAdapter, type PayStorageSubscriptionRecord } from "../db.ts"
-import { CommercialCatalogService } from "./catalog-service.ts"
+import { CommercialCatalogService } from "../sync/catalog-service.tsice"
 import {
   type CommercialBenefit,
   type CommercialCatalog,

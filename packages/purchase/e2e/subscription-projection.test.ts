@@ -2,6 +2,7 @@ import * as SqlClient from "@effect/sql/SqlClient"
 import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 
+import { syncCatalog } from "../src/config.ts"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import { insertTestCustomer, parseJsonColumn, queryOne } from "../test/support/sqlite-pay-harness.ts"
 import {
@@ -70,7 +71,7 @@ describe("core subscription projection workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* sdk.webhooks.handle({
           provider: "stripe",
@@ -117,7 +118,7 @@ describe("core subscription projection workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
         yield* seedCurrentSubscription
 
         const cancel = yield* sdk.subscriptions.cancel({

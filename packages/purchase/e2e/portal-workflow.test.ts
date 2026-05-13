@@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 
+import { syncCatalog } from "../src/config.ts"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import { countRows, insertTestCustomer, parseJsonColumn, queryOne } from "../test/support/sqlite-pay-harness.ts"
 import { TestPay, testCustomerId, testOfferIds, testSubscriptionAgreementId } from "../test/support/test-catalog.ts"
@@ -52,7 +53,7 @@ describe("core portal workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* sdk.portal.createSession({
           customerId: testCustomerId,
@@ -92,7 +93,7 @@ describe("core portal workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* Effect.either(
           sdk.portal.createSession({
@@ -130,7 +131,7 @@ describe("core portal workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* Effect.either(
           sdk.portal.createSession({
@@ -162,7 +163,7 @@ describe("core portal workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* Effect.either(
           sdk.portal.createSession({
@@ -190,7 +191,7 @@ describe("core portal workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
         yield* seedSubscription()
 
         const result = yield* Effect.either(
@@ -221,7 +222,7 @@ describe("core portal workflow", () => {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
         yield* insertTestCustomer({ id: "customer_456", email: "john@example.com", name: "John Doe" })
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
         yield* seedSubscription({
           agreementId: "sub_other_customer",
           customerId: "customer_456",

@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 import * as Option from "effect/Option"
 
+import { syncCatalog } from "../src/config.ts"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import {
   countRows,
@@ -89,7 +90,7 @@ describe("core purchase and credit workflows", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* sdk.webhooks.handle({
           provider: "stripe",
@@ -200,7 +201,7 @@ describe("core purchase and credit workflows", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const first = yield* sdk.webhooks.handle({
           provider: "stripe",
@@ -284,7 +285,7 @@ describe("core purchase and credit workflows", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         yield* sdk.webhooks.handle({
           provider: "stripe",

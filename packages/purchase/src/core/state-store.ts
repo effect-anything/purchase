@@ -4,7 +4,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 
 import { PayStorageAdapter, type PayStorageSubscriptionRecord } from "../db.ts"
-import { CommercialCatalogService } from "./catalog-service.ts"
+import { CommercialCatalogService } from "../sync/catalog-service.ts"
 import { CreditsWalletState, PurchaseGrantState, SubscriptionAgreementState } from "./commercial-schema.ts"
 
 export class CommercialStateStore extends Context.Tag("@pay/core/CommercialStateStore")<

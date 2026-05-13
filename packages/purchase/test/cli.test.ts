@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Option from "effect/Option"
 
-import { formatHumanResult, parseCatalogSyncOptions, parseDatabaseTarget } from "../src/bin.ts"
+import { formatHumanResult, parseCatalogSyncOptions, parseDatabaseTarget } from "../src/cli/catalog-sync.ts"
+import { formatPrepareResult, parsePrepareOptions } from "../src/cli/prepare.ts"
 
 describe("purchase cli options", () => {
   it("parses sqlite database urls", () => {
@@ -111,6 +112,7 @@ describe("purchase cli options", () => {
       {
         provider: "stripe",
         offers: 0,
+        features: 0,
         dryRun: true,
         plan: {
           productsToCreate: [],
@@ -127,5 +129,130 @@ describe("purchase cli options", () => {
 
     expect(output).toContain("cloudflare-d1:database_123")
     expect(output).toContain("No changes")
+  })
+
+  it("parses prepare options and defaults to dry-run", () => {
+    const options = parsePrepareOptions({
+      module: "catalog.ts",
+      exportName: Option.none(),
+      provider: "paddle",
+      environment: "sandbox",
+      checkoutUrl: Option.some("https://checkout.example.test"),
+      webhookUrl: Option.some("https://app.example.test/api/webhooks/paddle"),
+      apply: false,
+      dryRun: false,
+      json: false,
+      showSecrets: false,
+      stripeApiKey: Option.none(),
+      stripeWebhookSecret: Option.none(),
+      paddleApiToken: Option.none(),
+      paddleWebhookToken: Option.none()
+    })
+
+    expect(options.dryRun).toBe(true)
+    expect(options.checkoutUrl).toBe("https://checkout.example.test")
+    expect(options.webhookUrl).toBe("https://app.example.test/api/webhooks/paddle")
+  })
+
+  it("formats paddle prepare plans with diffs", () => {
+    const output = formatPrepareResult(
+      {
+        modulePath: "catalog.ts",
+        provider: "paddle",
+        environment: "sandbox",
+        checkoutUrl: "https://checkout.example.test",
+        webhookUrl: "https://app.example.test/api/webhooks/paddle",
+        apply: false,
+        dryRun: true,
+        json: false,
+        showSecrets: false
+      },
+      {
+        provider: "paddle",
+        dryRun: true,
+        secrets: {
+          webhook: {
+            current: "pdl_ntfset_01gkpjp8bkm3tm53kdgkx6sms7_secretvalue"
+          }
+        },
+        plan: {
+          status: "ready",
+          changes: [
+            {
+              path: "checkout.defaultCheckoutUrl",
+              current: undefined,
+              desired: "https://checkout.example.test",
+              action: "create"
+            },
+            {
+              path: "webhook.destinationUrl",
+              current: "https://app.example.test/api/webhooks/paddle-old",
+              desired: "https://app.example.test/api/webhooks/paddle",
+              action: "update"
+            },
+            {
+              path: "webhook.subscribedEvents",
+              current: ["transaction.updated"],
+              desired: ["transaction.updated", "subscription.updated"],
+              action: "update"
+            },
+            {
+              path: "checkout.paymentMethods.applePay",
+              current: false,
+              desired: true,
+              action: "update"
+            }
+          ],
+          checkoutUrl: {
+            current: undefined,
+            desired: "https://checkout.example.test",
+            action: "create"
+          },
+          webhookUrl: {
+            current: "https://app.example.test/api/webhooks/paddle-old",
+            desired: "https://app.example.test/api/webhooks/paddle",
+            action: "update"
+          }
+        }
+      }
+    )
+
+    expect(output).toContain("Provider · paddle (sandbox)")
+    expect(output).toContain("Checkout URL · + create https://checkout.example.test")
+    expect(output).toContain("Webhook URL  · ~ update https://app.example.test/api/webhooks/paddle")
+    expect(output).toContain("Webhook Secret · pdl_ntfs...tvalue")
+    expect(output).toContain(
+      '~ update webhook.subscribedEvents (["transaction.updated"] -> ["transaction.updated","subscription.updated"])'
+    )
+    expect(output).toContain("~ update checkout.paymentMethods.applePay (false -> true)")
+  })
+
+  it("prints full secrets when showSecrets is enabled", () => {
+    const output = formatPrepareResult(
+      {
+        modulePath: "catalog.ts",
+        provider: "paddle",
+        environment: "sandbox",
+        apply: false,
+        dryRun: true,
+        json: false,
+        showSecrets: true
+      },
+      {
+        provider: "paddle",
+        dryRun: true,
+        secrets: {
+          webhook: {
+            current: "pdl_ntfset_01gkpjp8bkm3tm53kdgkx6sms7_secretvalue"
+          }
+        },
+        plan: {
+          status: "ready",
+          changes: []
+        }
+      }
+    )
+
+    expect(output).toContain("Webhook Secret · pdl_ntfset_01gkpjp8bkm3tm53kdgkx6sms7_secretvalue")
   })
 })

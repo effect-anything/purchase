@@ -1,6 +1,7 @@
 import {
   creditPackProduct,
   creditUnit,
+  defineConfig,
   featureFlag,
   oneTimeProduct,
   plan,
@@ -124,3 +125,52 @@ export const CommercialProducts = [
     plans: CreditsPlans
   })
 ] as const
+
+export default defineConfig({
+  plans: CommercialPlans,
+  products: CommercialProducts,
+  provider: {
+    paddle: {
+      checkoutUrl: process.env.PURCHASE_CHECKOUT_URL,
+      webhookUrl: process.env.PURCHASE_WEBHOOK_URL,
+      checkout: {
+        paymentMethods: {
+          card: true,
+          paypal: true,
+          applePay: true,
+          bancontact: true,
+          wireTransfer: false
+        },
+        overlay: {
+          brandColor: "#06C668"
+        },
+        styles: {
+          theme: {
+            globals: {
+              borderRadius: "4px",
+              primaryFontSize: "14px",
+              secondaryFontSize: "12px"
+            },
+            buttons: {
+              primary: {
+                backgroundColor: "#06C668",
+                backgroundColorHover: "#05B25E",
+                borderColor: "#06C668",
+                color: "#FFFFFF",
+                borderRadius: "4px"
+              }
+            },
+            link: {
+              color: "#06C668",
+              colorHover: "#05B25E"
+            }
+          }
+        }
+      }
+    },
+    stripe: {
+      checkoutUrl: process.env.PURCHASE_CHECKOUT_URL,
+      webhookUrl: process.env.PURCHASE_WEBHOOK_URL
+    }
+  }
+})

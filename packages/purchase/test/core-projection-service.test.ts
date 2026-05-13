@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 
-import { CommercialCatalogService } from "../src/core/catalog-service.ts"
+import { syncCatalog } from "../src/config.ts"
+import { CommercialCatalogService } from "../src/sync/catalog-service.ts"
 import { CustomerCommercialSnapshot } from "../src/core/commercial-schema.ts"
 import {
   buildCustomerCommercialSnapshot,
@@ -56,7 +57,7 @@ describe("core projection service", () => {
         const projection = yield* CommercialProjectionService
         const now = "2025-01-01T00:00:00.000Z"
 
-        yield* catalogService.sync()
+        yield* syncCatalog()
         const proRow = yield* queryAll<{ readonly internal_id: string }>(
           "SELECT internal_id FROM paykit_product WHERE id = ? LIMIT 1",
           [testOfferIds.proMonthly]

@@ -35,7 +35,7 @@ import type { PaymentProviderTag } from "./provider.ts"
 import type { BillingPortalSession, SubscriptionChangePreview } from "./schema.ts"
 
 import { buildCommercialCatalog, CatalogState } from "./core/catalog-builder.ts"
-import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./core/catalog-service.ts"
+import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./sync/catalog-service.ts
 import { CommercialProjectionService, CommercialProjectionServiceLayer } from "./core/projection-service.ts"
 import { CommercialWorkflowService, CommercialWorkflowServiceLayer } from "./core/workflow-service.ts"
 import { CommercialWorkflowStore, CommercialWorkflowStoreLayer } from "./core/workflow-store.ts"
@@ -133,6 +133,8 @@ export type PurchaseSDKOptions<
   TProducts extends ReadonlyArray<unknown>
 > = BasePaySdkOptions<TPlans, TProducts>
 
+export type PayCatalogRuntime = typeof CommercialCatalogService.Service
+
 export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
   /**
    * Configured provider client used by the SDK runtime. Exposed for provider-level
@@ -140,9 +142,10 @@ export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TPro
    */
   readonly provider: PaymentClient.Methods
   /**
-   * Commercial catalog access and provider sync.
+   * Read-only commercial catalog access for application runtime code.
+   * Infrastructure mutations such as catalog sync live in `@effect-x/purchase/config`.
    */
-  readonly catalog: typeof CommercialCatalogService.Service
+  readonly catalog: PayCatalogRuntime
   readonly checkout: {
     readonly start: (input: PayCheckoutRequest<TProducts>) => Effect.Effect<PayCheckoutResult<TProducts>, unknown>
     readonly getIntent: (input: {
@@ -236,10 +239,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
     }).pipe(Effect.map((catalog) => ({ catalog })))
   )
 
-  const catalogServiceLive = CommercialCatalogServiceLayer({
-    plans: plans as PurchasePlansModule,
-    products: products as ProductsModule
-  }).pipe(Layer.provide(catalogStateLive))
+  const catalogServiceLive = CommercialCatalogServiceLayer.pipe(Layer.provide(catalogStateLive))
 
   const commercialProjectionLive = CommercialProjectionServiceLayer.pipe(Layer.provide(catalogServiceLive))
   const commercialWorkflowStoreLive = CommercialWorkflowStoreLayer
@@ -291,7 +291,15 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
 
       const state: BasePaySdkContract<TPlans, TProducts> = {
         provider,
-        catalog: commerce.catalog,
+        catalog: {
+          getCatalog: commerce.catalog.getCatalog,
+          getProduct: commerce.catalog.getProduct,
+          getOffer: commerce.catalog.getOffer,
+          listOffersByProduct: commerce.catalog.listOffersByProduct,
+          resolveDefaultOffer: commerce.catalog.resolveDefaultOffer,
+          listSubscriptionChangeTargets: commerce.catalog.listSubscriptionChangeTargets,
+          resolveCheckoutTarget: commerce.catalog.resolveCheckoutTarget
+        },
         checkout: {
           start: (input) =>
             Effect.gen(function* () {

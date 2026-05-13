@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 
-import { CommercialCatalogService } from "../src/core/catalog-service.ts"
+import { syncCatalog } from "../src/config.ts"
+import { CommercialCatalogService } from "../src/sync/catalog-service.ts"
 import { runCorePayEffect } from "./support/run-core-pay-effect.ts"
 import { queryAll } from "./support/sqlite-pay-harness.ts"
 import { testOfferIds } from "./support/test-catalog.ts"
@@ -15,7 +16,7 @@ describe("core catalog service", () => {
     return runCorePayEffect(
       Effect.gen(function* () {
         const service = yield* CommercialCatalogService
-        yield* service.sync()
+        yield* syncCatalog()
 
         const catalog = yield* service.getCatalog()
         const product = yield* service.getProduct({ productId: "saas" })

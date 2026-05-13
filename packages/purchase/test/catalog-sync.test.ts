@@ -4,6 +4,7 @@ import * as Either from "effect/Either"
 
 import type { Price, Product } from "../src/internal/provider-schema.ts"
 
+import { syncCatalog } from "../src/config.ts"
 import { runPayEffect } from "./support/run-pay-effect.ts"
 import { countRows, parseJsonColumn, queryAll } from "./support/sqlite-pay-harness.ts"
 import { TestPay, testOfferIds } from "./support/test-catalog.ts"
@@ -50,7 +51,7 @@ describe("core catalog sync workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        const result = yield* sdk.catalog.sync({ dryRun: true })
+        const result = yield* syncCatalog({ dryRun: true })
 
         expect(result.provider).toBe("stripe")
         expect(result.dryRun).toBe(true)
@@ -98,7 +99,7 @@ describe("core catalog sync workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        const result = yield* sdk.catalog.sync()
+        const result = yield* syncCatalog()
 
         expect(result.provider).toBe("stripe")
         expect(result.dryRun).toBe(false)
@@ -169,13 +170,13 @@ describe("core catalog sync workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
 
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
         const firstProductRows = yield* countRows("paykit_product")
         const firstProviderRefRows = yield* countRows("paykit_provider_ref")
         const firstProductCreates = payment.calls.products.create.length
         const firstPriceCreates = payment.calls.prices.create.length
 
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         expect(yield* countRows("paykit_product")).toBe(firstProductRows)
         expect(yield* countRows("paykit_provider_ref")).toBe(firstProviderRefRows)
@@ -238,7 +239,7 @@ describe("core catalog sync workflow", () => {
           [now, now, testOfferIds.proMonthly, now, now]
         )
 
-        const result = yield* sdk.catalog.sync()
+        const result = yield* syncCatalog()
 
         expect(result.plan.pricesToCreate).toEqual(
           expect.arrayContaining([
@@ -300,7 +301,7 @@ describe("core catalog sync workflow", () => {
           ["internal_removed", removedOfferId, provider, now, now]
         )
 
-        const result = yield* sdk.catalog.sync()
+        const result = yield* syncCatalog()
 
         expect(result.plan.staleRows).toEqual(
           expect.arrayContaining([expect.objectContaining({ offerId: removedOfferId, reason: "removed_offer" })])
@@ -330,7 +331,7 @@ describe("core catalog sync workflow", () => {
         const archivedProvider = parseJsonColumn(archived[0]?.provider)
         expect(archivedProvider["stripe:archivedAt"]).toBeDefined()
 
-        const followUp = yield* sdk.catalog.sync({ dryRun: true })
+        const followUp = yield* syncCatalog({ dryRun: true })
         expect(followUp.plan.staleRows).not.toEqual(
           expect.arrayContaining([expect.objectContaining({ offerId: removedOfferId })])
         )
@@ -366,7 +367,7 @@ describe("core catalog sync workflow", () => {
           ["internal_removed_sdk", removedOfferId, provider, now, now]
         )
 
-        const result = yield* sdk.catalog.sync({ dryRun: true })
+        const result = yield* syncCatalog({ dryRun: true })
 
         expect(result.plan.staleRows).toEqual(
           expect.arrayContaining([expect.objectContaining({ offerId: removedOfferId, reason: "removed_offer" })])
@@ -419,7 +420,7 @@ describe("core catalog sync workflow", () => {
           ["internal_removed_product", removedOfferId, provider, now, now]
         )
 
-        const result = yield* sdk.catalog.sync()
+        const result = yield* syncCatalog()
 
         expect(result.plan.archiveCandidates).toEqual(
           expect.arrayContaining([
@@ -480,7 +481,7 @@ describe("core catalog sync workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        const result = yield* sdk.catalog.sync()
+        const result = yield* syncCatalog()
 
         expect(result.plan.archiveCandidates).toEqual(
           expect.arrayContaining([
@@ -535,7 +536,7 @@ describe("core catalog sync workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        const result = yield* sdk.catalog.sync()
+        const result = yield* syncCatalog()
 
         expect(result.plan.archiveCandidates).not.toEqual(
           expect.arrayContaining([
@@ -576,7 +577,7 @@ describe("core catalog sync workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        const result = yield* sdk.catalog.sync({ dryRun: true })
+        const result = yield* syncCatalog({ dryRun: true })
 
         expect(result.plan.archiveCandidates).toEqual(
           expect.arrayContaining([
@@ -600,7 +601,7 @@ describe("core catalog sync workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
 
-        const result = yield* Effect.either(sdk.catalog.sync())
+        const result = yield* Effect.either(syncCatalog())
 
         expect(Either.isLeft(result)).toBe(true)
         if (Either.isLeft(result)) {

@@ -6,6 +6,7 @@ import * as Option from "effect/Option"
 import type { PaymentWebhookKind, PaymentWebhookNormalization } from "../src/provider/client.ts"
 import type { PaymentProviderTag } from "../src/provider/type.ts"
 
+import { syncCatalog } from "../src/config.ts"
 import { makePaddleProvider, makeStripeProvider } from "./provider/support/fixture-providers.ts"
 import { loadGeneratedWebhookFixture } from "./provider/support/generated-fixture.ts"
 import { runPayEffect } from "./support/run-pay-effect.ts"
@@ -382,7 +383,7 @@ describe("core provider webhook fixtures", () => {
           expectProviderNormalization(normalized, fixtureCase)
 
           yield* insertTestCustomer({})
-          yield* sdk.catalog.sync()
+          yield* syncCatalog()
 
           if (fixtureCase.projection === "checkout" && normalized.checkoutSessionId) {
             yield* insertCheckoutIntent({

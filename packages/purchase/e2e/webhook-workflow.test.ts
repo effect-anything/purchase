@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 
+import { syncCatalog } from "../src/config.ts"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import {
   countCoreRows,
@@ -40,7 +41,7 @@ const checkoutCompletedNormalization = {
 const prepareCheckoutWebhook = Effect.gen(function* () {
   const sdk = yield* TestPay
   yield* insertTestCustomer({})
-  yield* sdk.catalog.sync()
+  yield* syncCatalog()
   yield* sdk.checkout.start({
     customerId: testCustomerId,
     offerId: testOfferIds.proMonthly,

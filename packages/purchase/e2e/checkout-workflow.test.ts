@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 import * as Option from "effect/Option"
 
+import { syncCatalog } from "../src/config.ts"
 import { runPayEffect } from "../test/support/run-pay-effect.ts"
 import {
   countRows,
@@ -28,7 +29,7 @@ describe("core checkout workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* sdk.checkout.start({
           customerId: testCustomerId,
@@ -130,7 +131,7 @@ describe("core checkout workflow", () => {
     return runPayEffect(
       Effect.gen(function* () {
         const sdk = yield* TestPay
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* Effect.either(
           sdk.checkout.start({
@@ -168,7 +169,7 @@ describe("core checkout workflow", () => {
       Effect.gen(function* () {
         const sdk = yield* TestPay
         yield* insertTestCustomer({})
-        yield* sdk.catalog.sync()
+        yield* syncCatalog()
 
         const result = yield* Effect.either(
           sdk.checkout.start({

@@ -10,6 +10,7 @@
  * and covered by `test/public-api.test.ts`.
  */
 export * from "./db.ts"
+export * from "./config.ts"
 export * from "./dsl.ts"
 export * from "./errors.ts"
 export * from "./provider.ts"

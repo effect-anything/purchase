@@ -7,121 +7,44 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 
-import type { CommercialCatalogSyncInput } from "./core/catalog-service.ts"
-import type { NormalizedOffer, NormalizedPurchasePlan, ProductsModule, PurchasePlansModule } from "./dsl.ts"
-import type { ServicesReturns } from "./internal/types.ts"
-import type { PaymentProviderTag } from "./provider/type.ts"
+import type { NormalizedOffer, NormalizedPurchasePlan, ProductsModule, PurchasePlansModule } from "../dsl.ts"
+import type { ServicesReturns } from "../internal/types.ts"
+import type { PaymentProviderTag } from "../provider/type.ts"
 
-import { CatalogState } from "./core/catalog-builder.ts"
-import {
-  CommercialCatalogIssue,
-  CommercialCheckoutTarget,
-  CommercialOfferNotFound,
-  type CommercialCatalog,
-  type CommercialOffer,
-  type CommercialProduct
-} from "./core/commercial-schema.ts"
-import { CommercialWorkflowConflict } from "./core/workflow-schema.ts"
-import { PayStorageAdapter, type PayStorageProductRecord } from "./db.ts"
-import { normalizeCatalog, normalizeSchema } from "./dsl.ts"
-import { PaymentClient } from "./provider/client.ts"
+import { PayStorageAdapter, type PayStorageProductRecord } from "../db.ts"
+import { normalizeCatalog, normalizeSchema } from "../dsl.ts"
+import { PaymentClient } from "../provider/client.ts"
+import { CatalogState } from "./catalog-builder.ts"
+import { CommercialCatalogIssue, type CommercialOffer, type CommercialProduct } from "./commercial-schema.ts"
+import { CommercialWorkflowConflict } from "./workflow-schema.ts"
 
-// const paddleRequest = <A = unknown>(
-//   path: string,
-//   init: RequestInit = {},
-//   attempt = 0
-// ): Effect.Effect<A, PublicPaddleScenarioError> =>
-//   fetchJson<{ readonly data?: A }>(`${paddleBaseUrl(config.paddleEnvironment)}${path}`, {
-//     ...init,
-//     headers: {
-//       accept: "application/json",
-//       authorization: `Bearer ${Redacted.value(config.paddleApiToken)}`,
-//       ...(init.body ? { "content-type": "application/json" } : {}),
-//       ...init.headers
-//     }
-//   }).pipe(
-//     Effect.map(({ json }) => json.data as A),
-//     Effect.catchAll((error) =>
-//       attempt < 5 && /HTTP (429|5\d\d)/.test(error.message)
-//         ? sleep(Math.min(2 ** attempt * 300, 5_000)).pipe(Effect.zipRight(paddleRequest(path, init, attempt + 1)))
-//         : Effect.fail(error)
-//     )
-//   ) as Effect.Effect<A, PublicPaddleScenarioError>
+export class CommercialCatalogSyncService extends Context.Tag("@pay/core/CommercialCatalogSyncService")<
+  CommercialCatalogSyncService,
+  {
+    /**
+     *
+     */
+    readonly sync: (
+      input?: CommercialCatalogSyncInput | undefined
+    ) => Effect.Effect<CommercialCatalogSyncResult, unknown>
+  }
+>() {}
+export declare namespace CommercialCatalogSyncService {
+  export type Methods = Context.Tag.Service<CommercialCatalogSyncService>
+  export type Returns<key extends keyof Methods, R = never> = ServicesReturns<Methods[key], R>
+}
 
-// const ensureProviderReady = () =>
-//   Effect.gen(function* () {
-//     const destinationUrl = `${config.appBaseUrl}${config.webhookPath}`
-//     const destinations = yield* paddleRequest<ReadonlyArray<{ readonly id: string; readonly destination: string }>>(
-//       "/notification-settings?per_page=100"
-//     )
-//     const existing = destinations.find((destination) => destination.destination === destinationUrl)
-
-//     if (existing) {
-//       yield* paddleRequest(`/notification-settings/${existing.id}`, {
-//         method: "PATCH",
-//         body: JSON.stringify({ active: true, destination: destinationUrl })
-//       })
-//       return
-//     }
-
-//     yield* paddleRequest("/notification-settings", {
-//       method: "POST",
-//       body: JSON.stringify({
-//         active: true,
-//         destination: destinationUrl,
-//         type: "url",
-//         subscribed_events: [
-//           "customer.created",
-//           "customer.updated",
-//           "transaction.created",
-//           "transaction.ready",
-//           "transaction.paid",
-//           "transaction.updated",
-//           "transaction.completed",
-//           "transaction.payment_failed",
-//           "subscription.created",
-//           "subscription.activated",
-//           "subscription.updated",
-//           "subscription.canceled",
-//           "subscription.paused",
-//           "subscription.resumed"
-//         ]
-//       })
-//     })
-//   })
-
-export class IaC extends Context.Tag("IaC")<IaC, {}>() {
-  static Default = Layer.effect(
-    IaC,
+export const CommercialCatalogSyncServiceLayer = (input: {
+  readonly plans: PurchasePlansModule | undefined
+  readonly products: ProductsModule | undefined
+}) =>
+  Layer.effect(
+    CommercialCatalogSyncService,
     Effect.gen(function* () {
       const storage = yield* PayStorageAdapter
       const catalogState = yield* CatalogState
       const provider = yield* PaymentClient
       const activeProvider = provider._tag
-
-      const makeSyncPlan = (): {
-        productsToCreate: Array<CommercialCatalogSyncPlanProductCreate>
-        pricesToCreate: Array<CommercialCatalogSyncPlanPriceCreate>
-        localRowsToInsert: Array<CommercialCatalogSyncPlanLocalRow>
-        localRowsToUpdate: Array<CommercialCatalogSyncPlanLocalRow>
-        providerRefsToInsert: Array<CommercialCatalogSyncPlanProviderRef>
-        providerRefsToUpdate: Array<CommercialCatalogSyncPlanProviderRef>
-        staleRows: Array<CommercialCatalogSyncPlanStaleRow>
-        archiveCandidates: Array<CommercialCatalogSyncPlanArchiveCandidate>
-      } => ({
-        productsToCreate: [],
-        pricesToCreate: [],
-        localRowsToInsert: [],
-        localRowsToUpdate: [],
-        providerRefsToInsert: [],
-        providerRefsToUpdate: [],
-        staleRows: [],
-        archiveCandidates: []
-      })
-
-      const getCatalog = () => Effect.succeed(catalogState.catalog)
-
-      const input: any = {}
 
       const getNormalizedCatalog = () =>
         Effect.try({
@@ -134,7 +57,7 @@ export class IaC extends Context.Tag("IaC")<IaC, {}>() {
           catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize plans: ${String(cause)}` })
         })
 
-      const sync = Effect.fn("CommercialCatalogService.sync")(function* (
+      const sync = Effect.fn("CommercialCatalogSyncService.sync")(function* (
         syncInput?: CommercialCatalogSyncInput | undefined
       ) {
         const commercialCatalog = catalogState.catalog
@@ -755,23 +678,35 @@ export class IaC extends Context.Tag("IaC")<IaC, {}>() {
         } as const
       })
 
-      return {
+      return CommercialCatalogSyncService.of({
         sync
-      }
+      })
     })
   )
+
+const toRecord = (value: unknown): Record<string, string> => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, string>
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {}
+    } catch {
+      return {}
+    }
+  }
+
+  return {}
 }
 
 const providerProductKey = (providerTag: PaymentProviderTag) => `${providerTag}:product`
-
 const providerOfferOwnershipKey = (providerTag: PaymentProviderTag) => `${providerTag}:ownership:offer`
-
 const providerProductOwnershipKey = (providerTag: PaymentProviderTag) => `${providerTag}:ownership:product`
-
 const providerArchivedAtKey = (providerTag: PaymentProviderTag) => `${providerTag}:archivedAt`
 
 type CommercialCatalogProviderOwnership = "sdk" | "external" | "unknown"
-
 type CommercialCatalogSyncChangeReason =
   | "missing"
   | "removed_offer"
@@ -846,20 +781,55 @@ export interface CommercialCatalogSyncPlan {
   readonly archiveCandidates: ReadonlyArray<CommercialCatalogSyncPlanArchiveCandidate>
 }
 
-export interface CommercialCatalogSyncPlanArchiveCandidate {
-  readonly ownerType: "product" | "offer"
-  readonly ownerId: string
-  readonly provider: PaymentProviderTag
-  readonly providerId: string
-  readonly kind: "product" | "offer"
-  readonly safeToArchive: boolean
-  readonly ownership: CommercialCatalogProviderOwnership
-  readonly reason: "removed_offer" | "changed_price" | "changed_billing_interval" | "provider_orphan"
+export interface CommercialCatalogSyncInput {
   /**
-   * Provider objects are archived only when this is `provider_archive_if_supported` and `dryRun` is false.
-   * External or unknown ownership is never destructively archived; stale local rows receive an archive marker instead.
+   * Builds the same sync plan without creating provider objects, writing provider refs,
+   * inserting or updating local rows, or archiving provider objects.
    */
-  readonly action: "provider_archive_if_supported" | "local_archive_marker" | "skip_external_or_unknown"
+  readonly dryRun?: boolean | undefined
+}
+
+export interface CommercialCatalogSyncResult {
+  readonly provider: PaymentProviderTag
+  readonly offers: number
+  readonly features: number
+  readonly dryRun: boolean
+  readonly plan: CommercialCatalogSyncPlan
+}
+
+const makeSyncPlan = (): {
+  productsToCreate: Array<CommercialCatalogSyncPlanProductCreate>
+  pricesToCreate: Array<CommercialCatalogSyncPlanPriceCreate>
+  localRowsToInsert: Array<CommercialCatalogSyncPlanLocalRow>
+  localRowsToUpdate: Array<CommercialCatalogSyncPlanLocalRow>
+  providerRefsToInsert: Array<CommercialCatalogSyncPlanProviderRef>
+  providerRefsToUpdate: Array<CommercialCatalogSyncPlanProviderRef>
+  staleRows: Array<CommercialCatalogSyncPlanStaleRow>
+  archiveCandidates: Array<CommercialCatalogSyncPlanArchiveCandidate>
+} => ({
+  productsToCreate: [],
+  pricesToCreate: [],
+  localRowsToInsert: [],
+  localRowsToUpdate: [],
+  providerRefsToInsert: [],
+  providerRefsToUpdate: [],
+  staleRows: [],
+  archiveCandidates: []
+})
+
+const stableStringify = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
+      .join(",")}}`
+  }
+
+  return JSON.stringify(value)
 }
 
 const computeSyncHash = (input: {
@@ -925,21 +895,6 @@ const recordOwnership = (record: Record<string, string>, key: string): Commercia
   return value === "sdk" || value === "external" ? value : "unknown"
 }
 
-const stableStringify = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`
-  }
-
-  if (value && typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
-      .join(",")}}`
-  }
-
-  return JSON.stringify(value)
-}
-
 const hasSameRecord = (left: Record<string, string>, right: Record<string, string>) =>
   stableStringify(left) === stableStringify(right)
 
@@ -949,23 +904,6 @@ const metadataString = (metadata: Record<string, unknown> | null | undefined, ke
 }
 
 const toStorageUtc = (value: Date): Utc => value as unknown as Utc
-
-const toRecord = (value: unknown): Record<string, string> => {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, string>
-  }
-
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value)
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {}
-    } catch {
-      return {}
-    }
-  }
-
-  return {}
-}
 
 const zeroDecimalCurrencies = new Set([
   "BIF",

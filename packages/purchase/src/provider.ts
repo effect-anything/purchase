@@ -37,5 +37,4 @@ export const PayProvider = PurchaseProvider
 
 export { PaymentEnvironmentTag, PaymentProviderTag } from "./provider/type.ts"
 export type { PaymentClient } from "./provider/client.ts"
-export { Paddle } from "./paddle/paddle.ts"
-export { Stripe } from "./stripe/stripe.ts"
+

@@ -3,8 +3,9 @@ import * as Layer from "effect/Layer"
 
 import type { ProductsModule, PurchasePlansModule } from "../../src/dsl.ts"
 
+import { PurchaseConfigLayer } from "../../src/config.ts"
 import { buildCommercialCatalog, CatalogState } from "../../src/core/catalog-builder.ts"
-import { CommercialCatalogServiceLayer } from "../../src/core/catalog-service.ts"
+import { CommercialCatalogServiceLayer } from "../../src/sync/catalog-service.ts"
 import { CommercialProjectionServiceLayer } from "../../src/core/projection-service.ts"
 import { CommercialStateStoreLayer } from "../../src/core/state-store.ts"
 import { CommercialWorkflowServiceLayer } from "../../src/core/workflow-service.ts"
@@ -23,10 +24,8 @@ const catalogStateLive = Layer.effect(
   }).pipe(Effect.map((catalog) => ({ catalog })))
 )
 
-const catalogServiceLive = CommercialCatalogServiceLayer({
-  plans: testPlansModule,
-  products: testProductsModule
-}).pipe(Layer.provide(catalogStateLive))
+const catalogServiceLive = CommercialCatalogServiceLayer.pipe(Layer.provide(catalogStateLive))
+const catalogSyncLive = PurchaseConfigLayer({ plans: testPlansModule, products: testProductsModule })
 
 const projectionServiceLive = CommercialProjectionServiceLayer.pipe(Layer.provide(catalogServiceLive))
 const workflowStoreLive = CommercialWorkflowStoreLayer
@@ -39,6 +38,7 @@ const workflowServiceLive = CommercialWorkflowServiceLayer.pipe(
 
 export const CorePayTestLayer = Layer.mergeAll(
   catalogServiceLive,
+  catalogSyncLive,
   projectionServiceLive,
   workflowStoreLive,
   stateStoreLive,

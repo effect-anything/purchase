@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import type { Product, PurchasePlan } from "../src/dsl.ts"
 
+import { PurchaseConfigLayer, syncCatalog } from "../src/config.ts"
 import { creditPackProduct, oneTimeProduct, plan, subscriptionProduct } from "../src/dsl.ts"
 import { BaseSDK } from "../src/sdk.ts"
 import { CommercialPay, CommercialPlans, CommercialProducts } from "../test/support/commercial-catalog.ts"
@@ -143,15 +144,23 @@ describe("catalog sync e2e flow", () => {
     const runOriginal = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       Effect.runPromise(
         effect.pipe(
-          Effect.provide(Layer.provideMerge(CommercialPay.Layer, Layer.mergeAll(payment.layer, dbLayer)))
+          Effect.provide(
+            Layer.provideMerge(
+              PurchaseConfigLayer({
+                plans: CommercialPlans as never,
+                products: CommercialProducts as never
+              }),
+              Layer.mergeAll(payment.layer, dbLayer)
+            )
+          )
         ) as Effect.Effect<A, E, never>
       )
 
     const initial = await runOriginal(
       Effect.gen(function* () {
-        const sdk = yield* CommercialPay
-        const first = yield* sdk.catalog.sync()
-        const second = yield* sdk.catalog.sync({ dryRun: true })
+        yield* CommercialPay
+        const first = yield* syncCatalog()
+        const second = yield* syncCatalog({ dryRun: true })
         const sql = yield* SqlClient.SqlClient
         const rows = yield* sql.unsafe<{ readonly id: string; readonly price_amount: number | null }>(
           "SELECT id, price_amount FROM paykit_product ORDER BY id"
@@ -206,7 +215,15 @@ describe("catalog sync e2e flow", () => {
     const runModified = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       Effect.runPromise(
         effect.pipe(
-          Effect.provide(Layer.provideMerge(ModifiedPay.layer(ModifiedPay), Layer.mergeAll(payment.layer, dbLayer)))
+          Effect.provide(
+            Layer.provideMerge(
+              PurchaseConfigLayer({
+                plans: ModifiedPay.plans as never,
+                products: ModifiedPay.products as never
+              }),
+              Layer.mergeAll(payment.layer, dbLayer)
+            )
+          )
         ) as Effect.Effect<A, E, never>
       )
 
@@ -218,10 +235,10 @@ describe("catalog sync e2e flow", () => {
 
     const modified = await runModified(
       Effect.gen(function* () {
-        const sdk = yield* ModifiedPay
-        const dryRun = yield* sdk.catalog.sync({ dryRun: true })
-        const applied = yield* sdk.catalog.sync()
-        const followUp = yield* sdk.catalog.sync({ dryRun: true })
+        yield* ModifiedPay
+        const dryRun = yield* syncCatalog({ dryRun: true })
+        const applied = yield* syncCatalog()
+        const followUp = yield* syncCatalog({ dryRun: true })
         const sql = yield* SqlClient.SqlClient
         const rows = yield* sql.unsafe<{
           readonly id: string

@@ -69,7 +69,10 @@ const BetterAuthSecret = Config.redacted("BETTER_AUTH_SECRET").pipe(
   Config.withDefault(Redacted.make("dev-secret-change-me"))
 )
 
-const BetterAuthURL = Config.url("BETTER_AUTH_URL").pipe(Config.withDefault(new URL("http://localhost:3000")))
+const BetterAuthURL = Config.url("BETTER_AUTH_URL").pipe(
+  Config.orElse(() => Config.url("BASE_PUBLIC_URL")),
+  Config.withDefault(new URL("http://localhost:3000"))
+)
 
 const BasePublicURL = Config.url("BASE_PUBLIC_URL").pipe(Config.withDefault(new URL("http://localhost:3000")))
 

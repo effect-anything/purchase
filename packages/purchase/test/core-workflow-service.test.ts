@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 
-import { CommercialCatalogService } from "../src/core/catalog-service.ts"
+import { syncCatalog } from "../src/config.ts"
+import { CommercialCatalogService } from "../src/sync/catalog-service.ts"
 import { CommercialWorkflowService } from "../src/core/workflow-service.ts"
 import { runCorePayEffect } from "./support/run-core-pay-effect.ts"
 import { insertTestCustomer, queryAll, queryOne } from "./support/sqlite-pay-harness.ts"
@@ -43,7 +44,7 @@ describe("core workflow service", () => {
         const now = "2025-01-01T00:00:00.000Z"
 
         yield* insertTestCustomer({ id: testCustomerId, email: "jane@example.com" })
-        yield* catalogService.sync()
+        yield* syncCatalog()
         const proRow = yield* queryAll<{ readonly internal_id: string }>(
           "SELECT internal_id FROM paykit_product WHERE id = ? LIMIT 1",
           [testOfferIds.proMonthly]
