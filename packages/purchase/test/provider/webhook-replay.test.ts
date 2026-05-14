@@ -2,10 +2,10 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import { Stripe } from "stripe"
 
+import { makePaddleProvider, makeStripeProvider } from "../support/fixture-providers.ts"
+import { loadGeneratedWebhookFixture } from "../support/generated-fixture.ts"
+import { paddlePrimaryWebhookEvent, paddleWebhookEvents, stripeWebhookEvents } from "../support/provider-events.ts"
 import { makePaddleWebhookSignature } from "./fixtures/paddle.ts"
-import { makePaddleProvider, makeStripeProvider } from "./support/fixture-providers.ts"
-import { loadGeneratedWebhookFixture } from "./support/generated-fixture.ts"
-import { paddlePrimaryWebhookEvent, paddleWebhookEvents, stripeWebhookEvents } from "./support/provider-events.ts"
 
 const stripe = new Stripe("sk_test_fixture")
 

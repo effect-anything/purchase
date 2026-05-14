@@ -8,8 +8,8 @@ import {
   PaddleSubscription,
   PaddleTransaction
 } from "../../../src/paddle/internal/paddle-schema.ts"
-import { loadGeneratedWebhookFixture } from "../support/generated-fixture.ts"
-import { paddlePrimaryWebhookEvent } from "../support/provider-events.ts"
+import { loadGeneratedWebhookFixture } from "../../support/generated-fixture.ts"
+import { paddlePrimaryWebhookEvent } from "../../support/provider-events.ts"
 
 const decodeProduct = Schema.decodeSync(PaddleProduct)
 const decodePrice = Schema.decodeSync(PaddlePrice)

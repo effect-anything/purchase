@@ -19,6 +19,13 @@ import type {
 import { CommercialOfferId } from "../core/commercial-schema.ts"
 import { CheckoutNotSupported, InvoiceNotFound, PriceNotFound, ProviderOperationNotSupported } from "../errors.ts"
 import {
+  makePaymentClient,
+  type PaddleImpl,
+  PaymentClient,
+  type PaymentWebhookKind,
+  type PaymentWebhookNormalization
+} from "../provider/client.ts"
+import {
   BillingPortalSession,
   CheckoutSession,
   Customer,
@@ -33,14 +40,7 @@ import {
   Transaction,
   TransactionId,
   TransactionPreviewResult
-} from "../internal/provider-schema.ts"
-import {
-  makePaymentClient,
-  type PaddleImpl,
-  PaymentClient,
-  type PaymentWebhookKind,
-  type PaymentWebhookNormalization
-} from "../provider/client.ts"
+} from "../provider/schema.ts"
 import { makePaddleClient, PaddleClient, PaddleConfig } from "./internal/paddle-client.ts"
 
 /**

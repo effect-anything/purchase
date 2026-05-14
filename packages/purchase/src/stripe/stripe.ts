@@ -19,6 +19,13 @@ import type {
 import { CommercialOfferId } from "../core/commercial-schema.ts"
 import { CheckoutNotSupported, InvoiceNotFound } from "../errors.ts"
 import {
+  PaymentClient,
+  type PaymentWebhookKind,
+  type PaymentWebhookNormalization,
+  type StripeImpl,
+  makePaymentClient
+} from "../provider/client.ts"
+import {
   BillingPortalSession,
   CheckoutSession,
   Customer,
@@ -33,14 +40,7 @@ import {
   Transaction,
   TransactionId,
   TransactionPreviewResult
-} from "../internal/provider-schema.ts"
-import {
-  PaymentClient,
-  type PaymentWebhookKind,
-  type PaymentWebhookNormalization,
-  type StripeImpl,
-  makePaymentClient
-} from "../provider/client.ts"
+} from "../provider/schema.ts"
 import { StripeClient, StripeConfig, makeStripeClient } from "./internal/stripe-client.ts"
 
 /**

@@ -4,16 +4,6 @@ import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 
 import type {
-  BillingPortalSession,
-  CheckoutSession,
-  Customer,
-  Price,
-  Product,
-  RefundResult,
-  Subscription,
-  SubscriptionChangePreview
-} from "../../src/internal/provider-schema.ts"
-import type {
   ChangeSubscriptionParams,
   CreatePriceParams,
   CreateProductParams,
@@ -23,6 +13,16 @@ import type {
   RefundTransactionParams,
   ResumeSubscriptionParams
 } from "../../src/provider/client.ts"
+import type {
+  BillingPortalSession,
+  CheckoutSession,
+  Customer,
+  Price,
+  Product,
+  RefundResult,
+  Subscription,
+  SubscriptionChangePreview
+} from "../../src/provider/schema.ts"
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
 
 import { ProviderOperationNotSupported, WebhookUnmarshalError } from "../../src/errors.ts"
@@ -192,7 +192,8 @@ export const makeTestPaymentLayer = (options?: {
     _tag: provider,
     webhooksUnmarshal: ({ payload }) =>
       Effect.try({
-        try: () => JSON.parse(payload) as unknown,
+        // @effect-diagnostics-next-line preferSchemaOverJson:off
+        try: () => JSON.parse(payload) as any,
         catch: (cause) => new WebhookUnmarshalError({ error: "Invalid JSON webhook payload", cause })
       }),
     webhooksNormalize: (event) => {
@@ -348,7 +349,7 @@ export const makeTestPaymentLayer = (options?: {
             token: TEST_CHECKOUT_SESSION_ID,
             url: TEST_CHECKOUT_URL,
             metadata: params.metadata
-          } as unknown as CheckoutSession)
+          } as unknown as CheckoutSession) as never
         )
     },
     billingPortal: {

@@ -3,8 +3,8 @@ import * as Effect from "effect/Effect"
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
 import type { BasePaySdkContract } from "../../src/sdk.ts"
 
-import { loadGeneratedWebhookFixture, type StoredWebhookFixture } from "../provider/support/generated-fixture.ts"
-import { makeLocalWebhookServer, type LocalWebhookServer } from "../provider/support/local-webhook-server.ts"
+import { loadGeneratedWebhookFixture, type StoredWebhookFixture } from "./generated-fixture.ts"
+import { makeLocalWebhookServer, type LocalWebhookServer } from "./local-webhook-server.ts"
 import { insertTestCustomer } from "./sqlite-pay-harness.ts"
 
 export interface ProviderLiveHarnessOptions {

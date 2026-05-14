@@ -1,5 +1,5 @@
 import type { CommercialAgreementId, CommercialEventId, CommercialOfferId } from "../../src/core/commercial-schema.ts"
-import type { CustomerId } from "../../src/core/identity-schema.ts"
+import type { CustomerId } from "../../src/core/common-schema.ts"
 
 import {
   creditPackProduct,

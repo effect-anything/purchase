@@ -71,6 +71,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
     ),
     withProviderTransientRetry
   )
+
   const unexpectedStatus = (
     request: HttpClientRequest.HttpClientRequest,
     response: HttpClientResponse.HttpClientResponse
@@ -86,10 +87,12 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       ([description, json]) =>
         failUnexpectedStatus(request, response, json ? json.error.message : description, json?.error)
     )
+
   const decodeJson =
     <A, I, R>(schema: Schema.Schema<A, I, R>) =>
     (response: HttpClientResponse.HttpClientResponse) =>
       pipe(response, HttpClientResponse.schemaBodyJson(schema), Effect.catchTag("ParseError", Effect.die))
+
   const expectJsonStatus200 =
     <A, I, R>(schema: Schema.Schema<A, I, R>) =>
     (response: HttpClientResponse.HttpClientResponse) =>
@@ -97,18 +100,22 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         200: decodeJson(schema),
         orElse: (res) => unexpectedStatus(res.request, res)
       })(response)
+
   const getForm = (path: string, params?: StripeParamInput) =>
     client.get(path, {
       urlParams: params ? encodeStripeParams(params) : undefined
     })
+
   const postForm = (path: string, params?: StripeParamInput) =>
     client.post(path, {
       body: params ? HttpBody.urlParams(encodeStripeParams(params)) : undefined
     })
+
   const delForm = (path: string, params?: StripeParamInput) =>
     client.del(path, {
       body: params ? HttpBody.urlParams(encodeStripeParams(params)) : undefined
     })
+
   const collectPages = <
     A extends {
       id: string
@@ -137,6 +144,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       }
       return results as ReadonlyArray<A>
     })
+
   const getProductById = (productId: string) =>
     getForm(`/products/${productId}`).pipe(
       Effect.flatMap(
@@ -152,6 +160,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         })
       )
     )
+
   const getPriceById = (priceId: string) =>
     getForm(`/prices/${priceId}`).pipe(
       Effect.flatMap(
@@ -167,6 +176,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         })
       )
     )
+
   const getCustomerById = (customerId: string) =>
     getForm(`/customers/${customerId}`).pipe(
       Effect.flatMap(
@@ -182,6 +192,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         })
       )
     )
+
   const getSubscriptionById = (subscriptionId: string) => {
     const params = {
       expand: ["items.data.price.product", "latest_invoice"]
@@ -201,6 +212,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     )
   }
+
   const getInvoiceById = (transactionId: string, params?: StripeParamInput) =>
     getForm(`/invoices/${transactionId}`, params).pipe(
       Effect.flatMap(
@@ -216,6 +228,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
         })
       )
     )
+
   const products = {
     list: Effect.fn(function* (
       args: {
@@ -289,6 +302,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const prices = {
     list: Effect.fn(function* (
       args: {
@@ -421,6 +435,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const customers = {
     find: Effect.fn(function* (
       args: {
@@ -536,6 +551,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const subscriptions = {
     list: Effect.fn(function* (args: {
       customerId?: string | undefined
@@ -1012,6 +1028,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const transactions = {
     list: Effect.fn(function* (args: {
       customerId?: string | undefined
@@ -1200,6 +1217,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       return formatStripeRefund(refund, args.transactionId)
     })
   }
+
   const refunds = {
     get: Effect.fn(function* (args: {
       refundId: string
@@ -1263,6 +1281,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const checkout = {
     createSession: Effect.fn(function* (args: {
       customerId: string
@@ -1299,6 +1318,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const billingPortal = {
     createSession: Effect.fn(function* (args: {
       customerId: string
@@ -1355,6 +1375,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     })
   }
+
   const webhooksUnmarshal = Effect.fn(function* (
     payload: string,
     signature: string
@@ -1404,6 +1425,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       )
     )
   })
+
   return {
     config: {
       apiKey: config.apiKey,

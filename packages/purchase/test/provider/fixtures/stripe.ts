@@ -1,7 +1,7 @@
 import { Stripe } from "stripe"
 
-import { loadGeneratedWebhookFixture } from "../support/generated-fixture.ts"
-import { stripePrimaryWebhookEvent } from "../support/provider-events.ts"
+import { loadGeneratedWebhookFixture } from "../../support/generated-fixture.ts"
+import { stripePrimaryWebhookEvent } from "../../support/provider-events.ts"
 
 const stripe = new Stripe("sk_test_fixture")
 const generatedWebhookFixture = loadGeneratedWebhookFixture("stripe", stripePrimaryWebhookEvent)

@@ -397,7 +397,6 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
 }
 
 export { BaseSDK as PurchaseSDK }
-export { PayProvider, PayProviderConfig, PurchaseProvider, PurchaseProviderConfig } from "./provider.ts"
 
 const isCurrentCommercialSubscriptionStatus = (status: SubscriptionAgreementState["status"]) =>
   status === "trialing" || status === "active" || status === "grace" || status === "paused"

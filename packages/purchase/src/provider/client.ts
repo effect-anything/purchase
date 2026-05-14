@@ -19,6 +19,7 @@ import type {
   TransactionNotFound,
   WebhookUnmarshalError
 } from "../errors.ts"
+import type { ServicesReturns } from "../internal/types.ts"
 import type {
   BillingPortalSession,
   CheckoutSession,
@@ -36,8 +37,7 @@ import type {
   Transaction,
   TransactionId,
   TransactionPreviewResult
-} from "../internal/provider-schema.ts"
-import type { ServicesReturns } from "../internal/types.ts"
+} from "./schema.ts"
 import type { PaymentProviderTag } from "./types.ts"
 
 /**

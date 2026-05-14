@@ -1,6 +1,5 @@
-import { CustomerCommercialSnapshot } from "@effect-x/purchase"
-import { CommercialCatalog, CustomerEntitlementSnapshot } from "@effect-x/purchase/schema"
-import { Schema } from "effect"
+import { CommercialCatalog } from "@effect-x/purchase/schema"
+import { Context, Schema } from "effect"
 
 export class AuthenticationRequired extends Schema.TaggedError<AuthenticationRequired>()("AuthenticationRequired", {
   message: Schema.String
@@ -23,15 +22,7 @@ export class WebhookProcessingFailed extends Schema.TaggedError<WebhookProcessin
   message: Schema.String
 }) {}
 
-export type AuthenticatedUser = {
-  readonly id: string
-  readonly name: string
-  readonly email: string
-  readonly workspaceSlug: string
-  readonly creditsUsed: number
-}
-
-export const AuthenticatedUserSchema = Schema.Struct({
+export const AuthenticatedUser = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   email: Schema.String,
@@ -39,82 +30,37 @@ export const AuthenticatedUserSchema = Schema.Struct({
   creditsUsed: Schema.Number
 })
 
-export const AuthSessionSummarySchema = Schema.Struct({
-  user: AuthenticatedUserSchema
-})
+export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, typeof AuthenticatedUser.Type>() {}
 
-export const AuthApiResponse = Schema.Struct({
-  session: Schema.NullOr(AuthSessionSummarySchema)
-})
-
-export const AccountActivitySchema = Schema.Struct({
-  checkoutIntents: Schema.Array(
-    Schema.Struct({
-      id: Schema.String,
-      offerId: Schema.String,
-      status: Schema.String,
-      updatedAt: Schema.String
-    })
-  ),
-  events: Schema.Array(
-    Schema.Struct({
-      id: Schema.String,
-      provider: Schema.String,
-      kind: Schema.String,
-      offerId: Schema.NullOr(Schema.String),
-      occurredAt: Schema.String
-    })
-  ),
-  creditLedger: Schema.Array(
-    Schema.Struct({
-      id: Schema.String,
-      productId: Schema.String,
-      amount: Schema.Number,
-      direction: Schema.String,
-      reason: Schema.NullOr(Schema.String),
-      createdAt: Schema.String
-    })
-  )
-})
-
-export const AccountOverviewSchema = Schema.Struct({
-  customer: AuthenticatedUserSchema.pipe(Schema.omit("creditsUsed")),
-  snapshot: CustomerCommercialSnapshot,
-  entitlements: CustomerEntitlementSnapshot,
-  activity: AccountActivitySchema
-})
-export const AccountApiResponseSchema = Schema.Struct({
+export const AccountApiResponse = Schema.Struct({
   environment: Schema.String,
-  provider: Schema.String,
-  ...AccountOverviewSchema.fields
+  provider: Schema.String
 })
 
-export const CatalogApiResponseSchema = Schema.Struct({
+export const CatalogApiResponse = Schema.Struct({
   environment: Schema.String,
   provider: Schema.String,
   catalog: CommercialCatalog
 })
 
-export const CheckoutStartPayloadSchema = Schema.Struct({
+export const CheckoutStartPayload = Schema.Struct({
   offerId: Schema.String
 })
 
-export const CheckoutStartResultSchema = Schema.Struct({
+export const CheckoutStartResult = Schema.Struct({
   offerId: Schema.String,
   intentId: Schema.String,
   sessionId: Schema.String,
   url: Schema.NullOr(Schema.String)
 })
 
-export type CheckoutStartResult = typeof CheckoutStartResultSchema.Type
-
-export const CheckoutStartApiResponseSchema = Schema.Struct({
+export const CheckoutStartApiResponse = Schema.Struct({
   environment: Schema.String,
   provider: Schema.String,
-  checkout: CheckoutStartResultSchema
+  checkout: CheckoutStartResult
 })
 
-export const ConsumeCreditsPayloadSchema = Schema.Struct({
+export const ConsumeCreditsPayload = Schema.Struct({
   amount: Schema.optional(Schema.Number),
   reason: Schema.optional(Schema.String)
 })
@@ -125,8 +71,6 @@ export const CreditWalletSchema = Schema.Struct({
   consumed: Schema.Number
 })
 
-export type CreditWallet = typeof CreditWalletSchema.Type
-
-export const ConsumeCreditsApiResponseSchema = Schema.Struct({
+export const ConsumeCreditsApiResponse = Schema.Struct({
   wallet: CreditWalletSchema
 })

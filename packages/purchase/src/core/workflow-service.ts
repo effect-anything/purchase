@@ -5,8 +5,8 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 
-import type { BillingPortalSession, CheckoutSession, SubscriptionChangePreview } from "../internal/provider-schema.ts"
 import type { ServicesReturns } from "../internal/types.ts"
+import type { BillingPortalSession, CheckoutSession, SubscriptionChangePreview } from "../provider/schema.ts"
 import type { PaymentProviderTag } from "../provider/types.ts"
 
 import { PayStorageAdapter } from "../db.ts"
@@ -1637,18 +1637,21 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     })
 
     return CommercialWorkflowService.of({
-      startCheckout,
       cancelSubscription,
       changeSubscription,
       pauseSubscription,
       resumeSubscription,
       previewSubscriptionChange,
-      refundPurchase,
+
       getPurchaseGrant,
+      refundPurchase,
       getCreditWallet,
       grantCredits,
       consumeCredits,
+
+      startCheckout,
       createPortalSession,
+
       receiveWebhook,
       replayWebhook
     })

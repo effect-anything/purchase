@@ -1,5 +1,4 @@
-import type { PaymentProviderTag } from "@effect-x/purchase"
-
+import { isPaymentProvider } from "@effect-x/purchase"
 import {
   HttpApiScalar,
   HttpLayerRouter,
@@ -19,9 +18,6 @@ import { CatalogHttpLive } from "./services/catalog/http.ts"
 import { CheckoutHttpLive } from "./services/checkout/http.ts"
 import { CreditsHttpLive } from "./services/credits/http.ts"
 import { WebhookService } from "./services/webhooks/webhook-service.ts"
-
-const isPaymentProvider = (provider: string | undefined): provider is PaymentProviderTag =>
-  provider === "paddle" || provider === "stripe"
 
 const SimpleRoute = Layer.scopedDiscard(
   Effect.gen(function* () {

@@ -32,6 +32,7 @@ import {
   WebhookUnmarshalError
 } from "../../errors.ts"
 import { failUnexpectedStatus, withProviderTransientRetry } from "../../internal/provider-http-retry.ts"
+import { getPaddleUrl } from "../config.ts"
 import {
   PaddleAdjustment,
   PaddleCustomer,
@@ -73,7 +74,7 @@ export const makePaddleClient = (config: PaddleConfig) =>
   Effect.gen(function* () {
     const { apiToken, environment } = config
 
-    const apiUrl = environment === "sandbox" ? "https://sandbox-api.paddle.com" : "https://api.paddle.com"
+    const apiUrl = getPaddleUrl(environment)
 
     const client = (yield* HttpClient.HttpClient.pipe(Effect.provide(FetchHttpClient.layer))).pipe(
       HttpClient.mapRequest((request) =>
