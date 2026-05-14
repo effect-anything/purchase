@@ -49,7 +49,6 @@ export const NoteSubscriptionPlans = [
       noteStorageMb({ limit: 50_000, reset: "month" })
     ],
     provider: {
-      paddle: "notes_pro_monthly",
       stripe: "notes_pro_monthly"
     }
   }),
@@ -66,7 +65,6 @@ export const NoteSubscriptionPlans = [
       noteStorageMb({ limit: 50_000, reset: "month" })
     ],
     provider: {
-      paddle: "notes_pro_yearly",
       stripe: "notes_pro_yearly"
     }
   })
@@ -80,7 +78,6 @@ export const DesktopPurchasePlans = [
     price: { amount: 49, interval: "one_time" },
     includes: [desktopOfflineMode(), desktopAdvancedExport()],
     provider: {
-      paddle: "desktop_lifetime",
       stripe: "desktop_lifetime"
     }
   })
@@ -94,7 +91,6 @@ export const CreditsPlans = [
     price: { amount: 10, interval: "one_time" },
     includes: [aiCredits({ amount: 500, reset: "year" })],
     provider: {
-      paddle: "ai_credits_500",
       stripe: "ai_credits_500"
     }
   }),
@@ -105,7 +101,6 @@ export const CreditsPlans = [
     price: { amount: 30, interval: "one_time" },
     includes: [aiCredits({ amount: 2_000, reset: "year" })],
     provider: {
-      paddle: "ai_credits_2000",
       stripe: "ai_credits_2000"
     }
   })

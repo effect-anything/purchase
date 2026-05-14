@@ -1,11 +1,11 @@
-import type { PaymentProviderTag } from '../../src/provider/types.ts';
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
+import type { PaymentProviderTag } from "../../src/provider/types.ts"
+
 const supportDir = path.dirname(fileURLToPath(import.meta.url))
 const generatedDir = path.resolve(supportDir, "..", "provider", "fixtures", "generated")
-
 
 export interface StoredWebhookFixture {
   readonly payload: string

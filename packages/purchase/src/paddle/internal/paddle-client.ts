@@ -510,6 +510,28 @@ export const makePaddleClient = (config: PaddleConfig) =>
         return result
       }),
 
+      createAddress: Effect.fn(function* (args: {
+        customerId: string
+        countryCode: string
+        postalCode?: string | undefined
+      }): Effect.fn.Return<{ readonly id: string }, HttpClientError.HttpClientError, never> {
+        const res = yield* clientOK.post(`/customers/${args.customerId}/addresses`, {
+          body: HttpBody.unsafeJson({
+            country_code: args.countryCode,
+            postal_code: args.postalCode
+          })
+        })
+
+        const result = yield* pipe(
+          res,
+          HttpClientResponse.schemaBodyJson(Schema.Struct({ data: Schema.Struct({ id: Schema.String }) })),
+          Effect.map(({ data }) => data),
+          Effect.catchTag("ParseError", Effect.die)
+        )
+
+        return result
+      }),
+
       createPortalSession: Effect.fn(function* (args: {
         customerId: string
         subscriptionIds?: ReadonlyArray<string> | undefined
@@ -1194,12 +1216,14 @@ export const makePaddleClient = (config: PaddleConfig) =>
         purchaseOrderNumber?: string | undefined
         additionalInformation?: string | undefined
         checkoutUrl?: string | undefined
+        addressId?: string | undefined
         customData?: Record<string, unknown> | undefined
       }): Effect.fn.Return<PaddleTransaction, HttpClientError.HttpClientError, never> {
         const collectionMode = args.collectionMode ?? "automatic"
         const res = yield* clientOK.post("/transactions", {
           body: HttpBody.unsafeJson({
             customer_id: args.customerId,
+            address_id: args.addressId,
             collection_mode: collectionMode,
             items: [
               {

@@ -1,27 +1,20 @@
-import {
-  Cookies,
-  FetchHttpClient,
-  HttpApiClient,
-  HttpClient,
-  HttpClientRequest,
-  HttpServer,
-  FileSystem,
-  Path
-} from "@effect/platform"
+import { Cookies, FetchHttpClient, HttpClient, HttpClientRequest, HttpServer } from "@effect/platform"
 import { NodeHttpServer, NodeFileSystem } from "@effect/platform-node"
 import { SqlClient } from "@effect/sql"
 import { Effect, String as EffectString, Layer, Ref } from "effect"
 import { createServer } from "node:http"
 
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
+import { prepareProvider, PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
-import { CommercialPay } from "../commercial-catalog.ts"
+import { CommercialPay, CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
 import { TestConfig } from "../http-api/config.ts"
 import { HttpRouterLive } from "../http-api/handler.ts"
-import { AppApi } from "../http-api/http.ts"
+import { SessionStore } from "../http-api/session.ts"
+import { TunnelRuntime } from "../http-api/tunnel.ts"
 
 const DBMemory = SQLite.layer({
-  filename: ":memory",
+  filename: ":memory:",
   disableWAL: true,
   transformQueryNames: EffectString.camelToSnake,
   transformResultNames: EffectString.snakeToCamel
@@ -29,8 +22,6 @@ const DBMemory = SQLite.layer({
 
 export const ApplyMigration = Layer.effectDiscard(
   Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
-    const path = yield* Path.Path
     const sql = yield* SqlClient.SqlClient
 
     yield* setupPayTables
@@ -41,16 +32,18 @@ const runSeed = Effect.fn(function* () {})
 
 const ApplyMigrationAndSeed = Layer.effectDiscard(runSeed()).pipe(Layer.provide(ApplyMigration))
 
-class ApiClient extends Effect.Service<ApiClient>()("ApiClient", {
-  effect: HttpApiClient.make(AppApi)
-}) {}
+const PayLive = Layer.mergeAll(
+  CommercialPay.Layer,
+  PurchaseConfigLayer({
+    plans: CommercialPlans as never,
+    products: CommercialProducts as never
+  })
+)
 
 export const HttpApiTesting = HttpRouterLive.pipe(
   Layer.provide(ApplyMigrationAndSeed),
-  // TODO:
-  Layer.provideMerge(CommercialPay.Paddle),
+  Layer.provideMerge(SessionStore.Live),
   Layer.provideMerge(Layer.mergeAll(DBMemory)),
-  Layer.provideMerge(ApiClient.Default),
   Layer.provideMerge(
     Layer.unwrapEffect(
       Effect.gen(function* () {
@@ -61,21 +54,52 @@ export const HttpApiTesting = HttpRouterLive.pipe(
           return Layer.die("UnixAddress not supported")
         }
 
-        const baseUrl = `http://${addr.hostname}:${addr.port}`
+        const localBaseUrl = `http://${addr.hostname}:${addr.port}`
+        const tunnel = yield* TunnelRuntime
         const ref = yield* Ref.make(Cookies.empty)
 
         const client = (yield* HttpClient.HttpClient).pipe(
-          HttpClient.mapRequest((request) => request.pipe(HttpClientRequest.prependUrl(baseUrl))),
+          HttpClient.mapRequest((request) => request.pipe(HttpClientRequest.prependUrl(localBaseUrl))),
           HttpClient.withCookiesRef(ref)
         )
 
+        yield* prepareProvider({
+          ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
+          webhookUrl: tunnel.webhookURL
+        }).pipe(Effect.orDie)
+
         return Layer.mergeAll(
           Layer.succeed(HttpClient.HttpClient, client),
-          Layer.succeed(TestConfig, TestConfig.of({ baseURL: baseUrl }))
+          Layer.succeed(
+            TestConfig,
+            TestConfig.of({
+              baseURL: tunnel.publicBaseURL,
+              localBaseURL: tunnel.localBaseURL,
+              publicBaseURL: tunnel.publicBaseURL,
+              ...(tunnel.checkoutURL ? { checkoutURL: tunnel.checkoutURL } : {}),
+              webhookURL: tunnel.webhookURL
+            })
+          )
         )
       })
     ).pipe(Layer.provide(FetchHttpClient.layer))
   ),
+  Layer.provideMerge(
+    Layer.unwrapEffect(
+      Effect.gen(function* () {
+        const httpServer = yield* HttpServer.HttpServer
+        const addr = httpServer.address
+
+        if (addr._tag === "UnixAddress") {
+          return Layer.die("UnixAddress not supported")
+        }
+
+        return TunnelRuntime.layer({ localBaseURL: `http://${addr.hostname}:${addr.port}` })
+      })
+    )
+  ),
+  Layer.provideMerge(PayLive),
   Layer.provide(NodeHttpServer.layer(createServer, { port: 0 })),
+  Layer.provideMerge(Layer.mergeAll(DBMemory)),
   Layer.orDie
 )

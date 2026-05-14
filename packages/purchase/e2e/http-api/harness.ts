@@ -1,7 +1,9 @@
 /** @effect-diagnostics preferSchemaOverJson:off */
 import { PaymentHarness } from "@effect-x/purchase/harness"
 import * as Data from "effect/Data"
+import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
+import * as Schedule from "effect/Schedule"
 
 import { TestConfig } from "./config.ts"
 
@@ -86,7 +88,7 @@ const fetchText = (input: RequestInfo | URL, init?: RequestInit) =>
   Effect.tryPromise({
     try: () => fetch(input, init).then(async (response) => ({ response, text: await response.text() })),
     catch: (cause) => new PublicPaddleScenarioError({ message: "HTTP request failed", cause })
-  })
+  }).pipe(Effect.retry(Schedule.exponential(Duration.millis(500)).pipe(Schedule.compose(Schedule.recurs(4)))))
 
 const fetchJson = <A = unknown>(input: RequestInfo | URL, init?: RequestInit) =>
   fetchText(input, init).pipe(
@@ -155,14 +157,24 @@ export const checkout = Effect.fn(function* (input: { readonly session: PublicAu
 
 export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurchaseInput) {
   const paymentHarness = yield* PaymentHarness
+  const config = yield* TestConfig
 
   const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
+  const checkoutUrl =
+    config.checkoutURL ??
+    `${config.publicBaseURL}/checkout?${new URLSearchParams({
+      _ptxn: checkoutResult.sessionId,
+      email: input.session.email,
+      country: "US",
+      postal: "10001"
+    }).toString()}`
   const payment = yield* paymentHarness.payCheckout({
     checkout: {
       provider: "paddle",
       sessionId: checkoutResult.sessionId,
       url: checkoutResult.url ?? undefined
     },
+    checkoutUrl,
     mode: "subscription",
     customer: {
       email: input.session.email,
@@ -171,5 +183,10 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
   })
   const accountOverview = yield* getAccount(input.session)
 
-  return { session: input.session, checkout, transaction: payment.transaction, account: accountOverview } as const
+  return {
+    session: input.session,
+    checkout: checkoutResult,
+    transaction: payment.transaction,
+    account: accountOverview
+  } as const
 })

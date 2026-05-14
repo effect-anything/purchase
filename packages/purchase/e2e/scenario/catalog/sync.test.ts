@@ -1,5 +1,5 @@
-import * as Effect from 'effect/Effect'
 import { describe, it, expect } from "@effect/vitest"
+import * as Effect from "effect/Effect"
 
 describe("pass", () => {
   it.effect(

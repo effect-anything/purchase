@@ -60,7 +60,7 @@ export class PaymentHarness extends Context.Tag("PaymentHarness")<
       Effect.gen(function* () {
         const defaultBrowserOptions: Required<PaymentTestBrowserOptions> = {
           headless: true,
-          userAgent: "PurchaseSDK-Test/1.0"
+          userAgent: undefined
         }
         const browser = { ...defaultBrowserOptions, ...input.browser }
 

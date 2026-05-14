@@ -265,14 +265,37 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const preparePaddleProvider = (input: ProviderPrepareInput) =>
   Effect.gen(function* () {
-    const currentState = yield* fetchPaddleCurrentState(input.environment)
-    const current = input.current ?? currentState.providerSettings
-    const plan = createPaddlePreparePlan({ ...input, current }, currentState.notificationSetting)
+    const currentStateResult = yield* fetchPaddleCurrentState(input.environment).pipe(Effect.either)
+    const notificationSetting =
+      currentStateResult._tag === "Right"
+        ? currentStateResult.right.notificationSetting
+        : yield* fetchPaddleNotificationSetting(input.environment)
+    const current =
+      input.current ??
+      (currentStateResult._tag === "Right"
+        ? currentStateResult.right.providerSettings
+        : ({
+            checkoutUrl: input.checkoutUrl,
+            webhookUrl: notificationSetting?.destination
+          } satisfies PurchaseProviderSettings))
+    const plan = createPaddlePreparePlan({ ...input, current }, notificationSetting)
 
     if (input.dryRun !== true && plan.status === "ready") {
-      yield* applyPaddleProviderChanges(input, plan, currentState.notificationSetting)
+      yield* applyPaddleProviderChanges(input, plan, notificationSetting)
 
-      const verifiedState = yield* fetchPaddleCurrentState(input.environment)
+      const verifiedState = yield* fetchPaddleCurrentState(input.environment).pipe(
+        Effect.catchAll(() =>
+          fetchPaddleNotificationSetting(input.environment).pipe(
+            Effect.map((verifiedNotificationSetting) => ({
+              providerSettings: {
+                checkoutUrl: input.checkoutUrl,
+                webhookUrl: verifiedNotificationSetting?.destination
+              } satisfies PurchaseProviderSettings,
+              notificationSetting: verifiedNotificationSetting
+            }))
+          )
+        )
+      )
       const verificationPlan = createPaddlePreparePlan(
         { ...input, current: verifiedState.providerSettings },
         verifiedState.notificationSetting
@@ -294,7 +317,7 @@ const preparePaddleProvider = (input: ProviderPrepareInput) =>
     return {
       provider: "paddle" as const,
       dryRun: input.dryRun === true,
-      secrets: formatPaddleSecrets(currentState.notificationSetting),
+      secrets: formatPaddleSecrets(notificationSetting),
       plan
     } satisfies ProviderPrepareResult
   })
@@ -365,16 +388,26 @@ const applyPaddleProviderChanges = (
           change.path.startsWith("checkout.paymentMethods")
       )
     ) {
-      const response = yield* paddleVendorRequest({
-        environment: input.environment,
-        operationName: "SaveCheckoutSettings",
-        variables: buildPaddleVendorCheckoutSettingsMutationVariables({
-          checkoutUrl: input.checkoutUrl,
-          checkout: input.checkout
-        }),
-        query: SAVE_CHECKOUT_SETTINGS_MUTATION
-      })
-      yield* decodePaddleVendorSaveCheckoutSettingsResponse(response.data)
+      yield* Effect.gen(function* () {
+        const response = yield* paddleVendorRequest({
+          environment: input.environment,
+          operationName: "SaveCheckoutSettings",
+          variables: buildPaddleVendorCheckoutSettingsMutationVariables({
+            checkoutUrl: input.checkoutUrl,
+            checkout: input.checkout
+          }),
+          query: SAVE_CHECKOUT_SETTINGS_MUTATION
+        })
+        yield* decodePaddleVendorSaveCheckoutSettingsResponse(response.data)
+      }).pipe(
+        Effect.catchAll((cause) =>
+          input.checkout
+            ? Effect.fail(cause)
+            : Effect.logWarning(
+                `Paddle vendor checkout URL update failed; continuing because transactions use an explicit checkout URL. ${String(cause)}`
+              )
+        )
+      )
     }
 
     if (plan.changes.some((change) => change.path.startsWith("checkout.overlay"))) {
@@ -404,26 +437,26 @@ const applyPaddleProviderChanges = (
 
 const fetchPaddleCurrentState = (environment: PaymentEnvironmentTag | undefined) =>
   Effect.gen(function* () {
-    const [checkoutSettingsResponse, overlaySettingsResponse, checkoutStylesResponse] = yield* Effect.all(
+    const checkoutSettingsResponse = yield* paddleVendorRequest({
+      environment,
+      operationName: "GetCheckoutSettings",
+      variables: {},
+      query: GET_CHECKOUT_SETTINGS_QUERY
+    })
+    const [overlaySettingsResponse, checkoutStylesResponse] = yield* Effect.all(
       [
-        paddleVendorRequest({
-          environment,
-          operationName: "GetCheckoutSettings",
-          variables: {},
-          query: GET_CHECKOUT_SETTINGS_QUERY
-        }),
         paddleVendorRequest({
           environment,
           operationName: "GetOverlaySettings",
           variables: {},
           query: GET_OVERLAY_SETTINGS_QUERY
-        }),
+        }).pipe(Effect.either),
         paddleVendorRequest({
           environment,
           operationName: "GetCheckoutStyles",
           variables: {},
           query: GET_CHECKOUT_STYLES_QUERY
-        })
+        }).pipe(Effect.either)
       ],
       { concurrency: "unbounded" }
     )
@@ -431,28 +464,67 @@ const fetchPaddleCurrentState = (environment: PaymentEnvironmentTag | undefined)
     const checkoutSettings = yield* decodePaddleVendorCheckoutSettingsData(
       checkoutSettingsResponse.data.getCheckoutSettings.data
     )
-    const overlaySettings = yield* decodePaddleVendorOverlaySettingsData(
-      overlaySettingsResponse.data.getOverlaySettings.data
-    )
-    const checkoutStyles = yield* decodePaddleVendorCheckoutStylesData(
-      checkoutStylesResponse.data.getCheckoutStyles.data
-    )
-    const normalized = normalizePaddleVendorCheckoutSnapshot({
-      checkoutSettings,
-      overlaySettings,
-      checkoutStyles
-    })
+    const overlaySettings =
+      overlaySettingsResponse._tag === "Right"
+        ? yield* decodePaddleVendorOverlaySettingsData(overlaySettingsResponse.right.data.getOverlaySettings.data)
+        : undefined
+    const checkoutStyles =
+      checkoutStylesResponse._tag === "Right"
+        ? yield* decodePaddleVendorCheckoutStylesData(checkoutStylesResponse.right.data.getCheckoutStyles.data)
+        : undefined
     const notificationSetting = yield* fetchPaddleNotificationSetting(environment)
+    const checkoutSnapshot =
+      overlaySettings && checkoutStyles
+        ? normalizePaddleVendorCheckoutSnapshot({ checkoutSettings, overlaySettings, checkoutStyles })
+        : {
+            checkoutUrl: checkoutSettings.defaultCheckoutUrl.url,
+            checkout: {
+              settings: {
+                audienceOptin: checkoutSettings.audienceOptin,
+                checkoutDiscounts: checkoutSettings.checkoutDiscounts,
+                enableSavedPaymentMethods: checkoutSettings.enableSavedPaymentMethods,
+                orderConfirmationEmail: {
+                  freeCheckoutReceipts: checkoutSettings.orderConfirmationEmail.freeCheckoutReceipts,
+                  receiptShowMessage: checkoutSettings.orderConfirmationEmail.receiptShowMessage
+                }
+              },
+              paymentMethods: omitVendorTypename(checkoutSettings.paymentMethods),
+              ...(overlaySettings ? { overlay: { brandColor: overlaySettings.brandColor } } : {}),
+              ...(checkoutStyles ? { styles: { theme: omitVendorTypenameDeep(checkoutStyles.theme) } } : {})
+            }
+          }
 
     return {
       providerSettings: {
-        checkoutUrl: normalized.checkoutUrl,
+        checkoutUrl: checkoutSnapshot.checkoutUrl,
         webhookUrl: notificationSetting?.destination,
-        checkout: normalized.checkout
+        checkout: checkoutSnapshot.checkout
       } satisfies PurchaseProviderSettings,
       notificationSetting
     }
   })
+
+const omitVendorTypename = <T extends { readonly __typename?: string | null | undefined }>(
+  value: T
+): Omit<T, "__typename"> => {
+  const { __typename: _typename, ...rest } = value
+  return rest
+}
+
+const omitVendorTypenameDeep = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => omitVendorTypenameDeep(entry)) as T
+  }
+  if (!value || typeof value !== "object") {
+    return value
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "__typename")
+      .map(([key, entry]) => [key, omitVendorTypenameDeep(entry)])
+  ) as T
+}
 
 const fetchPaddleNotificationSetting = (environment: PaymentEnvironmentTag | undefined) =>
   Effect.gen(function* () {
@@ -463,9 +535,12 @@ const fetchPaddleNotificationSetting = (environment: PaymentEnvironmentTag | und
     })
 
     const entries = Array.isArray(response.data) ? response.data : []
-    return entries
-      .map(decodePaddleNotificationSetting)
-      .find((entry) => entry.description === paddleWebhookDescription(environment) && entry.destination.length > 0)
+    const settings = entries.map(decodePaddleNotificationSetting)
+    return (
+      settings.find((entry) => entry.description === paddleWebhookDescription(environment)) ??
+      settings.find((entry) => entry.description.startsWith(PADDLE_WEBHOOK_DESCRIPTION_PREFIX)) ??
+      settings.find((entry) => entry.description === "Purchase SDK local e2e")
+    )
   })
 
 const upsertPaddleNotificationSetting = (
@@ -531,7 +606,7 @@ const paddleApiRequest = (request: {
 
       const json = await response.json()
       if (!response.ok) {
-        throw new Error(`Paddle API request failed with status ${response.status}.`)
+        throw new Error(`Paddle API request failed with status ${response.status}: ${JSON.stringify(json)}`)
       }
 
       return json as { data: unknown; meta?: unknown; error?: unknown }
@@ -559,7 +634,9 @@ const decodePaddleNotificationSetting = (value: unknown): PaddleNotificationSett
 }
 
 const paddleWebhookDescription = (environment: PaymentEnvironmentTag | undefined) =>
-  `Purchase SDK managed webhook (${environment ?? "sandbox"})`
+  `${PADDLE_WEBHOOK_DESCRIPTION_PREFIX} (${environment ?? "sandbox"})`
+
+const PADDLE_WEBHOOK_DESCRIPTION_PREFIX = "Purchase SDK managed webhook"
 
 const sameStringArray = (left: ReadonlyArray<string> | undefined, right: ReadonlyArray<string>) => {
   const normalizedLeft = [...(left ?? [])].sort()
@@ -651,7 +728,12 @@ const paddleVendorRequest = (operation: {
         throw new Error(`Paddle vendor GraphQL request failed with status ${response.status}.`)
       }
       if (Array.isArray(json.errors) && json.errors.length > 0) {
-        throw new Error(json.errors.map((error: { message: string }) => error.message).join("; "))
+        throw new Error(
+          json.errors
+            .map((error: { message: string }) => error.message)
+            .join("; ")
+            .concat(` (${operation.operationName})`)
+        )
       }
 
       return json as { data: any; errors?: ReadonlyArray<{ message: string }> }

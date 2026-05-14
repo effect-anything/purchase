@@ -29,12 +29,53 @@ export const AuthenticatedUser = Schema.Struct({
   workspaceSlug: Schema.String,
   creditsUsed: Schema.Number
 })
+export type AuthenticatedUser = typeof AuthenticatedUser.Type
 
 export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, typeof AuthenticatedUser.Type>() {}
 
 export const AccountApiResponse = Schema.Struct({
   environment: Schema.String,
-  provider: Schema.String
+  provider: Schema.String,
+  user: AuthenticatedUser,
+  snapshot: Schema.Struct({
+    activeOfferIds: Schema.Array(Schema.String),
+    subscriptions: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        status: Schema.String,
+        offerId: Schema.String
+      })
+    )
+  }),
+  entitlements: Schema.Struct({
+    benefits: Schema.Array(
+      Schema.Struct({
+        key: Schema.String,
+        type: Schema.String,
+        enabled: Schema.optional(Schema.Boolean),
+        limit: Schema.optional(Schema.Number)
+      })
+    )
+  }),
+  activity: Schema.Struct({
+    checkoutIntents: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        offerId: Schema.String,
+        status: Schema.String,
+        updatedAt: Schema.String
+      })
+    ),
+    events: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        provider: Schema.String,
+        kind: Schema.String,
+        offerId: Schema.NullOr(Schema.String),
+        occurredAt: Schema.String
+      })
+    )
+  })
 })
 
 export const CatalogApiResponse = Schema.Struct({

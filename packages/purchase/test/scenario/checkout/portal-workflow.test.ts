@@ -6,7 +6,12 @@ import * as Either from "effect/Either"
 import { syncCatalog } from "../../../src/sync/config-service.ts"
 import { runPayEffect } from "../../../test/support/run-pay-effect.ts"
 import { countRows, insertTestCustomer, parseJsonColumn, queryOne } from "../../../test/support/sqlite-pay-harness.ts"
-import { testCustomerId, testOfferIds, TestPay, testSubscriptionAgreementId } from "../../../test/support/test-catalog.ts"
+import {
+  testCustomerId,
+  testOfferIds,
+  TestPay,
+  testSubscriptionAgreementId
+} from "../../../test/support/test-catalog.ts"
 import {
   makeTestPaymentLayer,
   TEST_BILLING_PORTAL_SESSION_ID,

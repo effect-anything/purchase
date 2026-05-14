@@ -4,6 +4,7 @@ import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
 
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
+
 import { syncCatalog } from "../../src/sync/config-service.ts"
 import { runPayEffect } from "../support/run-pay-effect.ts"
 import { countCoreRows, insertTestCustomer, queryOne } from "../support/sqlite-pay-harness.ts"

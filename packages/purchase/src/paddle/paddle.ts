@@ -613,9 +613,18 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         onSome: () => Effect.void
       })
 
+      const address = yield* paddle.customers
+        .createAddress({
+          customerId: args.providerCustomerId,
+          countryCode: "US",
+          postalCode: "10001"
+        })
+        .pipe(Effect.orDie)
+
       const transaction = yield* paddle.transactions
         .create({
           customerId: args.providerCustomerId,
+          addressId: address.id,
           priceId: args.providerOfferId,
           checkoutUrl: args.checkoutUrl,
           customData: metadata
