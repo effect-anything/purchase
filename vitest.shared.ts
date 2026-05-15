@@ -1,7 +1,5 @@
 import type { ViteUserConfig } from "vitest/config"
 
-import path from "node:path"
-
 const config: ViteUserConfig = {
   build: {
     target: "es2020"
@@ -15,7 +13,6 @@ const config: ViteUserConfig = {
   },
   test: {
     exclude: ["**/.context/**", "**/.direnv/**", "**/.lalph/**", "**/.repos/**", "**/node_modules/**"],
-    setupFiles: [path.join(__dirname, "vitest.setup.ts")],
     fakeTimers: {
       toFake: undefined
     },

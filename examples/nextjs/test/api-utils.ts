@@ -11,11 +11,11 @@ import {
 import { env } from "cloudflare:workers"
 import { Effect, Layer, Ref, Stream } from "effect"
 
-import { Live } from "../context"
-import { CloudflareBindings } from "../lib/cloudflare/bindings"
-import { CloudflareExecutionContext } from "../lib/cloudflare/execution-context"
-import { AllRoutes } from "../router"
-import { AppApi } from "../services/api/http-api"
+import { Live } from "../context.ts"
+import { CloudflareBindings } from "../lib/cloudflare/bindings.ts"
+import { CloudflareExecutionContext } from "../lib/cloudflare/execution-context.ts"
+import { AllRoutes } from "../router.ts"
+import { AppApi } from "../services/api/http-api.ts"
 
 const demoSchemaSql = `
 CREATE TABLE IF NOT EXISTS paykit_customer (

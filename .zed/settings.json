@@ -163,8 +163,8 @@
         "typescript": {
           "preferences": {
             "quoteStyle": "single",
-            "importModuleSpecifier": "non-relative",
-            "importModuleSpecifierEnding": "minimal",
+            // "importModuleSpecifier": "non-relative",
+            // "importModuleSpecifierEnding": "minimal",
             "preferTypeOnlyAutoImports": true,
             "includePackageJsonAutoImports": "off",
             "autoImportSpecifierExcludeRegexes": [

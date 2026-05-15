@@ -8,5 +8,7 @@ export class TestConfig extends Context.Tag("TestConfig")<
     readonly publicBaseURL: string
     readonly checkoutURL?: string | undefined
     readonly webhookURL: string
+    readonly brokerBaseURL?: string | undefined
+    readonly runId?: string | undefined
   }
 >() {}

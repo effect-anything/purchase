@@ -147,11 +147,12 @@ export const getAccount = Effect.fn(function* (session: PublicAuthSession) {
 
 export const checkout = Effect.fn(function* (input: { readonly session: PublicAuthSession; readonly offerId: string }) {
   const { baseURL } = yield* TestConfig
+  const runId = yield* currentRunId
 
   return yield* fetchJson<{ readonly checkout: CheckoutStartResult }>(`${baseURL}/api/checkout/start`, {
     method: "POST",
     headers: withNgrokHeaders(baseURL, { "content-type": "application/json", cookie: input.session.cookie }),
-    body: JSON.stringify({ offerId: input.offerId })
+    body: JSON.stringify({ offerId: input.offerId, runId })
   }).pipe(Effect.map(({ json }) => json.checkout))
 })
 
@@ -162,7 +163,7 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
   const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
   const checkoutUrl =
     config.checkoutURL ??
-    `${config.publicBaseURL}/checkout?${new URLSearchParams({
+    `${config.localBaseURL}/checkout?${new URLSearchParams({
       _ptxn: checkoutResult.sessionId,
       email: input.session.email,
       country: "US",
@@ -189,4 +190,31 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
     transaction: payment.transaction,
     account: accountOverview
   } as const
+})
+
+export const registerWebhookTarget = Effect.fn(function* () {
+  const config = yield* TestConfig
+  const runId = yield* currentRunId
+
+  if (!config.brokerBaseURL) {
+    return
+  }
+
+  yield* fetchJson(`${config.brokerBaseURL}/__purchase-e2e/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      provider: "paddle",
+      runId,
+      targetUrl: `${config.localBaseURL}/api/webhooks/paddle`
+    })
+  })
+})
+
+const currentRunId = Effect.gen(function* () {
+  const config = yield* TestConfig
+  if (config.runId) {
+    return config.runId
+  }
+  return `run_${crypto.randomUUID()}`
 })

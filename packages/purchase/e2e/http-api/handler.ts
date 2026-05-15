@@ -214,6 +214,7 @@ const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
           cancelUrl: "/account?checkout=cancel",
           ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
           metadata: {
+            ...(payload.runId ? { purchaseE2eRunId: payload.runId } : {}),
             workspaceSlug: user.workspaceSlug
           }
         })

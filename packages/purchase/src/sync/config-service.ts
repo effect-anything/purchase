@@ -1,6 +1,7 @@
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Redacted from "effect/Redacted"
 import fs from "node:fs"
 import path from "node:path"
 
@@ -10,6 +11,7 @@ import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type
 
 import { buildCommercialCatalog, CatalogState } from "../core/catalog-builder.ts"
 import { PayStorageAdapter, type PayStorageOverrides } from "../db.ts"
+import { getPaddleUrl } from "../paddle/config.ts"
 import {
   buildPaddleVendorCheckoutSettingsMutationVariables,
   buildPaddleVendorOverlayMutationVariables,
@@ -49,7 +51,7 @@ export interface ProviderPrepareInput extends PurchaseProviderSettings {
    */
   readonly dryRun?: boolean | undefined
   readonly current?: PurchaseProviderSettings | undefined
-  readonly environment?: PaymentEnvironmentTag | undefined
+  readonly environment: PaymentEnvironmentTag
 }
 
 interface ProviderPreparePlan {
@@ -123,7 +125,7 @@ export const PurchaseConfigServiceLayer = Layer.effect(
 
     const syncCatalog = (input?: CommercialCatalogSyncInput | undefined) => catalogSync.sync(input)
 
-    const prepareProvider = (input: ProviderPrepareInput = {}) =>
+    const prepareProvider = (input: ProviderPrepareInput = { environment: "sandbox" }) =>
       provider._tag === "paddle"
         ? preparePaddleProvider(input)
         : Effect.succeed({
@@ -266,10 +268,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const preparePaddleProvider = (input: ProviderPrepareInput) =>
   Effect.gen(function* () {
     const currentStateResult = yield* fetchPaddleCurrentState(input.environment).pipe(Effect.either)
+
     const notificationSetting =
       currentStateResult._tag === "Right"
         ? currentStateResult.right.notificationSetting
         : yield* fetchPaddleNotificationSetting(input.environment)
+
     const current =
       input.current ??
       (currentStateResult._tag === "Right"
@@ -278,6 +282,7 @@ const preparePaddleProvider = (input: ProviderPrepareInput) =>
             checkoutUrl: input.checkoutUrl,
             webhookUrl: notificationSetting?.destination
           } satisfies PurchaseProviderSettings))
+
     const plan = createPaddlePreparePlan({ ...input, current }, notificationSetting)
 
     if (input.dryRun !== true && plan.status === "ready") {
@@ -544,7 +549,7 @@ const fetchPaddleNotificationSetting = (environment: PaymentEnvironmentTag | und
   })
 
 const upsertPaddleNotificationSetting = (
-  environment: PaymentEnvironmentTag | undefined,
+  environment: PaymentEnvironmentTag,
   current: PaddleNotificationSettingState | undefined,
   webhookUrl: string
 ) =>
@@ -579,15 +584,14 @@ const upsertPaddleNotificationSetting = (
   })
 
 const paddleApiRequest = (request: {
-  readonly environment?: PaymentEnvironmentTag | undefined
+  readonly environment: PaymentEnvironmentTag
   readonly method: "GET" | "POST" | "PATCH"
   readonly path: string
   readonly body?: unknown
 }) =>
   Effect.tryPromise({
     try: async () => {
-      const environment = request.environment ?? process.env.PADDLE_ENVIRONMENT ?? "sandbox"
-      const baseUrl = environment === "production" ? "https://api.paddle.com" : "https://sandbox-api.paddle.com"
+      const baseUrl = getPaddleUrl(request.environment)
       const apiToken = process.env.PADDLE_API_TOKEN
 
       if (!apiToken) {
@@ -740,6 +744,88 @@ const paddleVendorRequest = (operation: {
     },
     catch: (error: unknown) => error
   })
+
+const describeAction = (action: string) => {
+  switch (action) {
+    case "create":
+      return "+ create"
+    case "update":
+      return "~ update"
+    case "none":
+      return "= no change"
+    case "unsupported":
+      return "! unsupported"
+    default:
+      return action
+  }
+}
+
+export const formatPrepareResult = (
+  options: { readonly environment: PaymentEnvironmentTag; readonly showSecrets: boolean },
+  result: ProviderPrepareResult
+) => {
+  const lines = [
+    "Connected",
+    `  Provider · ${result.provider} (${options.environment})`,
+    `  Mode     · ${result.dryRun ? "dry-run" : "apply"}`,
+    "",
+    "Provider prepare"
+  ]
+
+  if (result.plan.reason) {
+    lines.push(`  ${result.plan.reason}`)
+  }
+  if (result.plan.checkoutUrl) {
+    lines.push(`  Checkout URL · ${describeAction(result.plan.checkoutUrl.action)} ${result.plan.checkoutUrl.desired}`)
+  }
+  if (result.plan.webhookUrl) {
+    lines.push(`  Webhook URL  · ${describeAction(result.plan.webhookUrl.action)} ${result.plan.webhookUrl.desired}`)
+  }
+  if (!result.plan.checkoutUrl && !result.plan.webhookUrl) {
+    lines.push("  No desired settings provided")
+  }
+  if (result.plan.changes.length > 0) {
+    lines.push("", "Desired settings")
+    for (const change of result.plan.changes) {
+      lines.push(
+        `  ${describeAction(change.action)} ${change.path}${change.action === "none" ? "" : ` (${formatChange(change.current)} -> ${formatChange(change.desired)})`}`
+      )
+    }
+  }
+
+  if (result.secrets?.webhook?.current) {
+    lines.push(
+      "",
+      `Webhook Secret · ${options.showSecrets ? result.secrets.webhook.current : maskSecret(result.secrets.webhook.current)}`
+    )
+  }
+
+  lines.push("", `Done · ${result.plan.status}`)
+
+  return {
+    string: lines.join("\n"),
+    secrets: {
+      webhook: result.secrets?.webhook?.current ? Redacted.make(result.secrets?.webhook?.current) : undefined
+    }
+  }
+}
+
+const formatChange = (value: unknown) => {
+  if (typeof value === "string") {
+    return value
+  }
+  if (value === undefined) {
+    return "undefined"
+  }
+  return JSON.stringify(value)
+}
+
+const maskSecret = (value: string) => {
+  if (value.length <= 12) {
+    return "*".repeat(value.length)
+  }
+  return `${value.slice(0, 8)}...${value.slice(-6)}`
+}
 
 const loadPaddleVendorSession = (environment: PaymentEnvironmentTag) => {
   const configuredPath = process.env.PADDLE_VENDOR_SESSION_FILE

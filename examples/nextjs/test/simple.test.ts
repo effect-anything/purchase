@@ -1,7 +1,7 @@
 import { it, expect } from "@effect/vitest"
 import { Effect } from "effect"
 
-import type { CreditsConflict, ProviderNotConfigured } from "../errors"
+import type { CreditsConflict, ProviderNotConfigured } from "../errors.ts"
 
 import { ApiClient, HttpApiTesting, signUpTestUser } from "./api-utils.ts"
 

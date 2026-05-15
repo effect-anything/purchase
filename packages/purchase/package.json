@@ -74,6 +74,10 @@
     "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
     "check": "tsgo -b tsconfig.json",
     "test": "vitest",
+    "test:unit": "vitest run --project @effect-x/purchase-unit",
+    "test:e2e": "vitest run --project @effect-x/purchase-e2e",
+    "test:provider:stripe": "PROVIDER=stripe vitest run --project @effect-x/purchase-unit",
+    "test:provider:paddle": "PROVIDER=paddle vitest run --project @effect-x/purchase-unit",
     "test:core": "vitest run test/core",
     "coverage": "vitest --coverage"
   },

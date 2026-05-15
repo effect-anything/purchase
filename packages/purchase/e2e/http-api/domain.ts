@@ -85,7 +85,8 @@ export const CatalogApiResponse = Schema.Struct({
 })
 
 export const CheckoutStartPayload = Schema.Struct({
-  offerId: Schema.String
+  offerId: Schema.String,
+  runId: Schema.optional(Schema.String)
 })
 
 export const CheckoutStartResult = Schema.Struct({

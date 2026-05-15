@@ -11,25 +11,12 @@ import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type
 
 import { Paddle } from "../paddle.ts"
 import { Stripe } from "../stripe.ts"
-import { prepareProvider, PurchaseConfigLayer, type ProviderPrepareResult } from "../sync/config-service.ts"
+import {
+  formatPrepareResult,
+  prepareProvider,
+  PurchaseConfigLayer,
+} from "../sync/config-service.ts"
 import { loadPurchaseConfigModule } from "./config-loader.ts"
-
-interface PrepareOptions {
-  readonly modulePath: string
-  readonly exportName?: string | undefined
-  readonly provider: PaymentProviderTag
-  readonly environment: PaymentEnvironmentTag
-  readonly checkoutUrl?: string | undefined
-  readonly webhookUrl?: string | undefined
-  readonly apply: boolean
-  readonly dryRun: boolean
-  readonly json: boolean
-  readonly showSecrets: boolean
-  readonly stripeApiKey?: string | undefined
-  readonly stripeWebhookSecret?: string | undefined
-  readonly paddleApiToken?: string | undefined
-  readonly paddleWebhookToken?: string | undefined
-}
 
 const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(option)
 
@@ -49,6 +36,23 @@ const makeProviderLayer = (options: PrepareOptions): Layer.Layer<any, unknown> =
     webhookToken: Redacted.make(options.paddleWebhookToken ?? ""),
     environment: options.environment
   })
+}
+
+export interface PrepareOptions {
+  readonly modulePath: string
+  readonly exportName?: string | undefined
+  readonly provider: PaymentProviderTag
+  readonly environment: PaymentEnvironmentTag
+  readonly checkoutUrl?: string | undefined
+  readonly webhookUrl?: string | undefined
+  readonly apply: boolean
+  readonly dryRun: boolean
+  readonly json: boolean
+  readonly showSecrets: boolean
+  readonly stripeApiKey?: string | undefined
+  readonly stripeWebhookSecret?: string | undefined
+  readonly paddleApiToken?: string | undefined
+  readonly paddleWebhookToken?: string | undefined
 }
 
 export const parsePrepareOptions = (config: {
@@ -96,79 +100,6 @@ export const parsePrepareOptions = (config: {
   }
 
   return options
-}
-
-const describeAction = (action: string) => {
-  switch (action) {
-    case "create":
-      return "+ create"
-    case "update":
-      return "~ update"
-    case "none":
-      return "= no change"
-    case "unsupported":
-      return "! unsupported"
-    default:
-      return action
-  }
-}
-
-export const formatPrepareResult = (options: PrepareOptions, result: ProviderPrepareResult) => {
-  const lines = [
-    "Connected",
-    `  Provider · ${result.provider} (${options.environment})`,
-    `  Mode     · ${result.dryRun ? "dry-run" : "apply"}`,
-    "",
-    "Provider prepare"
-  ]
-
-  if (result.plan.reason) {
-    lines.push(`  ${result.plan.reason}`)
-  }
-  if (result.plan.checkoutUrl) {
-    lines.push(`  Checkout URL · ${describeAction(result.plan.checkoutUrl.action)} ${result.plan.checkoutUrl.desired}`)
-  }
-  if (result.plan.webhookUrl) {
-    lines.push(`  Webhook URL  · ${describeAction(result.plan.webhookUrl.action)} ${result.plan.webhookUrl.desired}`)
-  }
-  if (!result.plan.checkoutUrl && !result.plan.webhookUrl) {
-    lines.push("  No desired settings provided")
-  }
-  if (result.plan.changes.length > 0) {
-    lines.push("", "Desired settings")
-    for (const change of result.plan.changes) {
-      lines.push(
-        `  ${describeAction(change.action)} ${change.path}${change.action === "none" ? "" : ` (${formatChange(change.current)} -> ${formatChange(change.desired)})`}`
-      )
-    }
-  }
-
-  if (result.secrets?.webhook?.current) {
-    lines.push(
-      "",
-      `Webhook Secret · ${options.showSecrets ? result.secrets.webhook.current : maskSecret(result.secrets.webhook.current)}`
-    )
-  }
-
-  lines.push("", `Done · ${result.plan.status}`)
-  return lines.join("\n")
-}
-
-const formatChange = (value: unknown) => {
-  if (typeof value === "string") {
-    return value
-  }
-  if (value === undefined) {
-    return "undefined"
-  }
-  return JSON.stringify(value)
-}
-
-const maskSecret = (value: string) => {
-  if (value.length <= 12) {
-    return "*".repeat(value.length)
-  }
-  return `${value.slice(0, 8)}...${value.slice(-6)}`
 }
 
 const prepareOptions = {
@@ -252,7 +183,7 @@ export const prepareCommand = Command.make("prepare", prepareOptions, (config) =
         if (options.json) {
           console.log(JSON.stringify(result, null, 2))
         } else {
-          console.log(formatPrepareResult(options, result))
+          console.log(formatPrepareResult(options, result).string)
         }
       })
     ),
