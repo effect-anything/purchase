@@ -64,7 +64,9 @@ const seedCurrentSubscription = Effect.gen(function* () {
 })
 
 describe("core subscription projection workflow", () => {
-  it.effect("subscription_updated event upserts subscription projection", () => {
+  // Business contract:
+  // a provider subscription fact should become an active local agreement that the app can read back.
+  it.effect("reconciles an active subscription into snapshot and entitlements", () => {
     const payment = makeTestPaymentLayer({ normalizedWebhook: subscriptionUpdatedNormalization })
 
     return runPayEffect(
@@ -111,65 +113,70 @@ describe("core subscription projection workflow", () => {
     )
   })
 
-  it.effect("subscription cancel/change/pause/resume call provider and return reconciliation", () => {
-    const payment = makeTestPaymentLayer()
+  // Command-side contract:
+  // command APIs should return reconciliation receipts without pretending that final lifecycle state is already settled.
+  it.effect(
+    "subscription commands call the provider and return reconciliation triggers without forcing final state",
+    () => {
+      const payment = makeTestPaymentLayer()
 
-    return runPayEffect(
-      Effect.gen(function* () {
-        const sdk = yield* TestPay
-        yield* insertTestCustomer({})
-        yield* syncCatalog()
-        yield* seedCurrentSubscription
+      return runPayEffect(
+        Effect.gen(function* () {
+          const sdk = yield* TestPay
+          yield* insertTestCustomer({})
+          yield* syncCatalog()
+          yield* seedCurrentSubscription
 
-        const cancel = yield* sdk.subscriptions.cancel({
-          customerId: testCustomerId,
-          agreementId: testSubscriptionAgreementId,
-          effectiveAt: "period_end"
-        })
-        const change = yield* sdk.subscriptions.change({
-          customerId: testCustomerId,
-          agreementId: testSubscriptionAgreementId,
-          targetOfferId: asCommercialOfferId(testOfferIds.proMonthly),
-          prorationMode: "provider_default"
-        })
-        const pause = yield* sdk.subscriptions.pause({
-          customerId: testCustomerId,
-          agreementId: testSubscriptionAgreementId
-        })
-        const resume = yield* sdk.subscriptions.resume({
-          customerId: testCustomerId,
-          agreementId: testSubscriptionAgreementId
-        })
-        const preview = yield* sdk.subscriptions.previewChange({
-          customerId: testCustomerId,
-          agreementId: testSubscriptionAgreementId,
-          targetOfferId: asCommercialOfferId(testOfferIds.proMonthly)
-        })
+          const cancel = yield* sdk.subscriptions.cancel({
+            customerId: testCustomerId,
+            agreementId: testSubscriptionAgreementId,
+            effectiveAt: "period_end"
+          })
+          const change = yield* sdk.subscriptions.change({
+            customerId: testCustomerId,
+            agreementId: testSubscriptionAgreementId,
+            targetOfferId: asCommercialOfferId(testOfferIds.proMonthly),
+            prorationMode: "provider_default"
+          })
+          const pause = yield* sdk.subscriptions.pause({
+            customerId: testCustomerId,
+            agreementId: testSubscriptionAgreementId
+          })
+          const resume = yield* sdk.subscriptions.resume({
+            customerId: testCustomerId,
+            agreementId: testSubscriptionAgreementId
+          })
+          const preview = yield* sdk.subscriptions.previewChange({
+            customerId: testCustomerId,
+            agreementId: testSubscriptionAgreementId,
+            targetOfferId: asCommercialOfferId(testOfferIds.proMonthly)
+          })
 
-        expect(cancel.workflow).toBe("subscription.cancel")
-        expect(change.workflow).toBe("subscription.change")
-        expect(pause.workflow).toBe("subscription.pause")
-        expect(resume.workflow).toBe("subscription.resume")
-        expect(preview.subscriptionId).toBe(TEST_SUBSCRIPTION_ID)
-        expect(cancel.reconciliationTriggers[0]?.reason).toBe("subscription_updated")
-        expect(change.reconciliationTriggers[0]?.offerId).toBe(testOfferIds.proMonthly)
+          expect(cancel.workflow).toBe("subscription.cancel")
+          expect(change.workflow).toBe("subscription.change")
+          expect(pause.workflow).toBe("subscription.pause")
+          expect(resume.workflow).toBe("subscription.resume")
+          expect(preview.subscriptionId).toBe(TEST_SUBSCRIPTION_ID)
+          expect(cancel.reconciliationTriggers[0]?.reason).toBe("subscription_updated")
+          expect(change.reconciliationTriggers[0]?.offerId).toBe(testOfferIds.proMonthly)
 
-        expect(payment.calls.subscriptions.cancel).toHaveLength(1)
-        expect(payment.calls.subscriptions.change).toHaveLength(1)
-        expect(payment.calls.subscriptions.pause).toHaveLength(1)
-        expect(payment.calls.subscriptions.resume).toHaveLength(1)
-        expect(payment.calls.subscriptions.previewChange).toHaveLength(1)
-        expect(payment.calls.subscriptions.change[0]?.providerOfferId).toBe(TEST_CREATED_PRICE_ID)
-        expect(payment.calls.subscriptions.pause[0]?.mode).toBe("billing_collection")
-        expect(payment.calls.subscriptions.resume[0]?.mode).toBe("billing_collection")
+          expect(payment.calls.subscriptions.cancel).toHaveLength(1)
+          expect(payment.calls.subscriptions.change).toHaveLength(1)
+          expect(payment.calls.subscriptions.pause).toHaveLength(1)
+          expect(payment.calls.subscriptions.resume).toHaveLength(1)
+          expect(payment.calls.subscriptions.previewChange).toHaveLength(1)
+          expect(payment.calls.subscriptions.change[0]?.providerOfferId).toBe(TEST_CREATED_PRICE_ID)
+          expect(payment.calls.subscriptions.pause[0]?.mode).toBe("billing_collection")
+          expect(payment.calls.subscriptions.resume[0]?.mode).toBe("billing_collection")
 
-        const subscription = yield* queryOne<{ readonly status: string }>(
-          "SELECT status FROM paykit_subscription WHERE id = ?",
-          [TEST_SUBSCRIPTION_ID]
-        )
-        expect(subscription?.status).toBe("active")
-      }),
-      payment.layer
-    )
-  })
+          const subscription = yield* queryOne<{ readonly status: string }>(
+            "SELECT status FROM paykit_subscription WHERE id = ?",
+            [TEST_SUBSCRIPTION_ID]
+          )
+          expect(subscription?.status).toBe("active")
+        }),
+        payment.layer
+      )
+    }
+  )
 })

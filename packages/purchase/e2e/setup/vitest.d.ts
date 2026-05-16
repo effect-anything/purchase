@@ -6,7 +6,6 @@ declare module "vitest" {
     readonly purchaseProviderE2E: {
       readonly localBaseURL: string
       readonly publicBaseURL: string
-      readonly webhookURL: string
     }
   }
 }

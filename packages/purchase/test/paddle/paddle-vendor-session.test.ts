@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
 
 import { parseEnvValue, readPaddleVendorCaptureConfig } from "../../src/harness/paddle/capture-paddle-vendor-session.ts"
-import { decodePaddleVendorSessionStateSync } from "../../src/paddle/internal/paddle-vendor-session.ts"
+import { PaddleVendorSessionState } from "../../src/paddle/internal/paddle-vendor-session.ts"
 
 describe("paddle vendor session", () => {
   it("decodes captured vendor session state", () => {
-    const session = decodePaddleVendorSessionStateSync({
+    const session = PaddleVendorSessionState.decodeSync({
       environment: "sandbox",
       vendorUrl: "https://sandbox-vendors.paddle.com",
       cookieHeader: "XSRF-TOKEN=token; sandbox_paddle_session_vendor=session",

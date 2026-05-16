@@ -7,7 +7,7 @@ import { chromium } from "playwright-core"
 
 import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
-const PaddleVendorSessionStateSchema = Schema.Struct({
+export class PaddleVendorSessionState extends Schema.Class<PaddleVendorSessionState>("PaddleVendorSessionState")({
   environment: Schema.Literal("sandbox", "production"),
   vendorUrl: Schema.String,
   cookieHeader: Schema.String,
@@ -25,11 +25,10 @@ const PaddleVendorSessionStateSchema = Schema.Struct({
       sameSite: Schema.String
     })
   )
-})
-export type PaddleVendorSessionState = typeof PaddleVendorSessionStateSchema.Type
-
-export const decodePaddleVendorSessionState = Schema.decodeUnknown(PaddleVendorSessionStateSchema)
-export const decodePaddleVendorSessionStateSync = Schema.decodeUnknownSync(PaddleVendorSessionStateSchema)
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorSessionState)
+  static decodeSync = Schema.decodeUnknownSync(PaddleVendorSessionState)
+}
 
 export const capturePaddleVendorSession = (input: {
   readonly environment: PaymentEnvironmentTag
@@ -72,7 +71,7 @@ export const capturePaddleVendorSession = (input: {
       return yield* Effect.dieMessage("Paddle vendor login completed but XSRF-TOKEN cookie was not found.")
     }
 
-    return yield* decodePaddleVendorSessionState({
+    return yield* PaddleVendorSessionState.decode({
       environment: input.environment,
       vendorUrl,
       cookieHeader,

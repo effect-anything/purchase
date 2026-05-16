@@ -12,11 +12,18 @@ import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type
 import { Paddle } from "../paddle.ts"
 import { Stripe } from "../stripe.ts"
 import {
-  formatPrepareResult,
+  formatPrepareResult as formatPrepareResultDetails,
   prepareProvider,
-  PurchaseConfigLayer,
+  PurchaseConfigLayer
 } from "../sync/config-service.ts"
 import { loadPurchaseConfigModule } from "./config-loader.ts"
+
+export const formatPrepareResult = <
+  TOptions extends { readonly environment: PaymentEnvironmentTag; readonly showSecrets: boolean }
+>(
+  options: TOptions,
+  result: Parameters<typeof formatPrepareResultDetails>[1]
+) => formatPrepareResultDetails(options, result).string
 
 const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(option)
 
@@ -183,7 +190,7 @@ export const prepareCommand = Command.make("prepare", prepareOptions, (config) =
         if (options.json) {
           console.log(JSON.stringify(result, null, 2))
         } else {
-          console.log(formatPrepareResult(options, result).string)
+          console.log(formatPrepareResultDetails(options, result).string)
         }
       })
     ),

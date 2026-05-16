@@ -83,7 +83,9 @@ const subscriptionPaidNormalization = {
 } as const
 
 describe("core purchase and credit workflows", () => {
-  it.effect("transaction paid event creates one-time purchase grant", () => {
+  // Business contract:
+  // a paid one-time purchase should become queryable as an active grant and entitlement.
+  it.effect("makes a paid one-time purchase queryable as an active grant and entitlement", () => {
     const payment = makeTestPaymentLayer({ normalizedWebhook: lifetimePaidNormalization })
 
     return runPayEffect(
@@ -133,68 +135,75 @@ describe("core purchase and credit workflows", () => {
     )
   })
 
-  it.effect("credits grant, consume, insufficient balance", () => {
-    const payment = makeTestPaymentLayer()
+  // Business contract:
+  // sdk-managed credits should behave like a wallet with idempotent grants and safe insufficient-balance rejection.
+  it.effect(
+    "maintains wallet balance through grant, consume, duplicate grant, and insufficient-balance rejection",
+    () => {
+      const payment = makeTestPaymentLayer()
 
-    return runPayEffect(
-      Effect.gen(function* () {
-        const sdk = yield* TestPay
-        yield* insertTestCustomer({})
+      return runPayEffect(
+        Effect.gen(function* () {
+          const sdk = yield* TestPay
+          yield* insertTestCustomer({})
 
-        const granted = yield* sdk.credits.grant({
-          customerId: testCustomerId,
-          creditKey: "ai_credits",
-          offerId: asCommercialOfferId(testOfferIds.credits100),
-          amount: 100,
-          sourceEventId: testManualEventId,
-          idempotencyKey: "grant_1"
-        })
-        expect(granted.available).toBe(100)
-        expect(granted.acquired).toBe(100)
-        expect(granted.consumed).toBe(0)
-
-        const duplicate = yield* sdk.credits.grant({
-          customerId: testCustomerId,
-          creditKey: "ai_credits",
-          offerId: asCommercialOfferId(testOfferIds.credits100),
-          amount: 100,
-          sourceEventId: testManualEventId,
-          idempotencyKey: "grant_1"
-        })
-        expect(duplicate.available).toBe(100)
-        expect(yield* countRows("paykit_credit_ledger")).toBe(1)
-
-        const consumed = yield* sdk.credits.consume({
-          customerId: testCustomerId,
-          creditKey: "ai_credits",
-          amount: 40,
-          idempotencyKey: "consume_1"
-        })
-        expect(consumed.available).toBe(60)
-        expect(consumed.consumed).toBe(40)
-
-        const failed = yield* Effect.either(
-          sdk.credits.consume({
+          const granted = yield* sdk.credits.grant({
             customerId: testCustomerId,
             creditKey: "ai_credits",
-            amount: 1000,
-            idempotencyKey: "consume_2"
+            offerId: asCommercialOfferId(testOfferIds.credits100),
+            amount: 100,
+            sourceEventId: testManualEventId,
+            idempotencyKey: "grant_1"
           })
-        )
-        expect(Either.isLeft(failed)).toBe(true)
-        if (Either.isLeft(failed)) {
-          expect((failed.left as { readonly _tag?: string; readonly message?: string })._tag).toBe(
-            "CommercialWorkflowConflict"
-          )
-          expect((failed.left as { readonly message?: string }).message).toContain("Insufficient credits")
-        }
-        expect(yield* countRows("paykit_credit_ledger")).toBe(2)
-      }),
-      payment.layer
-    )
-  })
+          expect(granted.available).toBe(100)
+          expect(granted.acquired).toBe(100)
+          expect(granted.consumed).toBe(0)
 
-  it.effect("credit pack transaction paid webhook grants credits idempotently", () => {
+          const duplicate = yield* sdk.credits.grant({
+            customerId: testCustomerId,
+            creditKey: "ai_credits",
+            offerId: asCommercialOfferId(testOfferIds.credits100),
+            amount: 100,
+            sourceEventId: testManualEventId,
+            idempotencyKey: "grant_1"
+          })
+          expect(duplicate.available).toBe(100)
+          expect(yield* countRows("paykit_credit_ledger")).toBe(1)
+
+          const consumed = yield* sdk.credits.consume({
+            customerId: testCustomerId,
+            creditKey: "ai_credits",
+            amount: 40,
+            idempotencyKey: "consume_1"
+          })
+          expect(consumed.available).toBe(60)
+          expect(consumed.consumed).toBe(40)
+
+          const failed = yield* Effect.either(
+            sdk.credits.consume({
+              customerId: testCustomerId,
+              creditKey: "ai_credits",
+              amount: 1000,
+              idempotencyKey: "consume_2"
+            })
+          )
+          expect(Either.isLeft(failed)).toBe(true)
+          if (Either.isLeft(failed)) {
+            expect((failed.left as { readonly _tag?: string; readonly message?: string })._tag).toBe(
+              "CommercialWorkflowConflict"
+            )
+            expect((failed.left as { readonly message?: string }).message).toContain("Insufficient credits")
+          }
+          expect(yield* countRows("paykit_credit_ledger")).toBe(2)
+        }),
+        payment.layer
+      )
+    }
+  )
+
+  // Business contract:
+  // purchased credits should be granted exactly once and exposed through wallet and entitlements.
+  it.effect("grants purchased credits exactly once and exposes them through wallet and entitlements", () => {
     const payment = makeTestPaymentLayer({ normalizedWebhook: creditsPaidNormalization })
 
     return runPayEffect(
@@ -274,6 +283,18 @@ describe("core purchase and credit workflows", () => {
       payment.layer
     )
   })
+
+  // Known risk from current implementation:
+  // purchase.refund can write a credit refund ledger entry, and refund_updated webhook can write another one
+  // under a different idempotency domain. This should become a real regression test before credit-pack refund ships.
+  it.todo(
+    "does not double-deduct wallet balance when a credit-pack refund is observed from both command and webhook paths"
+  )
+
+  // Known projection gap:
+  // one-time purchase grants can currently be reconstructed from checkout intent plus any matching processed webhook.
+  // This needs a boundary test to avoid false-positive grants when the same customer buys the same offer multiple times.
+  it.todo("does not infer a purchase grant from an unrelated processed webhook that only matches on customer and offer")
 
   it.effect("subscription recurring credits and credit packs aggregate into one credit wallet", () => {
     let webhook = subscriptionPaidNormalization as

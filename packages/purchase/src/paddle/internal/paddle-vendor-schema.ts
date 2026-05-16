@@ -128,7 +128,9 @@ const CheckoutStyleLink = Schema.Struct({
   __typename: VendorTypename
 })
 
-export const PaddleVendorCheckoutSettingsData = Schema.Struct({
+export class PaddleVendorCheckoutSettingsData extends Schema.Class<PaddleVendorCheckoutSettingsData>(
+  "PaddleVendorCheckoutSettingsData"
+)({
   vendorName: Schema.String,
   audienceOptin: Schema.Boolean,
   checkoutDiscounts: Schema.Boolean,
@@ -172,16 +174,75 @@ export const PaddleVendorCheckoutSettingsData = Schema.Struct({
   }),
   paymentMethods: CheckoutSettingsPaymentMethods,
   __typename: VendorTypename
-})
-export type PaddleVendorCheckoutSettingsData = typeof PaddleVendorCheckoutSettingsData.Type
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorCheckoutSettingsData)
 
-export const PaddleVendorOverlaySettingsData = Schema.Struct({
+  static normalizeSnapshot(input: {
+    readonly checkoutSettings: PaddleVendorCheckoutSettingsData
+    readonly overlaySettings: PaddleVendorOverlaySettingsData
+    readonly checkoutStyles: PaddleVendorCheckoutStylesData
+  }): PaddleVendorCheckoutSnapshot {
+    return {
+      checkoutUrl: input.checkoutSettings.defaultCheckoutUrl.url,
+      checkout: {
+        settings: {
+          audienceOptin: input.checkoutSettings.audienceOptin,
+          checkoutDiscounts: input.checkoutSettings.checkoutDiscounts,
+          enableSavedPaymentMethods: input.checkoutSettings.enableSavedPaymentMethods,
+          orderConfirmationEmail: {
+            freeCheckoutReceipts: input.checkoutSettings.orderConfirmationEmail.freeCheckoutReceipts,
+            receiptShowMessage: input.checkoutSettings.orderConfirmationEmail.receiptShowMessage
+          }
+        },
+        paymentMethods: omitTypename(input.checkoutSettings.paymentMethods),
+        overlay: {
+          brandColor: input.overlaySettings.brandColor
+        },
+        styles: {
+          theme: omitTypenameDeep(input.checkoutStyles.theme)
+        }
+      }
+    }
+  }
+
+  static buildMutationVariables(input: {
+    readonly checkoutUrl?: string | undefined
+    readonly checkout?: PurchaseCheckoutSettings | undefined
+  }) {
+    return {
+      checkoutSettingsObject: compactUndefined({
+        audienceOptin: input.checkout?.settings?.audienceOptin,
+        checkoutDiscounts: input.checkout?.settings?.checkoutDiscounts,
+        statementDescription: undefined,
+        enableSavedPaymentMethods: input.checkout?.settings?.enableSavedPaymentMethods,
+        defaultCheckoutUrl: input.checkoutUrl,
+        paymentMethods: input.checkout?.paymentMethods,
+        orderConfirmationEmail: input.checkout?.settings?.orderConfirmationEmail
+      })
+    }
+  }
+}
+
+export class PaddleVendorOverlaySettingsData extends Schema.Class<PaddleVendorOverlaySettingsData>(
+  "PaddleVendorOverlaySettingsData"
+)({
   brandColor: NullableString,
   __typename: VendorTypename
-})
-export type PaddleVendorOverlaySettingsData = typeof PaddleVendorOverlaySettingsData.Type
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorOverlaySettingsData)
 
-export const PaddleVendorCheckoutStylesData = Schema.Struct({
+  static buildMutationVariables(overlay: PurchaseCheckoutOverlaySettings | undefined) {
+    return {
+      overlaySettingsObject: compactUndefined({
+        brandColor: overlay?.brandColor ?? undefined
+      })
+    }
+  }
+}
+
+export class PaddleVendorCheckoutStylesData extends Schema.Class<PaddleVendorCheckoutStylesData>(
+  "PaddleVendorCheckoutStylesData"
+)({
   theme: Schema.Struct({
     globals: CheckoutStyleGlobals,
     inputs: Schema.Struct({
@@ -213,36 +274,48 @@ export const PaddleVendorCheckoutStylesData = Schema.Struct({
     __typename: VendorTypename
   }),
   __typename: VendorTypename
-})
-export type PaddleVendorCheckoutStylesData = typeof PaddleVendorCheckoutStylesData.Type
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorCheckoutStylesData)
 
-export const decodePaddleVendorCheckoutSettingsData = Schema.decodeUnknown(PaddleVendorCheckoutSettingsData)
-export const decodePaddleVendorOverlaySettingsData = Schema.decodeUnknown(PaddleVendorOverlaySettingsData)
-export const decodePaddleVendorCheckoutStylesData = Schema.decodeUnknown(PaddleVendorCheckoutStylesData)
+  static buildMutationVariables(styles: PurchaseCheckoutStyles | undefined) {
+    return {
+      stylesObject: compactUndefined({
+        theme: styles?.theme
+      })
+    }
+  }
+}
 
-export const PaddleVendorMutationMessage = Schema.Struct({
+export class PaddleVendorMutationMessage extends Schema.Class<PaddleVendorMutationMessage>(
+  "PaddleVendorMutationMessage"
+)({
   message: Schema.String,
   __typename: VendorTypename
-})
-export type PaddleVendorMutationMessage = typeof PaddleVendorMutationMessage.Type
+}) {}
 
-export const PaddleVendorSaveCheckoutSettingsResponse = Schema.Struct({
+export class PaddleVendorSaveCheckoutSettingsResponse extends Schema.Class<PaddleVendorSaveCheckoutSettingsResponse>(
+  "PaddleVendorSaveCheckoutSettingsResponse"
+)({
   saveCheckoutSettings: PaddleVendorMutationMessage
-})
-export const PaddleVendorSaveStylesResponse = Schema.Struct({
-  saveStyles: PaddleVendorMutationMessage
-})
-export const PaddleVendorSaveOverlaySettingsResponse = Schema.Struct({
-  saveOverlaySettings: PaddleVendorMutationMessage
-})
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorSaveCheckoutSettingsResponse)
+}
 
-export const decodePaddleVendorSaveCheckoutSettingsResponse = Schema.decodeUnknown(
-  PaddleVendorSaveCheckoutSettingsResponse
-)
-export const decodePaddleVendorSaveStylesResponse = Schema.decodeUnknown(PaddleVendorSaveStylesResponse)
-export const decodePaddleVendorSaveOverlaySettingsResponse = Schema.decodeUnknown(
-  PaddleVendorSaveOverlaySettingsResponse
-)
+export class PaddleVendorSaveStylesResponse extends Schema.Class<PaddleVendorSaveStylesResponse>(
+  "PaddleVendorSaveStylesResponse"
+)({
+  saveStyles: PaddleVendorMutationMessage
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorSaveStylesResponse)
+}
+
+export class PaddleVendorSaveOverlaySettingsResponse extends Schema.Class<PaddleVendorSaveOverlaySettingsResponse>(
+  "PaddleVendorSaveOverlaySettingsResponse"
+)({
+  saveOverlaySettings: PaddleVendorMutationMessage
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorSaveOverlaySettingsResponse)
+}
 
 export interface PaddleVendorCheckoutSnapshot {
   readonly checkoutUrl?: string | undefined
@@ -254,59 +327,6 @@ export interface PaddleVendorCheckoutSnapshot {
       | undefined
   }
 }
-
-export const normalizePaddleVendorCheckoutSnapshot = (input: {
-  readonly checkoutSettings: PaddleVendorCheckoutSettingsData
-  readonly overlaySettings: PaddleVendorOverlaySettingsData
-  readonly checkoutStyles: PaddleVendorCheckoutStylesData
-}): PaddleVendorCheckoutSnapshot => ({
-  checkoutUrl: input.checkoutSettings.defaultCheckoutUrl.url,
-  checkout: {
-    settings: {
-      audienceOptin: input.checkoutSettings.audienceOptin,
-      checkoutDiscounts: input.checkoutSettings.checkoutDiscounts,
-      enableSavedPaymentMethods: input.checkoutSettings.enableSavedPaymentMethods,
-      orderConfirmationEmail: {
-        freeCheckoutReceipts: input.checkoutSettings.orderConfirmationEmail.freeCheckoutReceipts,
-        receiptShowMessage: input.checkoutSettings.orderConfirmationEmail.receiptShowMessage
-      }
-    },
-    paymentMethods: omitTypename(input.checkoutSettings.paymentMethods),
-    overlay: {
-      brandColor: input.overlaySettings.brandColor
-    },
-    styles: {
-      theme: omitTypenameDeep(input.checkoutStyles.theme)
-    }
-  }
-})
-
-export const buildPaddleVendorCheckoutSettingsMutationVariables = (input: {
-  readonly checkoutUrl?: string | undefined
-  readonly checkout?: PurchaseCheckoutSettings | undefined
-}) => ({
-  checkoutSettingsObject: compactUndefined({
-    audienceOptin: input.checkout?.settings?.audienceOptin,
-    checkoutDiscounts: input.checkout?.settings?.checkoutDiscounts,
-    statementDescription: undefined,
-    enableSavedPaymentMethods: input.checkout?.settings?.enableSavedPaymentMethods,
-    defaultCheckoutUrl: input.checkoutUrl,
-    paymentMethods: input.checkout?.paymentMethods,
-    orderConfirmationEmail: input.checkout?.settings?.orderConfirmationEmail
-  })
-})
-
-export const buildPaddleVendorStylesMutationVariables = (styles: PurchaseCheckoutStyles | undefined) => ({
-  stylesObject: compactUndefined({
-    theme: styles?.theme
-  })
-})
-
-export const buildPaddleVendorOverlayMutationVariables = (overlay: PurchaseCheckoutOverlaySettings | undefined) => ({
-  overlaySettingsObject: compactUndefined({
-    brandColor: overlay?.brandColor ?? undefined
-  })
-})
 
 const omitTypename = <T extends { readonly __typename?: string | null | undefined }>(
   value: T

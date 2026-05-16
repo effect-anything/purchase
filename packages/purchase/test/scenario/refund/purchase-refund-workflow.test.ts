@@ -78,7 +78,9 @@ const refundUpdatedNormalization = {
 } as const
 
 describe("core purchase refund workflow", () => {
-  it.effect("purchase.refund refunds one-time purchase and recomputes entitlements", () => {
+  // Business contract:
+  // refunding a one-time purchase should revoke purchase access in the app-facing read models.
+  it.effect("refunds a one-time purchase and recomputes app-facing entitlements", () => {
     const payment = makeTestPaymentLayer()
 
     return runPayEffect(
@@ -215,7 +217,9 @@ describe("core purchase refund workflow", () => {
     )
   })
 
-  it.effect("refund_updated webhook updates invoice projection without duplicating purchase grant", () => {
+  // Business contract:
+  // refund reconciliation should revoke access without creating duplicate purchase facts.
+  it.effect("reconciles a refund update without duplicating purchase grants", () => {
     const payment = makeTestPaymentLayer({ normalizedWebhook: refundUpdatedNormalization })
 
     return runPayEffect(
@@ -276,4 +280,9 @@ describe("core purchase refund workflow", () => {
       payment.layer
     )
   })
+
+  // Known product-policy gap:
+  // partial refund semantics are not modeled yet, but real support workflows need them.
+  // Future implementation should decide whether partial refunds keep partial access, compensation, or another business rule.
+  it.todo("defines how partial refunds affect invoice state, purchase grants, and downstream entitlements")
 })

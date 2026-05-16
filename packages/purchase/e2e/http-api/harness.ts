@@ -71,6 +71,18 @@ interface AccountOverview {
   }
 }
 
+interface WebhookTargetRegistration {
+  readonly ok: boolean
+  readonly provider: "paddle" | "stripe"
+  readonly runId: string
+  readonly localBaseURL: string
+  readonly publicBaseURL: string
+  readonly brokerWebhookUrl: string
+  readonly targetUrl: string
+  readonly checkoutUrl?: string | undefined
+  readonly webhookSecret?: string | undefined
+}
+
 const withNgrokHeaders = (baseUrl: string, headers: HeadersInit = {}) => ({
   ...headers,
   "ngrok-skip-browser-warning": "true",
@@ -200,7 +212,7 @@ export const registerWebhookTarget = Effect.fn(function* () {
     return
   }
 
-  yield* fetchJson(`${config.brokerBaseURL}/__purchase-e2e/register`, {
+  return yield* fetchJson<WebhookTargetRegistration>(`${config.brokerBaseURL}/__purchase-e2e/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -208,7 +220,7 @@ export const registerWebhookTarget = Effect.fn(function* () {
       runId,
       targetUrl: `${config.localBaseURL}/api/webhooks/paddle`
     })
-  })
+  }).pipe(Effect.map(({ json }) => json))
 })
 
 const currentRunId = Effect.gen(function* () {

@@ -1,10 +1,9 @@
 import type { ProvidedContext } from "vitest"
 
-import { Effect, Exit, Scope, ManagedRuntime } from "effect"
+import { Exit, Scope, ManagedRuntime } from "effect"
 import { existsSync, readFileSync } from "node:fs"
 
 import { Live } from "../infra/runtime.ts"
-import { run } from "../infra/webhook-broker.ts"
 
 const repoRoot = new URL("../../../../", import.meta.url).pathname
 
@@ -53,22 +52,14 @@ export default async function setup(project: {
   // TODO: dot env
   loadE2eEnv()
 
-  const runtimes: Map<string, ManagedRuntime.ManagedRuntime<any, never>> = new Map()
+  const runtime = ManagedRuntime.make(Live)
 
-  project.provide("initProvider", (provider) => {
-    if (runtimes.has(provider)) {
-      let rt = runtimes.get(provider)
-      return rt!.runPromise(run(provider))
-    }
-
-    const rt = ManagedRuntime.make(Live)
-    runtimes.set(provider, rt)
-    return rt!.runPromise(run(provider))
+  project.provide("purchaseProviderE2E", {
+    localBaseURL: "",
+    publicBaseURL: ""
   })
 
   return async () => {
-    runtimes.forEach((rt) => {
-      rt.dispose()
-    })
+    runtime.dispose()
   }
 }

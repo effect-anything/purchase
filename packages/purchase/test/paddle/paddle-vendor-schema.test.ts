@@ -2,22 +2,18 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 
 import {
-  buildPaddleVendorCheckoutSettingsMutationVariables,
-  buildPaddleVendorOverlayMutationVariables,
-  buildPaddleVendorStylesMutationVariables,
-  decodePaddleVendorCheckoutSettingsData,
-  decodePaddleVendorCheckoutStylesData,
-  decodePaddleVendorOverlaySettingsData,
-  decodePaddleVendorSaveCheckoutSettingsResponse,
-  decodePaddleVendorSaveOverlaySettingsResponse,
-  decodePaddleVendorSaveStylesResponse,
-  normalizePaddleVendorCheckoutSnapshot
+  PaddleVendorCheckoutSettingsData,
+  PaddleVendorCheckoutStylesData,
+  PaddleVendorOverlaySettingsData,
+  PaddleVendorSaveCheckoutSettingsResponse,
+  PaddleVendorSaveOverlaySettingsResponse,
+  PaddleVendorSaveStylesResponse
 } from "../../src/paddle/internal/paddle-vendor-schema.ts"
 
 describe("paddle vendor schema", () => {
   it.effect("decodes vendor graphql payloads and normalizes checkout snapshot", () =>
     Effect.gen(function* () {
-      const checkoutSettings = yield* decodePaddleVendorCheckoutSettingsData({
+      const checkoutSettings = yield* PaddleVendorCheckoutSettingsData.decode({
         vendorName: "OPRAYNG STUDIO",
         audienceOptin: true,
         checkoutDiscounts: true,
@@ -83,12 +79,12 @@ describe("paddle vendor schema", () => {
         __typename: "CheckoutSettingsData"
       })
 
-      const overlaySettings = yield* decodePaddleVendorOverlaySettingsData({
+      const overlaySettings = yield* PaddleVendorOverlaySettingsData.decode({
         brandColor: null,
         __typename: "OverlaySettingsData"
       })
 
-      const checkoutStyles = yield* decodePaddleVendorCheckoutStylesData({
+      const checkoutStyles = yield* PaddleVendorCheckoutStylesData.decode({
         theme: {
           globals: {
             activeFocusBorderColor: "#0096FF",
@@ -226,7 +222,7 @@ describe("paddle vendor schema", () => {
         __typename: "CheckoutStylesData"
       })
 
-      const snapshot = normalizePaddleVendorCheckoutSnapshot({
+      const snapshot = PaddleVendorCheckoutSettingsData.normalizeSnapshot({
         checkoutSettings,
         overlaySettings,
         checkoutStyles
@@ -239,7 +235,7 @@ describe("paddle vendor schema", () => {
       expect(snapshot.checkout.styles?.theme?.buttons?.primary?.backgroundColor).toBe("#06C668")
       expect((snapshot.checkout.styles?.theme as Record<string, unknown>)?.__typename).toBeUndefined()
       expect(
-        buildPaddleVendorCheckoutSettingsMutationVariables({
+        PaddleVendorCheckoutSettingsData.buildMutationVariables({
           checkoutUrl: snapshot.checkoutUrl,
           checkout: snapshot.checkout
         })
@@ -275,28 +271,28 @@ describe("paddle vendor schema", () => {
           }
         }
       })
-      expect(buildPaddleVendorStylesMutationVariables(snapshot.checkout.styles)).toEqual({
+      expect(PaddleVendorCheckoutStylesData.buildMutationVariables(snapshot.checkout.styles)).toEqual({
         stylesObject: {
           theme: snapshot.checkout.styles?.theme
         }
       })
-      expect(buildPaddleVendorOverlayMutationVariables(snapshot.checkout.overlay)).toEqual({
+      expect(PaddleVendorOverlaySettingsData.buildMutationVariables(snapshot.checkout.overlay)).toEqual({
         overlaySettingsObject: {}
       })
 
-      const checkoutSave = yield* decodePaddleVendorSaveCheckoutSettingsResponse({
+      const checkoutSave = yield* PaddleVendorSaveCheckoutSettingsResponse.decode({
         saveCheckoutSettings: {
           message: "Changes saved successfully",
           __typename: "SaveCheckoutSettingsResponse"
         }
       })
-      const stylesSave = yield* decodePaddleVendorSaveStylesResponse({
+      const stylesSave = yield* PaddleVendorSaveStylesResponse.decode({
         saveStyles: {
           message: "Changes saved successfully",
           __typename: "SaveStylesResponse"
         }
       })
-      const overlaySave = yield* decodePaddleVendorSaveOverlaySettingsResponse({
+      const overlaySave = yield* PaddleVendorSaveOverlaySettingsResponse.decode({
         saveOverlaySettings: {
           message: "Changes saved successfully",
           __typename: "SaveOverlaySettingsResponse"

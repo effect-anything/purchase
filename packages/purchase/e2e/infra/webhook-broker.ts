@@ -1,27 +1,128 @@
-import type { Readable } from "node:stream"
-
-import { HttpLayerRouter, HttpServer, HttpServerResponse } from "@effect/platform"
+import {
+  HttpApi,
+  HttpApiBuilder,
+  HttpApiEndpoint,
+  HttpApiGroup,
+  HttpLayerRouter,
+  HttpServer,
+  HttpServerResponse
+} from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Context, Data, Effect, Layer } from "effect"
-import { spawn, type ChildProcessByStdio } from "node:child_process"
+import { Context, Data, Effect, Equivalence, Layer, Schema } from "effect"
+import { spawn } from "node:child_process"
 import { createServer } from "node:http"
 
-import { formatPrepareResult, prepareProvider, type ProviderPrepareInput } from "../../src/sync/config-service.ts"
-import { makeTunnelRuntime, type TunnelRuntimeConfig } from "../http-api/tunnel.ts"
+import { PaymentProviderTag } from "../../src/provider/types.ts"
+import {
+  formatPrepareResult,
+  prepareProvider,
+  type ProviderPrepareInput,
+  type ProviderPrepareResult,
+  type PurchaseConfigService
+} from "../../src/sync/config-service.ts"
+import { makeTunnelRuntime } from "../http-api/tunnel.ts"
 import { acquireProviderE2ELock } from "./provider-lock.ts"
 
 export interface WebhookBrokerRegistration {
-  readonly provider: "paddle"
+  readonly provider: "paddle" | "stripe"
   readonly runId: string
   readonly targetUrl: string
 }
+
+const WebhookBrokerRegistration = Schema.Struct({
+  provider: PaymentProviderTag,
+  runId: Schema.String,
+  targetUrl: Schema.String
+})
+
+const WebhookBrokerHealthResponse = Schema.Struct({
+  ok: Schema.Boolean,
+  routes: Schema.Number
+})
+
+const WebhookBrokerRegisterResponse = Schema.Struct({
+  ok: Schema.Boolean,
+  provider: PaymentProviderTag,
+  runId: Schema.String,
+  localBaseURL: Schema.String,
+  publicBaseURL: Schema.String,
+  brokerWebhookUrl: Schema.String,
+  targetUrl: Schema.String,
+  checkoutUrl: Schema.optional(Schema.String),
+  webhookSecret: Schema.optional(Schema.String)
+})
+
+const WebhookBrokerWebhookPath = Schema.Struct({
+  provider: PaymentProviderTag
+})
+
+const WebhookBrokerWebhookResponse = Schema.Struct({
+  accepted: Schema.Boolean,
+  reason: Schema.optional(Schema.String),
+  runId: Schema.optional(Schema.String),
+  targetStatus: Schema.optional(Schema.Number),
+  targetText: Schema.optional(Schema.String)
+})
+
+class WebhookBrokerApiError extends Schema.TaggedError<WebhookBrokerApiError>()("WebhookBrokerApiError", {
+  message: Schema.String
+}) {}
 
 export class WebhookBrokerError extends Data.TaggedError("WebhookBrokerError")<{
   readonly message: string
   readonly cause?: unknown
 }> {}
 
+export const WebhookBrokerApi = HttpApi.make("purchase-e2e-webhook-broker")
+  .add(
+    HttpApiGroup.make("broker")
+      .add(HttpApiEndpoint.get("health", "/health").addSuccess(WebhookBrokerHealthResponse))
+      .add(
+        HttpApiEndpoint.post("register", "/register")
+          .setPayload(WebhookBrokerRegistration)
+          .addSuccess(WebhookBrokerRegisterResponse)
+          .addError(WebhookBrokerApiError, { status: 500 })
+      )
+      .prefix("/__purchase-e2e")
+  )
+  .add(
+    HttpApiGroup.make("webhooks")
+      .add(
+        HttpApiEndpoint.post("forward", "/webhooks/:provider")
+          .setPath(WebhookBrokerWebhookPath)
+          .addSuccess(WebhookBrokerWebhookResponse, { status: 202 })
+          .addError(WebhookBrokerApiError, { status: 500 })
+      )
+      .prefix("/api")
+  )
+
 type RouteTable = Map<string, WebhookBrokerRegistration>
+
+export class BrokerServer extends Context.Tag("BrokerServer")<
+  BrokerServer,
+  {
+    localBaseURL: string
+    publicBaseURL: string
+  }
+>() {
+  static Default = Layer.scoped(
+    BrokerServer,
+    Effect.gen(function* () {
+      const server = yield* HttpServer.HttpServer
+      const address = server.address
+
+      if (address._tag === "UnixAddress") {
+        return yield* new WebhookBrokerError({ message: "Webhook broker did not bind to a TCP port" })
+      }
+
+      const localBaseURL = `http://${address.hostname}:${address.port}`
+      const publicEndpoint = yield* resolvePublicEndpoint(localBaseURL)
+      const publicBaseURL = publicEndpoint.publicBaseURL
+
+      return { localBaseURL, publicBaseURL }
+    })
+  )
+}
 
 export class BrokerState extends Context.Tag("BrokerState")<
   BrokerState,
@@ -39,126 +140,153 @@ export class BrokerState extends Context.Tag("BrokerState")<
   )
 }
 
-const WebhookBrokerRouter = HttpLayerRouter.serve(
-  Layer.mergeAll(
-    HttpLayerRouter.add("POST", "/__purchase-e2e/register", (request) =>
+export class BrokerProvider extends Context.Tag("BrokerProvider")<
+  BrokerProvider,
+  {
+    prepare: (input: ProviderPrepareInput) => Effect.Effect<ProviderPrepareResult, WebhookBrokerError>
+  }
+>() {
+  static Default = Layer.effect(
+    BrokerProvider,
+    Effect.gen(function* () {
+      const ctx = yield* Effect.context<PurchaseConfigService>()
+
+      const prepare = (input: ProviderPrepareInput) =>
+        acquireProviderE2ELock(`prepare:${input.environment}:${input.webhookUrl ?? "no-webhook"}`).pipe(
+          Effect.flatMap(
+            Effect.fn(function* () {
+              const prepareResult = yield* prepareProvider(input)
+
+              const { string: providerPrepareChanges, secrets } = formatPrepareResult(
+                { environment: input.environment, showSecrets: false },
+                prepareResult
+              )
+
+              console.log(providerPrepareChanges)
+
+              yield* Effect.logInfo("Webhook secrets").pipe(Effect.annotateLogs(secrets))
+
+              return prepareResult
+            })
+          ),
+          Effect.scoped,
+          Effect.provide(ctx),
+          Effect.orDie
+        )
+
+      const prepareCache = yield* Effect.cachedFunction(
+        prepare,
+        Equivalence.make(
+          (self, that) =>
+            self.environment === that.environment &&
+            self.checkoutUrl === that.checkoutUrl &&
+            self.webhookUrl === that.webhookUrl
+        )
+      )
+
+      return {
+        prepare: prepareCache
+      }
+    })
+  )
+}
+
+const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handlers) =>
+  handlers
+    .handle("health", () =>
       Effect.gen(function* () {
         const brokerState = yield* BrokerState
-        const registration = (yield* request.json) as WebhookBrokerRegistration
-        brokerState.routes.set(routeKey(registration.provider, registration.runId), registration)
-        return yield* jsonResponse(200, { ok: true })
+
+        return { ok: true, routes: brokerState.routes.size }
       })
-    ),
-    HttpLayerRouter.add("GET", "/__purchase-e2e/health", () =>
+    )
+    .handle("register", ({ payload }) =>
       Effect.gen(function* () {
         const brokerState = yield* BrokerState
+        brokerState.routes.set(routeKey(payload.provider, payload.runId), payload)
 
-        return yield* jsonResponse(200, { ok: true, routes: brokerState.routes.size })
+        const brokerProvider = yield* BrokerProvider
+        const serverInfo = yield* BrokerServer
+        const tunnel = makeTunnelRuntime({
+          localBaseURL: serverInfo.localBaseURL,
+          publicBaseURL: serverInfo.publicBaseURL
+        })
+        const brokerWebhookUrl = `${serverInfo.publicBaseURL}/api/webhooks/${payload.provider}`
+        const prepareResult = yield* brokerProvider
+          .prepare({
+            environment: "sandbox",
+            ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
+            webhookUrl: brokerWebhookUrl
+          })
+          .pipe(Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) })))
+
+        return {
+          ok: true,
+          provider: payload.provider,
+          runId: payload.runId,
+          localBaseURL: serverInfo.localBaseURL,
+          publicBaseURL: serverInfo.publicBaseURL,
+          brokerWebhookUrl,
+          targetUrl: payload.targetUrl,
+          ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
+          ...(prepareResult.secrets?.webhook?.current ? { webhookSecret: prepareResult.secrets.webhook.current } : {})
+        }
       })
-    ),
-    HttpLayerRouter.add("POST", "/api/webhooks/paddle", (request) =>
-      Effect.gen(function* () {
-        const body = Buffer.from(yield* request.arrayBuffer)
-        const runId = readPaddleRunId(body)
-        if (!runId) {
-          return yield* jsonResponse(202, { accepted: false, reason: "missing_run_id" })
-        }
+    )
+)
 
-        const brokerState = yield* BrokerState
+const WebhookHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "webhooks", (handlers) =>
+  handlers.handleRaw("forward", ({ path, request }) =>
+    Effect.gen(function* () {
+      const body = yield* request.arrayBuffer.pipe(
+        Effect.map((arrayBuffer) => Buffer.from(arrayBuffer)),
+        Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) }))
+      )
+      const runId = path.provider === "paddle" ? readPaddleRunId(body) : undefined
+      if (!runId) {
+        return HttpServerResponse.unsafeJson({ accepted: false, reason: "missing_run_id" }, { status: 202 })
+      }
 
-        const registration = brokerState.routes.get(routeKey("paddle", runId))
-        if (!registration) {
-          return yield* jsonResponse(202, { accepted: false, reason: "unregistered_run_id", runId })
-        }
+      const brokerState = yield* BrokerState
 
-        const upstream = yield* forwardWebhook(registration.targetUrl, request.headers, body)
+      const registration = brokerState.routes.get(routeKey(path.provider, runId))
+      if (!registration) {
+        return HttpServerResponse.unsafeJson({ accepted: false, reason: "unregistered_run_id", runId }, { status: 202 })
+      }
 
-        return yield* jsonResponse(upstream.ok ? 200 : 502, {
+      const upstream = yield* forwardWebhook(registration.targetUrl, request.headers, body).pipe(
+        Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) }))
+      )
+
+      return HttpServerResponse.unsafeJson(
+        {
           accepted: upstream.ok,
           runId,
           targetStatus: upstream.status,
           targetText: upstream.text.slice(0, 500)
-        })
-      }).pipe(Effect.catchAll((cause) => jsonResponse(500, { error: describeCause(cause) })))
-    )
-  )
-)
-
-export const BrokerLive = WebhookBrokerRouter.pipe(
-  Layer.provideMerge(NodeHttpServer.layer(createServer, { port: 0 })),
-  Layer.provide(BrokerState.Default)
-)
-
-// NodeHttpServer.layer(createServer, { port: 0 })
-// const context = Layer.buildWithScope(makeWebhookBrokerServer(routes), yield* Effect.scope)
-// ayer.buildWithScope(makeWebhookBrokerServer(routes), yield* Effect.scope)
-
-// const makeWebhookBrokerServer = (routes: RouteTable) =>
-//   Layer.unwrapScoped(
-//     Effect.gen(function* () {
-//       const context = yield* Layer.build()
-//       const server = context.pipe(Context.get(HttpServer.HttpServer))
-//       return WebhookBrokerRouter(routes).pipe(
-//         Layer.provide(Layer.succeed(HttpServer.HttpServer, server)),
-//         Layer.provide(Layer.succeedContext(context.pipe(Context.omit(HttpServer.HttpServer)))),
-//         Layer.provideMerge(Layer.succeed(HttpServer.HttpServer, server))
-//       )
-//     })
-//   ).pipe(Layer.orDie)
-
-const startWebhookBroker = Effect.gen(function* () {
-  const server = yield* HttpServer.HttpServer
-  const address = server.address
-
-  if (address._tag === "UnixAddress") {
-    return yield* new WebhookBrokerError({ message: "Webhook broker did not bind to a TCP port" })
-  }
-
-  const localBaseURL = `http://${address.hostname}:${address.port}`
-  const publicEndpoint = yield* resolvePublicEndpoint(localBaseURL)
-  const publicBaseURL = publicEndpoint.publicBaseURL
-  const tunnel = makeTunnelRuntime({ localBaseURL, publicBaseURL })
-
-  const process = publicEndpoint.process
-  if (process) {
-    yield* Effect.addFinalizer(() => stopProcess(process))
-  }
-
-  return {
-    localBaseURL,
-    publicBaseURL,
-    tunnel
-  }
-})
-
-export const run = (provider: string) =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      yield* acquireProviderE2ELock(provider + ":e2e")
-
-      const broker = yield* startWebhookBroker
-      const webhookURL = `${broker.publicBaseURL}/api/webhooks/${provider}`
-
-      const options: ProviderPrepareInput = {
-        environment: "sandbox",
-        ...(broker.tunnel.checkoutURL ? { checkoutUrl: broker.tunnel.checkoutURL } : {}),
-        webhookUrl: webhookURL
-      }
-      const prepareResult = yield* prepareProvider(options)
-      const { string: providerPrepareChanges, secrets } = formatPrepareResult(
-        { environment: "sandbox", showSecrets: false },
-        prepareResult
+        },
+        { status: upstream.ok ? 200 : 502 }
       )
-
-      console.log(providerPrepareChanges)
-      yield* Effect.logInfo("Webhook secrets").pipe(Effect.annotateLogs(secrets))
-
-      return {
-        ...broker,
-        webhookURL
-      }
     })
   )
+)
+
+const BrokerApiLive = HttpLayerRouter.addHttpApi(WebhookBrokerApi).pipe(
+  Layer.provide(Layer.mergeAll(BrokerHttpLive, WebhookHttpLive))
+)
+
+const WebhookBrokerRouter = HttpLayerRouter.serve(BrokerApiLive)
+
+const HttpServerLive = NodeHttpServer.layer(createServer, { port: 0 })
+
+export const BrokerLive = WebhookBrokerRouter.pipe(
+  Layer.provide([
+    HttpServerLive,
+    BrokerServer.Default.pipe(Layer.provide(HttpServerLive)),
+    BrokerState.Default,
+    BrokerProvider.Default
+  ])
+)
 
 const forwardWebhook = (targetUrl: string, requestHeaders: Record<string, string>, body: Buffer) =>
   Effect.tryPromise({
@@ -199,36 +327,39 @@ const readPaddleRunId = (body: Buffer) => {
   }
 }
 
-const resolvePublicEndpoint = (localBaseURL: string) =>
-  Effect.gen(function* () {
-    const configuredPublicBaseURL = normalizeUrl(globalThis.process.env.PURCHASE_E2E_BROKER_PUBLIC_URL)
-    if (configuredPublicBaseURL) {
-      return { publicBaseURL: configuredPublicBaseURL }
-    }
-
-    const localUrl = new URL(localBaseURL)
-    const child = yield* spawnNgrok({ port: localUrl.port })
-    const publicBaseURL = yield* waitForNgrokPublicUrl()
-
-    return { process: child, publicBaseURL }
-  })
+const resolvePublicEndpoint = Effect.fn(function* (localBaseURL: string) {
+  const configuredPublicBaseURL = normalizeUrl(globalThis.process.env.PURCHASE_E2E_BROKER_PUBLIC_URL)
+  if (configuredPublicBaseURL) {
+    return { publicBaseURL: configuredPublicBaseURL }
+  }
+  const localUrl = new URL(localBaseURL)
+  yield* spawnNgrok({ port: localUrl.port })
+  const publicBaseURL = yield* waitForNgrokPublicUrl()
+  return { publicBaseURL }
+})
 
 const spawnNgrok = (input: { readonly port: string }) =>
-  Effect.try({
-    try: () =>
-      spawn("ngrok", ["http", input.port, "--log=stdout"], {
-        env: globalThis.process.env,
-        stdio: ["ignore", "pipe", "pipe"]
-      }),
-    catch: (cause) => new WebhookBrokerError({ message: "Failed to start ngrok for webhook broker", cause })
-  })
+  Effect.acquireRelease(
+    Effect.try({
+      try: () =>
+        spawn("ngrok", ["http", input.port, "--log=stdout"], {
+          env: globalThis.process.env,
+          stdio: ["ignore", "pipe", "pipe"]
+        }),
+      catch: (cause) => new WebhookBrokerError({ message: "Failed to start ngrok for webhook broker", cause })
+    }),
+    (child) =>
+      Effect.sync(() => {
+        child.kill("SIGTERM")
+      }).pipe(Effect.catchAllDefect(() => Effect.void))
+  )
 
 const waitForNgrokPublicUrl = (timeoutMs = 20_000) =>
   Effect.gen(function* () {
     const startedAt = Date.now()
 
     while (Date.now() - startedAt < timeoutMs) {
-      const url = yield* fetchNgrokTunnelUrl().pipe(Effect.catchAll(() => Effect.succeed(undefined)))
+      const url = yield* fetchNgrokTunnelUrl().pipe(Effect.orElseSucceed(() => undefined))
       if (url) {
         return url
       }
@@ -260,13 +391,6 @@ const fetchNgrokTunnelUrl = () =>
     },
     catch: (cause) => new WebhookBrokerError({ message: "Failed to read ngrok tunnel API", cause })
   })
-
-const stopProcess = (child: ChildProcessByStdio<null, Readable, Readable>) =>
-  Effect.sync(() => {
-    child.kill("SIGTERM")
-  }).pipe(Effect.catchAllDefect(() => Effect.void))
-
-const jsonResponse = (status: number, body: unknown) => HttpServerResponse.json(body, { status })
 
 const describeCause = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 

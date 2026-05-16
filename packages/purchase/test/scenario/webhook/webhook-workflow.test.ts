@@ -53,7 +53,9 @@ const prepareCheckoutWebhook = Effect.gen(function* () {
 })
 
 describe("core webhook workflow", () => {
-  it.effect("webhook.receive persists receipt, commercial event, projections, and entitlements", () => {
+  // Business contract:
+  // a completed checkout should become durable app-readable paid state after webhook reconciliation.
+  it.effect("accepts a completed checkout and makes the paid state queryable through snapshot and entitlements", () => {
     const payment = makeTestPaymentLayer({ normalizedWebhook: checkoutCompletedNormalization })
 
     return runPayEffect(
@@ -135,7 +137,9 @@ describe("core webhook workflow", () => {
     )
   })
 
-  it.effect("webhook.receive duplicate event returns accepted=false without mutation", () => {
+  // Business contract:
+  // duplicate delivery must not duplicate subscriptions, grants, credits, or entitlements.
+  it.effect("drops duplicate delivery without mutating durable commercial state", () => {
     const payment = makeTestPaymentLayer({ normalizedWebhook: checkoutCompletedNormalization })
 
     return runPayEffect(
@@ -177,6 +181,9 @@ describe("core webhook workflow", () => {
     )
   })
 
+  // Internal note:
+  // this is closer to a provider-ref persistence invariant than to a business scenario.
+  // keep it for now, but it likely belongs in a narrower workflow-store/provider-ref test later.
   it.effect("webhook.receive writes subscription provider refs for the active provider", () => {
     const payment = makeTestPaymentLayer({
       provider: "paddle",
@@ -265,6 +272,11 @@ describe("core webhook workflow", () => {
       payment.layer
     )
   })
+
+  // Recovery gap:
+  // current replay is read-only and duplicate delivery short-circuits failed receipts.
+  // this scenario should become the deciding regression test when a real recovery mechanism is introduced.
+  it.todo("documents current failed-webhook recovery gap when a receipt was stored but projection did not complete")
 
   it.effect("webhook.receive rejects provider that does not match active layer", () => {
     const payment = makeTestPaymentLayer({
