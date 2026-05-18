@@ -9,7 +9,7 @@ import type { ServicesReturns } from "../internal/types.ts"
 import type { CustomerId } from "./common-schema.ts"
 import type { RefreshCustomerSnapshotInput } from "./workflow-schema.ts"
 
-import { PayStorageAdapter, type PayStorageSubscriptionRecord } from "../db.ts"
+import { PurchaseStorageAdapter, type PurchaseStorageSubscriptionRecord } from "../db.ts"
 import { CommercialCatalogService } from "./catalog-service.ts"
 import {
   type CommercialBenefit,
@@ -75,11 +75,11 @@ export const CommercialProjectionServiceLayer = Layer.effect(
   CommercialProjectionService,
   Effect.gen(function* () {
     const catalogService = yield* CommercialCatalogService
-    const storage = yield* PayStorageAdapter
+    const storage = yield* PurchaseStorageAdapter
 
     const catalogState = yield* CommercialCatalogService
 
-    const resolveOfferIdForSubscription = (subscription: PayStorageSubscriptionRecord) =>
+    const resolveOfferIdForSubscription = (subscription: PurchaseStorageSubscriptionRecord) =>
       storage.product.findFirst({ where: [["internalId", subscription.productInternalId]] }).pipe(
         Effect.map(
           Option.match({
@@ -101,7 +101,7 @@ export const CommercialProjectionServiceLayer = Layer.effect(
         Effect.orDie
       )
 
-    const mapSubscriptionRows = (rows: ReadonlyArray<PayStorageSubscriptionRecord>) =>
+    const mapSubscriptionRows = (rows: ReadonlyArray<PurchaseStorageSubscriptionRecord>) =>
       Effect.forEach(rows, (row) =>
         resolveOfferIdForSubscription(row).pipe(
           Effect.flatMap((offerId) =>
@@ -693,7 +693,7 @@ const readProviderOfferId = (providerData: unknown): string | undefined =>
   readString(toRecord(providerData), ["offerId", "payOfferId"])
 
 const mapSubscriptionAgreement = (input: {
-  readonly row: PayStorageSubscriptionRecord
+  readonly row: PurchaseStorageSubscriptionRecord
   readonly offerId: string
   readonly productId: string
 }) => {

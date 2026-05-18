@@ -11,7 +11,7 @@ import {
   subscriptionProduct
 } from "../src/dsl.ts"
 import { Paddle } from "../src/paddle.ts"
-import { BaseSDK } from "../src/sdk.ts"
+import { PurchaseSDK } from "../src/sdk.ts"
 import { Stripe } from "../src/stripe.ts"
 
 export const noteSyncEnabled = featureFlag({ id: "note_sync_enabled" })
@@ -126,7 +126,7 @@ export const CommercialProducts = [
   })
 ] as const
 
-export class CommercialPay extends BaseSDK<
+export class CommercialPay extends PurchaseSDK<
   CommercialPay,
   {
     readonly hello: () => Effect.Effect<string>

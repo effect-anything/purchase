@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url"
 
 import type { PurchaseConfig } from "../core/config.ts"
 
-import { BaseSDK } from "../sdk.ts"
+import { PurchaseSDK } from "../sdk.ts"
 
 export interface PurchaseConfigModule {
   readonly config: PurchaseConfig
@@ -38,7 +38,7 @@ export const loadPurchaseConfigModule = async (options: {
 
   if (!selected) {
     throw new Error(
-      `No purchase config found in ${options.modulePath}. Export defineConfig(...), plans/products, or a BaseSDK subclass.`
+      `No purchase config found in ${options.modulePath}. Export defineConfig(...), plans/products, or a PurchaseSDK subclass.`
     )
   }
 
@@ -76,7 +76,7 @@ export const loadPurchaseConfigModule = async (options: {
     throw new Error(`Purchase config ${options.modulePath} must provide both plans and products.`)
   }
 
-  class CliPay extends BaseSDK<CliPay, Record<string, never>, ReadonlyArray<unknown>, ReadonlyArray<unknown>>({
+  class CliPay extends PurchaseSDK<CliPay, Record<string, never>, ReadonlyArray<unknown>, ReadonlyArray<unknown>>({
     plans,
     products
   }) {}

@@ -12,7 +12,7 @@ import type { Product, PurchasePlan } from "../../../src/dsl.ts"
 
 import { creditPackProduct, oneTimeProduct, plan, subscriptionProduct } from "../../../src/dsl.ts"
 import * as SQLite from "../../../src/internal/node-sqlite-client.ts"
-import { BaseSDK } from "../../../src/sdk.ts"
+import { PurchaseSDK } from "../../../src/sdk.ts"
 import { PurchaseConfigLayer, syncCatalog } from "../../../src/sync/config-service.ts"
 import { payTableDdl } from "../../../test/support/sqlite-pay-harness.ts"
 import { makeTestPaymentLayer } from "../../../test/support/test-payment-provider.ts"
@@ -110,7 +110,7 @@ const buildModifiedCatalog = () => {
     return oneTimeProduct(sourceProduct.id, config)
   })
 
-  class ModifiedPay extends BaseSDK<
+  class ModifiedPay extends PurchaseSDK<
     ModifiedPay,
     Record<string, never>,
     ReadonlyArray<PurchasePlan>,

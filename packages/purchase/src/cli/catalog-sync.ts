@@ -384,7 +384,7 @@ export const parseCatalogSyncOptions = (config: {
 const textOption = (name: string, description: string) => Options.text(name).pipe(Options.withDescription(description))
 
 const catalogSyncOptions = {
-  module: textOption("module", "Module exporting plans/products or a BaseSDK subclass."),
+  module: textOption("module", "Module exporting plans/products or a PurchaseSDK subclass."),
   exportName: Options.text("export").pipe(Options.optional, Options.withDescription("Named export to load.")),
   provider: Options.choice("provider", ["stripe", "paddle"] as const).pipe(
     Options.withDefault((process.env.PROVIDER as PaymentProviderTag | undefined) ?? "stripe"),

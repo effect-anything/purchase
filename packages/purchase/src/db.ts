@@ -10,33 +10,35 @@ import * as Option from "effect/Option"
 
 import * as DB from "./tables.ts"
 
-export type PayStorageModel<TKey extends string> = {
-  readonly model: PayDbModel
+export type PurchaseStorageModel<TKey extends string> = {
+  readonly model: PurchaseDbModel
   readonly fieldKeys: Record<TKey, string>
   readonly modelName: string
   readonly fields: Record<TKey, string>
 }
 
-type PayDbModel = Model.AnyNoContext & {
+type PurchaseDbModel = Model.AnyNoContext & {
   readonly table: string
   readonly fields: Schema.Struct.Fields
 }
 
-type PayDbModelFieldKey<TModel extends PayDbModel> = Extract<keyof Schema.Schema.Type<TModel>, string>
+type PurchaseDbModelFieldKey<TModel extends PurchaseDbModel> = Extract<keyof Schema.Schema.Type<TModel>, string>
 
-export type PayStorageModelBinding<
-  TModel extends PayDbModel,
-  TFields extends Record<string, PayDbModelFieldKey<TModel>>
+export type PurchaseStorageModelBinding<
+  TModel extends PurchaseDbModel,
+  TFields extends Record<string, PurchaseDbModelFieldKey<TModel>>
 > = {
   readonly model: TModel
   readonly fields: TFields
 }
 
-export type PayStorageRecordFromBinding<TBinding extends PayStorageModelBinding<PayDbModel, Record<string, string>>> = {
+export type PurchaseStorageRecordFromBinding<
+  TBinding extends PurchaseStorageModelBinding<PurchaseDbModel, Record<string, string>>
+> = {
   readonly [K in keyof TBinding["fields"]]: Schema.Schema.Type<TBinding["model"]>[TBinding["fields"][K]]
 }
 
-export type PayStorageRecordFromModel<TModel extends PayStorageModel<string>> = {
+export type PurchaseStorageRecordFromModel<TModel extends PurchaseStorageModel<string>> = {
   readonly [K in keyof TModel["fieldKeys"]]: Schema.Schema.Type<TModel["model"]>[TModel["fieldKeys"][K]]
 }
 const camelToSnake = (value: string) => value.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase()
@@ -66,11 +68,11 @@ const getModelColumnName = (fieldName: string, field: unknown) => {
   return columnConfig?.map ?? camelToSnake(fieldName)
 }
 
-export const definePayStorageModel = <
-  TModel extends PayDbModel,
-  const TFields extends Record<string, PayDbModelFieldKey<TModel>>
+export const definePurchaseStorageModel = <
+  TModel extends PurchaseDbModel,
+  const TFields extends Record<string, PurchaseDbModelFieldKey<TModel>>
 >(
-  binding: PayStorageModelBinding<TModel, TFields>
+  binding: PurchaseStorageModelBinding<TModel, TFields>
 ): {
   readonly model: TModel
   readonly fieldKeys: TFields
@@ -92,8 +94,8 @@ export const definePayStorageModel = <
   }
 })
 
-export const defaultPayStorageModels = {
-  customer: definePayStorageModel({
+export const defaultPurchaseStorageModels = {
+  customer: definePurchaseStorageModel({
     model: DB.Customer,
     fields: {
       id: "id",
@@ -105,7 +107,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  feature: definePayStorageModel({
+  feature: definePurchaseStorageModel({
     model: DB.Feature,
     fields: {
       id: "id",
@@ -114,7 +116,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  checkoutIntent: definePayStorageModel({
+  checkoutIntent: definePurchaseStorageModel({
     model: DB.CheckoutIntent,
     fields: {
       id: "id",
@@ -129,7 +131,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  commercialEvent: definePayStorageModel({
+  commercialEvent: definePurchaseStorageModel({
     model: DB.CommercialEvent,
     fields: {
       id: "id",
@@ -144,7 +146,7 @@ export const defaultPayStorageModels = {
       createdAt: "createdAt"
     }
   }),
-  creditLedger: definePayStorageModel({
+  creditLedger: definePurchaseStorageModel({
     model: DB.CreditLedger,
     fields: {
       id: "id",
@@ -159,7 +161,7 @@ export const defaultPayStorageModels = {
       createdAt: "createdAt"
     }
   }),
-  product: definePayStorageModel({
+  product: definePurchaseStorageModel({
     model: DB.Product,
     fields: {
       internalId: "internalId",
@@ -176,7 +178,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  providerRef: definePayStorageModel({
+  providerRef: definePurchaseStorageModel({
     model: DB.ProviderRef,
     fields: {
       id: "id",
@@ -189,7 +191,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  subscription: definePayStorageModel({
+  subscription: definePurchaseStorageModel({
     model: DB.Subscription,
     fields: {
       id: "id",
@@ -212,7 +214,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  entitlement: definePayStorageModel({
+  entitlement: definePurchaseStorageModel({
     model: DB.Entitlement,
     fields: {
       id: "id",
@@ -226,7 +228,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  invoice: definePayStorageModel({
+  invoice: definePurchaseStorageModel({
     model: DB.Invoice,
     fields: {
       id: "id",
@@ -246,7 +248,7 @@ export const defaultPayStorageModels = {
       updatedAt: "updatedAt"
     }
   }),
-  metadata: definePayStorageModel({
+  metadata: definePurchaseStorageModel({
     model: DB.Metadata,
     fields: {
       id: "id",
@@ -258,7 +260,7 @@ export const defaultPayStorageModels = {
       createdAt: "createdAt"
     }
   }),
-  webhookEvent: definePayStorageModel({
+  webhookEvent: definePurchaseStorageModel({
     model: DB.WebhookEvent,
     fields: {
       id: "id",
@@ -275,139 +277,143 @@ export const defaultPayStorageModels = {
   })
 } as const
 
-export type PartialPayStorageModel<TModel extends PayStorageModel<string>> = {
+export type PartialPurchaseStorageModel<TModel extends PurchaseStorageModel<string>> = {
   readonly modelName?: string | undefined
   readonly fields?: Partial<TModel["fields"]> | undefined
 }
 
-export interface PayStorageOverrides {
-  readonly checkoutIntent?: PartialPayStorageModel<PayCheckoutIntentModel> | undefined
-  readonly commercialEvent?: PartialPayStorageModel<PayCommercialEventModel> | undefined
-  readonly creditLedger?: PartialPayStorageModel<PayCreditLedgerModel> | undefined
-  readonly customer?: PartialPayStorageModel<PayCustomerModel> | undefined
-  readonly feature?: PartialPayStorageModel<PayFeatureModel> | undefined
-  readonly product?: PartialPayStorageModel<PayProductModel> | undefined
-  readonly providerRef?: PartialPayStorageModel<PayProviderRefModel> | undefined
-  readonly subscription?: PartialPayStorageModel<PaySubscriptionModel> | undefined
-  readonly entitlement?: PartialPayStorageModel<PayEntitlementModel> | undefined
-  readonly invoice?: PartialPayStorageModel<PayInvoiceModel> | undefined
-  readonly metadata?: PartialPayStorageModel<PayMetadataModel> | undefined
-  readonly webhookEvent?: PartialPayStorageModel<PayWebhookEventModel> | undefined
+export interface PurchaseStorageOverrides {
+  readonly checkoutIntent?: PartialPurchaseStorageModel<PurchaseCheckoutIntentModel> | undefined
+  readonly commercialEvent?: PartialPurchaseStorageModel<PurchaseCommercialEventModel> | undefined
+  readonly creditLedger?: PartialPurchaseStorageModel<PurchaseCreditLedgerModel> | undefined
+  readonly customer?: PartialPurchaseStorageModel<PurchaseCustomerModel> | undefined
+  readonly feature?: PartialPurchaseStorageModel<PurchaseFeatureModel> | undefined
+  readonly product?: PartialPurchaseStorageModel<PurchaseProductModel> | undefined
+  readonly providerRef?: PartialPurchaseStorageModel<PurchaseProviderRefModel> | undefined
+  readonly subscription?: PartialPurchaseStorageModel<PurchaseSubscriptionModel> | undefined
+  readonly entitlement?: PartialPurchaseStorageModel<PurchaseEntitlementModel> | undefined
+  readonly invoice?: PartialPurchaseStorageModel<PurchaseInvoiceModel> | undefined
+  readonly metadata?: PartialPurchaseStorageModel<PurchaseMetadataModel> | undefined
+  readonly webhookEvent?: PartialPurchaseStorageModel<PurchaseWebhookEventModel> | undefined
 }
 
-export type PayStorageCustomerRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageCustomerRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Customer
-  readonly fields: typeof defaultPayStorageModels.customer.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.customer.fieldKeys
 }>
 
-export type PayStorageCheckoutIntentRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageCheckoutIntentRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.CheckoutIntent
-  readonly fields: typeof defaultPayStorageModels.checkoutIntent.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.checkoutIntent.fieldKeys
 }>
 
-export type PayStorageCommercialEventRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageCommercialEventRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.CommercialEvent
-  readonly fields: typeof defaultPayStorageModels.commercialEvent.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.commercialEvent.fieldKeys
 }>
 
-export type PayStorageCreditLedgerRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageCreditLedgerRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.CreditLedger
-  readonly fields: typeof defaultPayStorageModels.creditLedger.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.creditLedger.fieldKeys
 }>
 
-export type PayStorageSubscriptionRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageSubscriptionRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Subscription
-  readonly fields: typeof defaultPayStorageModels.subscription.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.subscription.fieldKeys
 }>
 
-export type PayStorageProductRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageProductRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Product
-  readonly fields: typeof defaultPayStorageModels.product.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.product.fieldKeys
 }>
 
-export type PayStorageProviderRefRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageProviderRefRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.ProviderRef
-  readonly fields: typeof defaultPayStorageModels.providerRef.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.providerRef.fieldKeys
 }>
 
-export type PayStorageFeatureRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageFeatureRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Feature
-  readonly fields: typeof defaultPayStorageModels.feature.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.feature.fieldKeys
 }>
 
-export type PayStorageEntitlementRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageEntitlementRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Entitlement
-  readonly fields: typeof defaultPayStorageModels.entitlement.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.entitlement.fieldKeys
 }>
 
-export type PayStorageInvoiceRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageInvoiceRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Invoice
-  readonly fields: typeof defaultPayStorageModels.invoice.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.invoice.fieldKeys
 }>
 
-export type PayStorageMetadataRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageMetadataRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.Metadata
-  readonly fields: typeof defaultPayStorageModels.metadata.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.metadata.fieldKeys
 }>
 
-export type PayStorageWebhookEventRecord = PayStorageRecordFromBinding<{
+export type PurchaseStorageWebhookEventRecord = PurchaseStorageRecordFromBinding<{
   readonly model: typeof DB.WebhookEvent
-  readonly fields: typeof defaultPayStorageModels.webhookEvent.fieldKeys
+  readonly fields: typeof defaultPurchaseStorageModels.webhookEvent.fieldKeys
 }>
 
-export type PayStorageWhere<TModel extends PayStorageModel<string>> = ReadonlyArray<
+export type PurchaseStorageWhere<TModel extends PurchaseStorageModel<string>> = ReadonlyArray<
   readonly [keyof TModel["fields"], unknown]
 >
 
-export type PayStorageOrderBy<TModel extends PayStorageModel<string>> = readonly [
+export type PurchaseStorageOrderBy<TModel extends PurchaseStorageModel<string>> = readonly [
   keyof TModel["fields"],
   "asc" | "desc"
 ]
 
-export interface PayStorageFindFirstInput<TModel extends PayStorageModel<string>> {
-  readonly where?: PayStorageWhere<TModel> | undefined
-  readonly orderBy?: PayStorageOrderBy<TModel> | undefined
+export interface PurchaseStorageFindFirstInput<TModel extends PurchaseStorageModel<string>> {
+  readonly where?: PurchaseStorageWhere<TModel> | undefined
+  readonly orderBy?: PurchaseStorageOrderBy<TModel> | undefined
 }
 
-export interface PayStorageFindManyInput<TModel extends PayStorageModel<string>> {
-  readonly where?: PayStorageWhere<TModel> | undefined
-  readonly orderBy?: PayStorageOrderBy<TModel> | undefined
+export interface PurchaseStorageFindManyInput<TModel extends PurchaseStorageModel<string>> {
+  readonly where?: PurchaseStorageWhere<TModel> | undefined
+  readonly orderBy?: PurchaseStorageOrderBy<TModel> | undefined
   readonly limit?: number | undefined
 }
 
-export type PayStorageValues<TModel extends PayStorageModel<string>> = Partial<PayStorageRecordFromModel<TModel>>
+export type PurchaseStorageValues<TModel extends PurchaseStorageModel<string>> = Partial<
+  PurchaseStorageRecordFromModel<TModel>
+>
 
-export interface PayStorageInsertInput<TModel extends PayStorageModel<string>> {
-  readonly values: PayStorageValues<TModel>
+export interface PurchaseStorageInsertInput<TModel extends PurchaseStorageModel<string>> {
+  readonly values: PurchaseStorageValues<TModel>
 }
 
-export interface PayStorageUpdateFirstInput<TModel extends PayStorageModel<string>> {
-  readonly where: PayStorageWhere<TModel>
-  readonly set: PayStorageValues<TModel>
-  readonly orderBy?: PayStorageOrderBy<TModel> | undefined
+export interface PurchaseStorageUpdateFirstInput<TModel extends PurchaseStorageModel<string>> {
+  readonly where: PurchaseStorageWhere<TModel>
+  readonly set: PurchaseStorageValues<TModel>
+  readonly orderBy?: PurchaseStorageOrderBy<TModel> | undefined
 }
 
-export interface PayStorageDeleteManyInput<TModel extends PayStorageModel<string>> {
-  readonly where?: PayStorageWhere<TModel> | undefined
+export interface PurchaseStorageDeleteManyInput<TModel extends PurchaseStorageModel<string>> {
+  readonly where?: PurchaseStorageWhere<TModel> | undefined
 }
 
-export interface PayStorageRepo<TModel extends PayStorageModel<string>> {
+export interface PurchaseStorageRepo<TModel extends PurchaseStorageModel<string>> {
   readonly findFirst: (
-    input: PayStorageFindFirstInput<TModel>
-  ) => Effect.Effect<Option.Option<PayStorageRecordFromModel<TModel>>, unknown>
+    input: PurchaseStorageFindFirstInput<TModel>
+  ) => Effect.Effect<Option.Option<PurchaseStorageRecordFromModel<TModel>>, unknown>
   readonly findMany: (
-    input: PayStorageFindManyInput<TModel>
-  ) => Effect.Effect<ReadonlyArray<PayStorageRecordFromModel<TModel>>, unknown>
-  readonly insert: (input: PayStorageInsertInput<TModel>) => Effect.Effect<PayStorageRecordFromModel<TModel>, unknown>
+    input: PurchaseStorageFindManyInput<TModel>
+  ) => Effect.Effect<ReadonlyArray<PurchaseStorageRecordFromModel<TModel>>, unknown>
+  readonly insert: (
+    input: PurchaseStorageInsertInput<TModel>
+  ) => Effect.Effect<PurchaseStorageRecordFromModel<TModel>, unknown>
   readonly updateFirst: (
-    input: PayStorageUpdateFirstInput<TModel>
-  ) => Effect.Effect<Option.Option<PayStorageRecordFromModel<TModel>>, unknown>
-  readonly deleteMany: (input: PayStorageDeleteManyInput<TModel>) => Effect.Effect<void, unknown>
+    input: PurchaseStorageUpdateFirstInput<TModel>
+  ) => Effect.Effect<Option.Option<PurchaseStorageRecordFromModel<TModel>>, unknown>
+  readonly deleteMany: (input: PurchaseStorageDeleteManyInput<TModel>) => Effect.Effect<void, unknown>
 }
 
-const mergeStorageModel = <TModel extends PayStorageModel<string>>(
+const mergeStorageModel = <TModel extends PurchaseStorageModel<string>>(
   model: TModel,
-  override: PartialPayStorageModel<TModel> | undefined
+  override: PartialPurchaseStorageModel<TModel> | undefined
 ): TModel =>
   ({
     ...model,
@@ -435,7 +441,7 @@ const runUnsafeAll = <A>(sql: SqlClient.SqlClient, statement: string, params: Re
 const runUnsafeOne = <A>(sql: SqlClient.SqlClient, statement: string, params: ReadonlyArray<unknown>) =>
   runUnsafeAll<A>(sql, statement, params).pipe(Effect.map((rows) => Option.fromNullable(rows[0])))
 
-const getModelColumn = <TModel extends PayStorageModel<string>>(model: TModel, field: keyof TModel["fields"]) =>
+const getModelColumn = <TModel extends PurchaseStorageModel<string>>(model: TModel, field: keyof TModel["fields"]) =>
   (model.fields as Record<keyof TModel["fields"], string>)[field]
 
 const encodeStorageValue = (value: unknown): unknown => {
@@ -458,9 +464,9 @@ const encodeStorageValue = (value: unknown): unknown => {
   return value
 }
 
-const buildWhereClause = <TModel extends PayStorageModel<string>>(
+const buildWhereClause = <TModel extends PurchaseStorageModel<string>>(
   model: TModel,
-  where: PayStorageWhere<TModel> | undefined
+  where: PurchaseStorageWhere<TModel> | undefined
 ) => {
   if (!where || where.length === 0) {
     return {
@@ -475,9 +481,9 @@ const buildWhereClause = <TModel extends PayStorageModel<string>>(
   }
 }
 
-const buildOrderClause = <TModel extends PayStorageModel<string>>(
+const buildOrderClause = <TModel extends PurchaseStorageModel<string>>(
   model: TModel,
-  orderBy: PayStorageOrderBy<TModel> | undefined
+  orderBy: PurchaseStorageOrderBy<TModel> | undefined
 ) => {
   if (!orderBy) {
     return ""
@@ -486,7 +492,10 @@ const buildOrderClause = <TModel extends PayStorageModel<string>>(
   return ` ORDER BY ${quoteIdentifier(getModelColumn(model, orderBy[0]))} ${orderBy[1].toUpperCase()}`
 }
 
-const buildInsertClause = <TModel extends PayStorageModel<string>>(model: TModel, values: PayStorageValues<TModel>) => {
+const buildInsertClause = <TModel extends PurchaseStorageModel<string>>(
+  model: TModel,
+  values: PurchaseStorageValues<TModel>
+) => {
   const entries = Object.entries(values).filter(([, value]) => value !== undefined) as ReadonlyArray<
     readonly [keyof TModel["fields"], unknown]
   >
@@ -498,7 +507,10 @@ const buildInsertClause = <TModel extends PayStorageModel<string>>(model: TModel
   }
 }
 
-const buildSetClause = <TModel extends PayStorageModel<string>>(model: TModel, values: PayStorageValues<TModel>) => {
+const buildSetClause = <TModel extends PurchaseStorageModel<string>>(
+  model: TModel,
+  values: PurchaseStorageValues<TModel>
+) => {
   const entries = Object.entries(values).filter(([, value]) => value !== undefined) as ReadonlyArray<
     readonly [keyof TModel["fields"], unknown]
   >
@@ -509,46 +521,46 @@ const buildSetClause = <TModel extends PayStorageModel<string>>(model: TModel, v
   }
 }
 
-export type PayCheckoutIntentModel = typeof defaultPayStorageModels.checkoutIntent
-export type PayCommercialEventModel = typeof defaultPayStorageModels.commercialEvent
-export type PayCreditLedgerModel = typeof defaultPayStorageModels.creditLedger
-export type PayCustomerModel = typeof defaultPayStorageModels.customer
-export type PayFeatureModel = typeof defaultPayStorageModels.feature
-export type PaySubscriptionModel = typeof defaultPayStorageModels.subscription
-export type PayEntitlementModel = typeof defaultPayStorageModels.entitlement
-export type PayInvoiceModel = typeof defaultPayStorageModels.invoice
-export type PayMetadataModel = typeof defaultPayStorageModels.metadata
-export type PayWebhookEventModel = typeof defaultPayStorageModels.webhookEvent
-export type PayProductModel = typeof defaultPayStorageModels.product
-export type PayProviderRefModel = typeof defaultPayStorageModels.providerRef
+export type PurchaseCheckoutIntentModel = typeof defaultPurchaseStorageModels.checkoutIntent
+export type PurchaseCommercialEventModel = typeof defaultPurchaseStorageModels.commercialEvent
+export type PurchaseCreditLedgerModel = typeof defaultPurchaseStorageModels.creditLedger
+export type PurchaseCustomerModel = typeof defaultPurchaseStorageModels.customer
+export type PurchaseFeatureModel = typeof defaultPurchaseStorageModels.feature
+export type PurchaseSubscriptionModel = typeof defaultPurchaseStorageModels.subscription
+export type PurchaseEntitlementModel = typeof defaultPurchaseStorageModels.entitlement
+export type PurchaseInvoiceModel = typeof defaultPurchaseStorageModels.invoice
+export type PurchaseMetadataModel = typeof defaultPurchaseStorageModels.metadata
+export type PurchaseWebhookEventModel = typeof defaultPurchaseStorageModels.webhookEvent
+export type PurchaseProductModel = typeof defaultPurchaseStorageModels.product
+export type PurchaseProviderRefModel = typeof defaultPurchaseStorageModels.providerRef
 
-export class PayStorageAdapter extends Context.Tag("@xstack/pay/PayStorageAdapter")<
-  PayStorageAdapter,
+export class PurchaseStorageAdapter extends Context.Tag("@xstack/pay/PurchaseStorageAdapter")<
+  PurchaseStorageAdapter,
   {
-    readonly checkoutIntent: PayStorageRepo<PayCheckoutIntentModel>
-    readonly commercialEvent: PayStorageRepo<PayCommercialEventModel>
-    readonly creditLedger: PayStorageRepo<PayCreditLedgerModel>
-    readonly customer: PayStorageRepo<PayCustomerModel>
-    readonly feature: PayStorageRepo<PayFeatureModel>
-    readonly product: PayStorageRepo<PayProductModel>
-    readonly subscription: PayStorageRepo<PaySubscriptionModel>
-    readonly entitlement: PayStorageRepo<PayEntitlementModel>
-    readonly invoice: PayStorageRepo<PayInvoiceModel>
-    readonly metadata: PayStorageRepo<PayMetadataModel>
-    readonly providerRef: PayStorageRepo<PayProviderRefModel>
-    readonly webhookEvent: PayStorageRepo<PayWebhookEventModel>
+    readonly checkoutIntent: PurchaseStorageRepo<PurchaseCheckoutIntentModel>
+    readonly commercialEvent: PurchaseStorageRepo<PurchaseCommercialEventModel>
+    readonly creditLedger: PurchaseStorageRepo<PurchaseCreditLedgerModel>
+    readonly customer: PurchaseStorageRepo<PurchaseCustomerModel>
+    readonly feature: PurchaseStorageRepo<PurchaseFeatureModel>
+    readonly product: PurchaseStorageRepo<PurchaseProductModel>
+    readonly subscription: PurchaseStorageRepo<PurchaseSubscriptionModel>
+    readonly entitlement: PurchaseStorageRepo<PurchaseEntitlementModel>
+    readonly invoice: PurchaseStorageRepo<PurchaseInvoiceModel>
+    readonly metadata: PurchaseStorageRepo<PurchaseMetadataModel>
+    readonly providerRef: PurchaseStorageRepo<PurchaseProviderRefModel>
+    readonly webhookEvent: PurchaseStorageRepo<PurchaseWebhookEventModel>
   }
 >() {
-  static make = (overrides?: PayStorageOverrides | undefined) =>
+  static make = (overrides?: PurchaseStorageOverrides | undefined) =>
     Layer.effect(
-      PayStorageAdapter,
+      PurchaseStorageAdapter,
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient
 
-        const makePayStorageRepo = <TModel extends PayStorageModel<string>>(input: {
+        const makePurchaseStorageRepo = <TModel extends PurchaseStorageModel<string>>(input: {
           readonly model: TModel
-        }): PayStorageRepo<TModel> => {
-          const findFirst: PayStorageRepo<TModel>["findFirst"] = ({ where, orderBy }) => {
+        }): PurchaseStorageRepo<TModel> => {
+          const findFirst: PurchaseStorageRepo<TModel>["findFirst"] = ({ where, orderBy }) => {
             const select = selectColumns(input.model.fields)
             const whereClause = buildWhereClause(input.model, where)
             const orderClause = buildOrderClause(input.model, orderBy)
@@ -560,7 +572,7 @@ export class PayStorageAdapter extends Context.Tag("@xstack/pay/PayStorageAdapte
             )
           }
 
-          const findMany: PayStorageRepo<TModel>["findMany"] = ({ where, orderBy, limit }) => {
+          const findMany: PurchaseStorageRepo<TModel>["findMany"] = ({ where, orderBy, limit }) => {
             const select = selectColumns(input.model.fields)
             const whereClause = buildWhereClause(input.model, where)
             const orderClause = buildOrderClause(input.model, orderBy)
@@ -573,18 +585,18 @@ export class PayStorageAdapter extends Context.Tag("@xstack/pay/PayStorageAdapte
             )
           }
 
-          const insert: PayStorageRepo<TModel>["insert"] = ({ values }) => {
+          const insert: PurchaseStorageRepo<TModel>["insert"] = ({ values }) => {
             const select = selectColumns(input.model.fields)
             const insertClause = buildInsertClause(input.model, values)
 
-            return runUnsafeOne<PayStorageRecordFromModel<TModel>>(
+            return runUnsafeOne<PurchaseStorageRecordFromModel<TModel>>(
               sql,
               `INSERT INTO ${quoteIdentifier(input.model.modelName)} (${insertClause.columns}) VALUES (${insertClause.placeholders}) RETURNING ${select}`,
               insertClause.params
             ).pipe(Effect.map(Option.getOrThrow))
           }
 
-          const updateFirst: PayStorageRepo<TModel>["updateFirst"] = ({ where, set, orderBy }) => {
+          const updateFirst: PurchaseStorageRepo<TModel>["updateFirst"] = ({ where, set, orderBy }) => {
             const select = selectColumns(input.model.fields)
             const setClause = buildSetClause(input.model, set)
             const whereClause = buildWhereClause(input.model, where)
@@ -601,7 +613,7 @@ export class PayStorageAdapter extends Context.Tag("@xstack/pay/PayStorageAdapte
             )
           }
 
-          const deleteMany: PayStorageRepo<TModel>["deleteMany"] = ({ where }) => {
+          const deleteMany: PurchaseStorageRepo<TModel>["deleteMany"] = ({ where }) => {
             const whereClause = buildWhereClause(input.model, where)
             return sql
               .unsafe(`DELETE FROM ${quoteIdentifier(input.model.modelName)}${whereClause.sql}`, [
@@ -619,41 +631,41 @@ export class PayStorageAdapter extends Context.Tag("@xstack/pay/PayStorageAdapte
           }
         }
 
-        const checkoutIntent = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.checkoutIntent, overrides?.checkoutIntent)
+        const checkoutIntent = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.checkoutIntent, overrides?.checkoutIntent)
         })
-        const commercialEvent = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.commercialEvent, overrides?.commercialEvent)
+        const commercialEvent = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.commercialEvent, overrides?.commercialEvent)
         })
-        const creditLedger = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.creditLedger, overrides?.creditLedger)
+        const creditLedger = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.creditLedger, overrides?.creditLedger)
         })
-        const customer = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.customer, overrides?.customer)
+        const customer = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.customer, overrides?.customer)
         })
-        const feature = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.feature, overrides?.feature)
+        const feature = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.feature, overrides?.feature)
         })
-        const product = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.product, overrides?.product)
+        const product = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.product, overrides?.product)
         })
-        const providerRef = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.providerRef, overrides?.providerRef)
+        const providerRef = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.providerRef, overrides?.providerRef)
         })
-        const subscription = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.subscription, overrides?.subscription)
+        const subscription = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.subscription, overrides?.subscription)
         })
-        const entitlement = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.entitlement, overrides?.entitlement)
+        const entitlement = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.entitlement, overrides?.entitlement)
         })
-        const invoice = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.invoice, overrides?.invoice)
+        const invoice = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.invoice, overrides?.invoice)
         })
-        const metadata = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.metadata, overrides?.metadata)
+        const metadata = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.metadata, overrides?.metadata)
         })
-        const webhookEvent = makePayStorageRepo({
-          model: mergeStorageModel(defaultPayStorageModels.webhookEvent, overrides?.webhookEvent)
+        const webhookEvent = makePurchaseStorageRepo({
+          model: mergeStorageModel(defaultPurchaseStorageModels.webhookEvent, overrides?.webhookEvent)
         })
 
         return {

@@ -1,7 +1,7 @@
 import * as Effect from "effect/Effect"
 
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
-import type { BasePaySdkContract } from "../../src/sdk.ts"
+import type { PurchaseSDKContract } from "../../src/sdk.ts"
 
 import { loadGeneratedWebhookFixture, type StoredWebhookFixture } from "./generated-fixture.ts"
 import { makeLocalWebhookServer, type LocalWebhookServer } from "./local-webhook-server.ts"
@@ -40,7 +40,7 @@ export interface ProviderLiveHarness {
     readonly by: string
   }) => Effect.Effect<{ readonly advanced: true }, unknown, unknown>
   readonly dispatchWebhookFixture: <TProducts extends ReadonlyArray<unknown>>(input: {
-    readonly sdk: BasePaySdkContract<ReadonlyArray<unknown>, TProducts>
+    readonly sdk: PurchaseSDKContract<ReadonlyArray<unknown>, TProducts>
     readonly eventType: string
     readonly signature?: string | undefined
   }) => Effect.Effect<

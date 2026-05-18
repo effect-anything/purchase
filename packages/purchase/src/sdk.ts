@@ -39,14 +39,18 @@ import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./core/
 import { CommercialProjectionService, CommercialProjectionServiceLayer } from "./core/projection-service.ts"
 import { CommercialWorkflowService, CommercialWorkflowServiceLayer } from "./core/workflow-service.ts"
 import { CommercialWorkflowStore, CommercialWorkflowStoreLayer } from "./core/workflow-store.ts"
-import { PayStorageAdapter, type PayStorageCheckoutIntentRecord, type PayStorageOverrides } from "./db.ts"
+import {
+  PurchaseStorageAdapter,
+  type PurchaseStorageCheckoutIntentRecord,
+  type PurchaseStorageOverrides
+} from "./db.ts"
 import { PaymentClient } from "./provider/client.ts"
 
 /**
  * Public checkout entrypoint for the commercial runtime.
  * Callers should provide the stable commercial `offerId`, not a DSL `planId`.
  */
-export interface PayCheckoutRequest<TProducts extends ReadonlyArray<unknown>> {
+export interface PurchaseCheckoutRequest<TProducts extends ReadonlyArray<unknown>> {
   /**
    * App-owned customer starting the commercial checkout.
    */
@@ -74,13 +78,11 @@ export interface PayCheckoutRequest<TProducts extends ReadonlyArray<unknown>> {
   readonly metadata?: Readonly<Record<string, string>> | undefined
 }
 
-export type PurchaseCheckoutRequest<TProducts extends ReadonlyArray<unknown>> = PayCheckoutRequest<TProducts>
-
 /**
  * Commercial checkout result returned by the default SDK.
  * The result keeps commercial ids (`offerId`, `productId`) and never echoes DSL-only ids.
  */
-export interface PayCheckoutResult<TProducts extends ReadonlyArray<unknown>> {
+export interface PurchaseCheckoutResult<TProducts extends ReadonlyArray<unknown>> {
   readonly provider: PaymentProviderTag
   /**
    * Customer that owns the checkout intent.
@@ -111,9 +113,7 @@ export interface PayCheckoutResult<TProducts extends ReadonlyArray<unknown>> {
   readonly metadata: Readonly<Record<string, string>>
 }
 
-export type PurchaseCheckoutResult<TProducts extends ReadonlyArray<unknown>> = PayCheckoutResult<TProducts>
-
-export interface BasePaySdkOptions<TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
+export interface PurchaseSDKOptions<TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
   /**
    * DSL plan declarations used only as catalog source input.
    */
@@ -125,17 +125,12 @@ export interface BasePaySdkOptions<TPlans extends ReadonlyArray<unknown>, TProdu
   /**
    * Optional storage model overrides for embedding the runtime into an app schema.
    */
-  readonly storageOverrides?: PayStorageOverrides | undefined
+  readonly storageOverrides?: PurchaseStorageOverrides | undefined
 }
 
-export type PurchaseSDKOptions<
-  TPlans extends ReadonlyArray<unknown>,
-  TProducts extends ReadonlyArray<unknown>
-> = BasePaySdkOptions<TPlans, TProducts>
+export type PurchaseCatalogRuntime = typeof CommercialCatalogService.Service
 
-export type PayCatalogRuntime = typeof CommercialCatalogService.Service
-
-export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
+export interface PurchaseSDKContract<_TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>> {
   /**
    * Configured provider client used by the SDK runtime. Exposed for provider-level
    * test harnesses and advanced integrations that need direct provider inspection.
@@ -145,12 +140,14 @@ export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TPro
    * Read-only commercial catalog access for application runtime code.
    * Infrastructure mutations such as catalog sync live in `@effect-x/purchase/config`.
    */
-  readonly catalog: PayCatalogRuntime
+  readonly catalog: PurchaseCatalogRuntime
   readonly checkout: {
-    readonly start: (input: PayCheckoutRequest<TProducts>) => Effect.Effect<PayCheckoutResult<TProducts>, unknown>
+    readonly start: (
+      input: PurchaseCheckoutRequest<TProducts>
+    ) => Effect.Effect<PurchaseCheckoutResult<TProducts>, unknown>
     readonly getIntent: (input: {
       readonly intentId: string
-    }) => Effect.Effect<Option.Option<PayStorageCheckoutIntentRecord>, unknown>
+    }) => Effect.Effect<Option.Option<PurchaseStorageCheckoutIntentRecord>, unknown>
   }
   readonly customer: {
     readonly getSnapshot: (input: {
@@ -200,24 +197,20 @@ export interface BasePaySdkContract<_TPlans extends ReadonlyArray<unknown>, TPro
   }
 }
 
-export type PurchaseSDKContract<
-  _TPlans extends ReadonlyArray<unknown>,
-  TProducts extends ReadonlyArray<unknown>
-> = BasePaySdkContract<_TPlans, TProducts>
-
-export class BasePay extends Context.Tag("BasePay")<
-  BasePay,
-  BasePaySdkContract<ReadonlyArray<unknown>, ReadonlyArray<unknown>>
+export class Purchase extends Context.Tag("Purchase")<
+  Purchase,
+  PurchaseSDKContract<ReadonlyArray<unknown>, ReadonlyArray<unknown>>
 >() {}
 
-export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TProducts extends ReadonlyArray<unknown>>({
-  plans,
-  products,
-  storageOverrides
-}: BasePaySdkOptions<TPlans, TProducts>) {
-  type Service = Shape & BasePaySdkContract<TPlans, TProducts>
+export function PurchaseSDK<
+  Self,
+  Shape,
+  TPlans extends ReadonlyArray<unknown>,
+  TProducts extends ReadonlyArray<unknown>
+>({ plans, products, storageOverrides }: PurchaseSDKOptions<TPlans, TProducts>) {
+  type Service = Shape & PurchaseSDKContract<TPlans, TProducts>
 
-  const baseTag = BasePay as unknown as Context.TagClass<BasePay, "BasePay", BasePaySdkContract<TPlans, TProducts>>
+  const baseTag = Purchase as unknown as Context.TagClass<Purchase, "Purchase", PurchaseSDKContract<TPlans, TProducts>>
 
   const tag = baseTag as unknown as Context.TagClass<Self, "", Service> & {
     readonly plans: TPlans
@@ -227,8 +220,8 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
     ) => Layer.Layer<Self, never, PaymentClient | SqlClient.SqlClient>
     readonly make: <T extends Context.Tag<Self, Service>, E, R>(
       T: T,
-      f: Effect.Effect<Shape, E, R | BasePay>
-    ) => Layer.Layer<Self, E, Exclude<R, BasePay> | PaymentClient | SqlClient.SqlClient>
+      f: Effect.Effect<Shape, E, R | Purchase>
+    ) => Layer.Layer<Self, E, Exclude<R, Purchase> | PaymentClient | SqlClient.SqlClient>
   }
 
   const catalogStateLive = Layer.effect(
@@ -255,7 +248,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
     commercialProjectionLive,
     commercialWorkflowStoreLive,
     commercialWorkflowLive
-  ).pipe(Layer.provideMerge(PayStorageAdapter.make(storageOverrides)))
+  ).pipe(Layer.provideMerge(PurchaseStorageAdapter.make(storageOverrides)))
 
   const make = Layer.effect(
     baseTag,
@@ -289,7 +282,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
           )
         )
 
-      const state: BasePaySdkContract<TPlans, TProducts> = {
+      const state: PurchaseSDKContract<TPlans, TProducts> = {
         provider,
         catalog: {
           getCatalog: commerce.catalog.getCatalog,
@@ -324,7 +317,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
                 },
                 intentId: result.intentId,
                 metadata
-              } satisfies PayCheckoutResult<TProducts>
+              } satisfies PurchaseCheckoutResult<TProducts>
             }),
           getIntent: (input) => commerce.workflowStore.findCheckoutIntentById(input)
         },
@@ -375,7 +368,7 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
 
   const make_ = <T extends Context.Tag<Self, Service>, E, R>(
     serviceTag: T,
-    makeCustom: Effect.Effect<Shape, E, R | BasePay>
+    makeCustom: Effect.Effect<Shape, E, R | Purchase>
   ) =>
     Layer.unwrapEffect(
       Effect.gen(function* () {
@@ -396,12 +389,12 @@ export function BaseSDK<Self, Shape, TPlans extends ReadonlyArray<unknown>, TPro
   return tag
 }
 
-export { BaseSDK as PurchaseSDK }
-
 const isCurrentCommercialSubscriptionStatus = (status: SubscriptionAgreementState["status"]) =>
   status === "trialing" || status === "active" || status === "grace" || status === "paused"
 
-const buildCheckoutMetadata = <TProducts extends ReadonlyArray<unknown>>(input: PayCheckoutRequest<TProducts>) => ({
+const buildCheckoutMetadata = <TProducts extends ReadonlyArray<unknown>>(
+  input: PurchaseCheckoutRequest<TProducts>
+) => ({
   ...input.metadata,
   payCustomerId: input.customerId,
   payOfferId: input.offerId,

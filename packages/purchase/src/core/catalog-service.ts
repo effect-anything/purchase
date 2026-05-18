@@ -15,7 +15,7 @@ import {
   type CommercialOffer,
   type CommercialProduct
 } from "../core/commercial-schema.ts"
-import { PayStorageAdapter } from "../db.ts"
+import { PurchaseStorageAdapter } from "../db.ts"
 
 /**
  * Read-side service for resolved commercial catalog data.
@@ -75,7 +75,7 @@ export declare namespace CommercialCatalogService {
 export const CommercialCatalogServiceLayer = Layer.effect(
   CommercialCatalogService,
   Effect.gen(function* () {
-    const storage = yield* PayStorageAdapter
+    const storage = yield* PurchaseStorageAdapter
     const catalogState = yield* CatalogState
 
     const getCatalog = () => Effect.succeed(catalogState.catalog)

@@ -111,7 +111,7 @@ export const parsePrepareOptions = (config: {
 
 const prepareOptions = {
   module: Options.text("module").pipe(
-    Options.withDescription("Module exporting defineConfig(...), plans/products, or a BaseSDK subclass.")
+    Options.withDescription("Module exporting defineConfig(...), plans/products, or a PurchaseSDK subclass.")
   ),
   exportName: Options.text("export").pipe(Options.optional, Options.withDescription("Named export to load.")),
   provider: Options.choice("provider", ["stripe", "paddle"] as const).pipe(

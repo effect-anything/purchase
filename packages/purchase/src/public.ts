@@ -4,8 +4,7 @@
  * Prefer the root package import for application SDK wiring, catalog DSL,
  * provider selection, provider layers, public schemas, and storage override
  * types. `PurchaseSDK`/`PurchaseProvider` are the explicit runtime wiring names
- * exported from the root entrypoint; `BaseSDK`/`PayProvider` remain as
- * compatibility aliases.
+ * exported from the root entrypoint.
  * Narrow subpaths remain available only where they are documented in README
  * and covered by `test/public-api.test.ts`.
  */

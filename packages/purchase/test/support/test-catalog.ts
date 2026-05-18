@@ -10,7 +10,7 @@ import {
   quotaFeature,
   subscriptionProduct
 } from "../../src/dsl.ts"
-import { BaseSDK } from "../../src/sdk.ts"
+import { PurchaseSDK } from "../../src/sdk.ts"
 
 const premiumAccess = featureFlag({ id: "premium_access" })
 const monthlyQuota = quotaFeature({ id: "monthly_quota" })
@@ -76,7 +76,7 @@ export const testSubscriptionAgreementId = "sub_test_123" as unknown as Commerci
 export const testManualEventId = "manual_event_1" as CommercialEventId
 export const asCommercialOfferId = (offerId: string) => offerId as CommercialOfferId
 
-export class TestPay extends BaseSDK<TestPay, Record<string, never>, typeof testPlans, typeof testProducts>({
+export class TestPay extends PurchaseSDK<TestPay, Record<string, never>, typeof testPlans, typeof testProducts>({
   plans: testPlans,
   products: testProducts
 }) {
@@ -102,7 +102,7 @@ export const changedPriceProducts = [
   aiCreditPackProduct
 ] as const
 
-export class ChangedPricePay extends BaseSDK<
+export class ChangedPricePay extends PurchaseSDK<
   ChangedPricePay,
   Record<string, never>,
   typeof changedPricePlans,

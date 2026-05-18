@@ -14,7 +14,7 @@ import type { PaymentProviderTag } from "../provider/types.ts"
 import { CatalogState } from "../core/catalog-builder.ts"
 import { CommercialCatalogIssue, type CommercialOffer, type CommercialProduct } from "../core/commercial-schema.ts"
 import { CommercialWorkflowConflict } from "../core/workflow-schema.ts"
-import { PayStorageAdapter, type PayStorageProductRecord } from "../db.ts"
+import { PurchaseStorageAdapter, type PurchaseStorageProductRecord } from "../db.ts"
 import { normalizeCatalog, normalizeSchema } from "../dsl.ts"
 import { PaymentClient } from "../provider/client.ts"
 
@@ -41,7 +41,7 @@ export const CommercialCatalogSyncServiceLayer = (input: {
   Layer.effect(
     CommercialCatalogSyncService,
     Effect.gen(function* () {
-      const storage = yield* PayStorageAdapter
+      const storage = yield* PurchaseStorageAdapter
       const catalogState = yield* CatalogState
       const provider = yield* PaymentClient
       const activeProvider = provider._tag
@@ -467,7 +467,7 @@ export const CommercialCatalogSyncServiceLayer = (input: {
             })
           })
 
-        const archiveStaleRow = (row: PayStorageProductRecord) =>
+        const archiveStaleRow = (row: PurchaseStorageProductRecord) =>
           Effect.gen(function* () {
             const currentProvider = toRecord(row.provider)
             const productId = offerProductIdFromStorageId(row.id)
@@ -545,7 +545,7 @@ export const CommercialCatalogSyncServiceLayer = (input: {
               .pipe(Effect.orDie)
           })
 
-        const isArchivedForActiveProvider = (row: PayStorageProductRecord) =>
+        const isArchivedForActiveProvider = (row: PurchaseStorageProductRecord) =>
           Boolean(toRecord(row.provider)[providerArchivedAtKey(activeProvider)])
 
         const archiveProviderOrphans = Effect.fnUntraced(function* () {

@@ -9,10 +9,10 @@ import type { ServicesReturns } from "../internal/types.ts"
 import type { PaymentProviderTag } from "../provider.ts"
 
 import {
-  PayStorageAdapter,
-  type PayStorageCheckoutIntentRecord,
-  type PayStorageCreditLedgerRecord,
-  type PayStorageProviderRefRecord
+  PurchaseStorageAdapter,
+  type PurchaseStorageCheckoutIntentRecord,
+  type PurchaseStorageCreditLedgerRecord,
+  type PurchaseStorageProviderRefRecord
 } from "../db.ts"
 import {
   CommercialCustomerNotFound,
@@ -53,13 +53,13 @@ export class CommercialWorkflowStore extends Context.Tag("@pay/core/CommercialWo
      */
     readonly findCheckoutIntentByProviderSession: (input: {
       readonly providerCheckoutSessionId: string
-    }) => Effect.Effect<Option.Option<PayStorageCheckoutIntentRecord>>
+    }) => Effect.Effect<Option.Option<PurchaseStorageCheckoutIntentRecord>>
     /**
      * Find a checkout intent by intent id.
      */
     readonly findCheckoutIntentById: (input: {
       readonly intentId: string
-    }) => Effect.Effect<Option.Option<PayStorageCheckoutIntentRecord>>
+    }) => Effect.Effect<Option.Option<PurchaseStorageCheckoutIntentRecord>>
     /**
      * Persist a checkout intent for later reconciliation.
      */
@@ -116,7 +116,7 @@ export class CommercialWorkflowStore extends Context.Tag("@pay/core/CommercialWo
       readonly provider: PaymentProviderTag
       readonly providerId: string
       readonly kind?: string | undefined
-    }) => Effect.Effect<Option.Option<PayStorageProviderRefRecord>>
+    }) => Effect.Effect<Option.Option<PurchaseStorageProviderRefRecord>>
     /**
      * Upsert a provider reference mapping.
      */
@@ -134,14 +134,14 @@ export class CommercialWorkflowStore extends Context.Tag("@pay/core/CommercialWo
      */
     readonly recordCreditLedger: (
       input: CommercialCreditLedgerInput
-    ) => Effect.Effect<{ readonly duplicate: boolean; readonly row: PayStorageCreditLedgerRecord }>
+    ) => Effect.Effect<{ readonly duplicate: boolean; readonly row: PurchaseStorageCreditLedgerRecord }>
     /**
      * List credit ledger rows for a customer.
      */
     readonly listCreditLedger: (input: {
       readonly customerId: string
       readonly productId?: string | undefined
-    }) => Effect.Effect<ReadonlyArray<PayStorageCreditLedgerRecord>>
+    }) => Effect.Effect<ReadonlyArray<PurchaseStorageCreditLedgerRecord>>
     /**
      * Replace persisted entitlements for a customer.
      */
@@ -159,7 +159,7 @@ export declare namespace CommercialWorkflowStore {
 export const CommercialWorkflowStoreLayer = Layer.effect(
   CommercialWorkflowStore,
   Effect.gen(function* () {
-    const storage = yield* PayStorageAdapter
+    const storage = yield* PurchaseStorageAdapter
 
     const getCustomerProfile = ({ customerId }: { readonly customerId: string }) =>
       storage.customer.findFirst({ where: [["id", customerId]] }).pipe(

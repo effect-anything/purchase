@@ -9,7 +9,7 @@ import { CommercialProjectionServiceLayer } from "../../src/core/projection-serv
 import { CommercialStateStoreLayer } from "../../src/core/state-store.ts"
 import { CommercialWorkflowServiceLayer } from "../../src/core/workflow-service.ts"
 import { CommercialWorkflowStoreLayer } from "../../src/core/workflow-store.ts"
-import { PayStorageAdapter } from "../../src/db.ts"
+import { PurchaseStorageAdapter } from "../../src/db.ts"
 import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { testPlans, testProducts } from "./test-catalog.ts"
 
@@ -29,7 +29,7 @@ const catalogSyncLive = PurchaseConfigLayer({ plans: testPlansModule, products: 
 
 const projectionServiceLive = CommercialProjectionServiceLayer.pipe(Layer.provide(catalogServiceLive))
 const workflowStoreLive = CommercialWorkflowStoreLayer
-const stateStoreLive = CommercialStateStoreLayer.pipe(Layer.provide(catalogServiceLive))
+const stateStoreLive = CommercialStateStoreLayer.pipe(Layer.provide(projectionServiceLive))
 const workflowServiceLive = CommercialWorkflowServiceLayer.pipe(
   Layer.provide(catalogServiceLive),
   Layer.provide(workflowStoreLive),
@@ -43,4 +43,4 @@ export const CorePayTestLayer = Layer.mergeAll(
   workflowStoreLive,
   stateStoreLive,
   workflowServiceLive
-).pipe(Layer.provideMerge(PayStorageAdapter.make()))
+).pipe(Layer.provideMerge(PurchaseStorageAdapter.make()))

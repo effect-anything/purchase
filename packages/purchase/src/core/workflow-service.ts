@@ -9,7 +9,7 @@ import type { ServicesReturns } from "../internal/types.ts"
 import type { BillingPortalSession, CheckoutSession, SubscriptionChangePreview } from "../provider/schema.ts"
 import type { PaymentProviderTag } from "../provider/types.ts"
 
-import { PayStorageAdapter } from "../db.ts"
+import { PurchaseStorageAdapter } from "../db.ts"
 import { PaymentClient, type PaymentWebhookNormalization } from "../provider/client.ts"
 import { CommercialCatalogService } from "./catalog-service.ts"
 import {
@@ -335,7 +335,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const catalogService = yield* CommercialCatalogService
     const workflowStore = yield* CommercialWorkflowStore
     const projectionService = yield* CommercialProjectionService
-    const storage = yield* PayStorageAdapter
+    const storage = yield* PurchaseStorageAdapter
     const providerTag = payment._tag
 
     const resolveOfferByProviderOfferId = Effect.fn("resolveOfferByProviderOfferId")(function* (

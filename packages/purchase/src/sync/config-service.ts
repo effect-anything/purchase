@@ -8,7 +8,7 @@ import * as Layer from "effect/Layer"
 import type { ProductsModule, PurchasePlansModule } from "../dsl.ts"
 
 import { buildCommercialCatalog, CatalogState } from "../core/catalog-builder.ts"
-import { PayStorageAdapter, type PayStorageOverrides } from "../db.ts"
+import { PurchaseStorageAdapter, type PurchaseStorageOverrides } from "../db.ts"
 import { PaymentClient } from "../provider/client.ts"
 import {
   CommercialCatalogSyncService,
@@ -76,7 +76,7 @@ export const PurchaseConfigServiceLayer = Layer.effect(
 export const PurchaseConfigLayer = (input: {
   readonly plans: PurchasePlansModule | undefined
   readonly products: ProductsModule | undefined
-  readonly storageOverrides?: PayStorageOverrides | undefined
+  readonly storageOverrides?: PurchaseStorageOverrides | undefined
 }) => {
   const catalogStateLive = Layer.effect(
     CatalogState,
@@ -88,7 +88,7 @@ export const PurchaseConfigLayer = (input: {
 
   const catalogSyncLive = CommercialCatalogSyncServiceLayer(input).pipe(
     Layer.provide(catalogStateLive),
-    Layer.provideMerge(PayStorageAdapter.make(input.storageOverrides))
+    Layer.provideMerge(PurchaseStorageAdapter.make(input.storageOverrides))
   )
 
   return PurchaseConfigServiceLayer.pipe(
