@@ -1,5 +1,6 @@
 import * as Schema from "effect/Schema"
 
+import { CheckoutMode } from "../provider/schema.ts"
 import { PaymentProviderTag } from "../provider/types.ts"
 import {
   CommercialAgreementId,
@@ -108,10 +109,6 @@ export class StartCheckoutInput extends Schema.Class<StartCheckoutInput>("@pay/c
    */
   cancelUrl: Schema.optional(Schema.String),
   /**
-   * Provider checkout payment link base. Paddle requires this to be an approved website.
-   */
-  checkoutUrl: Schema.optional(Schema.String),
-  /**
    * Caller-supplied correlation metadata that will be persisted on the intent.
    */
   metadata: Schema.Record({ key: Schema.String, value: Schema.String })
@@ -152,7 +149,12 @@ export class StartCheckoutResult extends Schema.Class<StartCheckoutResult>("@pay
    */
   checkoutSessionId: Schema.String,
   /**
-   * Checkout URL when the provider exposes a hosted page.
+   * How the caller should open the checkout UX. Derived from the provider's
+   * implementation and its deployment-time configuration.
+   */
+  mode: CheckoutMode,
+  /**
+   * Checkout URL. Present iff `mode` is `redirect` or `bootstrap-redirect`.
    */
   checkoutUrl: Schema.optional(Schema.String)
 }) {}

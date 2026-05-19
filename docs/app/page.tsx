@@ -1,9 +1,7 @@
-import Link from "next/link"
-
-import { highlight } from "fumadocs-core/highlight"
-
 import { CodeTabs, type CodeTab } from "@/components/code-tabs"
 import { GlyphArrow, GlyphGrid, GlyphLayers, GlyphSplit, GlyphTerminal } from "@/components/glyphs"
+import { highlight } from "fumadocs-core/highlight"
+import Link from "next/link"
 
 const rail = [
   { href: "/docs", label: "Documentation" },
@@ -287,8 +285,8 @@ export default async function HomePage() {
                     Provider neutrality without the integration tax.
                   </h2>
                   <p className="purchase-module-lede">
-                    Provider catalogs reconcile against the DSL. Swap Stripe for Paddle by exchanging a layer — workflows,
-                    projections, and product code stay untouched.
+                    Provider catalogs reconcile against the DSL. Swap Stripe for Paddle by exchanging a layer —
+                    workflows, projections, and product code stay untouched.
                   </p>
                   <div className="purchase-module-actions">
                     <Link className="purchase-btn purchase-btn-primary" href="/docs/providers/overview">

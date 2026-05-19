@@ -1,0 +1,231 @@
+/** @effect-diagnostics preferSchemaOverJson:off */
+import { PaymentHarness } from "@effect-x/purchase/harness"
+import * as Data from "effect/Data"
+import * as Duration from "effect/Duration"
+import * as Effect from "effect/Effect"
+import * as Schedule from "effect/Schedule"
+
+import { TestConfig } from "../http-api/config.ts"
+
+export class PublicPaddleScenarioError extends Data.TaggedError("PublicPaddleScenarioError")<{
+  readonly message: string
+  readonly cause?: unknown
+}> {}
+
+interface PublicAuthSession {
+  readonly email: string
+  readonly password: string
+  readonly cookie: string
+}
+
+interface SignUpInput {
+  readonly email?: string | undefined
+  readonly password?: string | undefined
+  readonly name?: string | undefined
+}
+
+interface CheckoutStartResult {
+  readonly offerId: string
+  readonly intentId: string
+  readonly sessionId: string
+  readonly url: string | null
+}
+
+interface SubscriptionPurchaseInput {
+  readonly session: PublicAuthSession
+  readonly offerId: string
+  readonly email?: string | undefined
+}
+
+interface AccountOverview {
+  readonly snapshot?: {
+    readonly activeOfferIds?: ReadonlyArray<string>
+    readonly subscriptions?: ReadonlyArray<{
+      readonly id?: string
+      readonly status?: string
+      readonly offerId?: string
+    }>
+  }
+  readonly entitlements?: {
+    readonly benefits?: ReadonlyArray<{
+      readonly key?: string
+      readonly type?: string
+      readonly enabled?: boolean
+      readonly limit?: number
+    }>
+  }
+  readonly activity?: {
+    readonly checkoutIntents?: ReadonlyArray<{
+      readonly id: string
+      readonly offerId: string
+      readonly status: string
+      readonly updatedAt: string
+    }>
+    readonly events?: ReadonlyArray<{
+      readonly id: string
+      readonly provider: string
+      readonly kind: string
+      readonly offerId: string | null
+      readonly occurredAt: string
+    }>
+  }
+}
+
+interface WebhookTargetRegistration {
+  readonly ok: boolean
+  readonly provider: "paddle" | "stripe"
+  readonly runId: string
+  readonly localBaseURL: string
+  readonly publicBaseURL: string
+  readonly brokerWebhookUrl: string
+  readonly targetUrl: string
+  readonly webhookSecret?: string | undefined
+}
+
+const withHeaders = (baseUrl: string, headers: HeadersInit = {}) => ({
+  ...headers,
+  origin: baseUrl
+})
+
+const parseCookie = (headers: Headers) =>
+  (headers.get("set-cookie") ?? "")
+    .split(/,(?=\s*[^;=]+=)/)
+    .map((value) => value.split(";")[0]?.trim())
+    .filter((value): value is string => Boolean(value))
+    .join("; ")
+
+const fetchText = (input: RequestInfo | URL, init?: RequestInit) =>
+  Effect.tryPromise({
+    try: () => fetch(input, init).then(async (response) => ({ response, text: await response.text() })),
+    catch: (cause) => new PublicPaddleScenarioError({ message: "HTTP request failed", cause })
+  }).pipe(Effect.retry(Schedule.exponential(Duration.millis(500)).pipe(Schedule.compose(Schedule.recurs(4)))))
+
+const fetchJson = <A = unknown>(input: RequestInfo | URL, init?: RequestInit) =>
+  fetchText(input, init).pipe(
+    Effect.flatMap(({ response, text }) => {
+      const json = text ? (JSON.parse(text) as A) : ({} as A)
+      return response.ok
+        ? Effect.succeed({ response, json })
+        : Effect.fail(new PublicPaddleScenarioError({ message: `HTTP ${response.status}: ${text}` }))
+    }),
+    Effect.mapError((cause) =>
+      cause instanceof PublicPaddleScenarioError
+        ? cause
+        : new PublicPaddleScenarioError({ message: "Failed to parse JSON response", cause })
+    )
+  )
+
+export const signUp = Effect.fn(function* (input?: SignUpInput | undefined) {
+  const { baseURL } = yield* TestConfig
+  const email = input?.email ?? `e2e-${Date.now()}@example.com`
+  const password = input?.password ?? "password123456"
+  const name = input?.name ?? "Purchase SDK E2E User"
+
+  return yield* fetchText(`${baseURL}/api/auth/sign-up/email`, {
+    method: "POST",
+    headers: withHeaders(baseURL, { "content-type": "application/json" }),
+    body: JSON.stringify({
+      email,
+      password,
+      name,
+      callbackURL: "/account"
+    }),
+    redirect: "manual"
+  }).pipe(
+    Effect.flatMap(({ response, text }) => {
+      if (!response.ok) {
+        return Effect.fail(
+          new PublicPaddleScenarioError({ message: `Sign-up failed with ${response.status}: ${text}` })
+        )
+      }
+      const cookie = parseCookie(response.headers)
+      if (!cookie) {
+        return Effect.fail(new PublicPaddleScenarioError({ message: "Sign-up did not return an auth cookie" }))
+      }
+      return Effect.succeed({ email, password, cookie } satisfies PublicAuthSession)
+    })
+  )
+})
+
+export const getAccount = Effect.fn(function* (session: PublicAuthSession) {
+  const { baseURL } = yield* TestConfig
+
+  return yield* fetchJson<AccountOverview>(`${baseURL}/api/me/account`, {
+    headers: withHeaders(baseURL, { cookie: session.cookie })
+  }).pipe(Effect.map(({ json }) => json))
+})
+
+export const checkout = Effect.fn(function* (input: { readonly session: PublicAuthSession; readonly offerId: string }) {
+  const { baseURL } = yield* TestConfig
+  const runId = yield* currentRunId
+
+  return yield* fetchJson<{ readonly checkout: CheckoutStartResult }>(`${baseURL}/api/checkout/start`, {
+    method: "POST",
+    headers: withHeaders(baseURL, { "content-type": "application/json", cookie: input.session.cookie }),
+    body: JSON.stringify({ offerId: input.offerId, runId })
+  }).pipe(Effect.map(({ json }) => json.checkout))
+})
+
+export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurchaseInput) {
+  const paymentHarness = yield* PaymentHarness
+
+  const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
+
+  if (!checkoutResult.url) {
+    return yield* Effect.die(
+      new Error(
+        `purchaseSubscription requires a checkout URL but provider returned mode="${checkoutResult.mode}" without one`
+      )
+    )
+  }
+
+  const payment = yield* paymentHarness.payCheckout({
+    checkout: {
+      provider: "paddle",
+      sessionId: checkoutResult.sessionId,
+      url: checkoutResult.url
+    },
+    checkoutUrl: checkoutResult.url,
+    mode: "subscription",
+    customer: {
+      email: input.session.email,
+      name: "Purchase SDK E2E User"
+    }
+  })
+  const accountOverview = yield* getAccount(input.session)
+
+  return {
+    session: input.session,
+    checkout: checkoutResult,
+    transaction: payment.transaction,
+    account: accountOverview
+  } as const
+})
+
+export const registerWebhookTarget = Effect.fn(function* () {
+  const config = yield* TestConfig
+  const runId = yield* currentRunId
+
+  if (!config.brokerBaseURL) {
+    return
+  }
+
+  // 使用 broker http api client
+  return yield* fetchJson<WebhookTargetRegistration>(`${config.brokerBaseURL}/__purchase-e2e/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      provider: "paddle",
+      runId,
+      targetUrl: `${config.localBaseURL}/api/webhooks/paddle`
+    })
+  }).pipe(Effect.map(({ json }) => json))
+})
+
+const currentRunId = Effect.gen(function* () {
+  const config = yield* TestConfig
+  if (config.runId) {
+    return config.runId
+  }
+  return `run_${crypto.randomUUID()}`
+})

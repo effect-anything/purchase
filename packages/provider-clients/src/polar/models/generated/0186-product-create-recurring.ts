@@ -1,0 +1,18 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const ProductCreateRecurring = Schema.Struct({
+  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean) })),
+  name: Schema.String,
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  visibility: Schema.optional(Schema.suspend((): typeof Models.ProductVisibility => Models.ProductVisibility)),
+  prices: Schema.Array(Schema.Union(Schema.suspend((): typeof Models.ProductPriceFixedCreate => Models.ProductPriceFixedCreate), Schema.suspend((): typeof Models.ProductPriceCustomCreate => Models.ProductPriceCustomCreate), Schema.suspend((): typeof Models.ProductPriceFreeCreate => Models.ProductPriceFreeCreate), Schema.suspend((): typeof Models.ProductPriceSeatBasedCreate => Models.ProductPriceSeatBasedCreate), Schema.suspend((): typeof Models.ProductPriceMeteredUnitCreate => Models.ProductPriceMeteredUnitCreate))),
+  medias: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+  attached_custom_fields: Schema.optional(Schema.Array(Schema.suspend((): typeof Models.AttachedCustomFieldCreate => Models.AttachedCustomFieldCreate))),
+  organization_id: Schema.optional(Schema.NullOr(Schema.String)),
+  trial_interval: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.TrialInterval => Models.TrialInterval))),
+  trial_interval_count: Schema.optional(Schema.NullOr(Schema.Number)),
+  recurring_interval: Schema.suspend((): typeof Models.SubscriptionRecurringInterval => Models.SubscriptionRecurringInterval),
+  recurring_interval_count: Schema.optional(Schema.Number),
+})
+export type ProductCreateRecurring = typeof ProductCreateRecurring.Type

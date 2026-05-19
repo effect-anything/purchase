@@ -2,5 +2,9 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   "include": [],
-  "references": [{ "path": "packages/purchase" }, { "path": "packages/tools/oxc" }]
+  "references": [
+    { "path": "packages/purchase" },
+    { "path": "packages/provider-clients" },
+    { "path": "packages/tools/oxc" }
+  ]
 }

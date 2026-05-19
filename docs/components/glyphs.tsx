@@ -38,7 +38,13 @@ export function GlyphTerminal(props: Props) {
   return (
     <svg {...baseProps} {...props}>
       <rect x="3" y="5" width="18" height="14" stroke={stroke} strokeOpacity="0.5" />
-      <path d="M6.5 10.5l2.5 2-2.5 2" stroke={stroke} strokeOpacity="0.85" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M6.5 10.5l2.5 2-2.5 2"
+        stroke={stroke}
+        strokeOpacity="0.85"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <path d="M11 15.5h6" stroke={stroke} strokeOpacity="0.5" strokeLinecap="round" />
     </svg>
   )

@@ -41,7 +41,8 @@ const makeProviderLayer = (options: PrepareOptions): Layer.Layer<any, unknown> =
   return Paddle.layerConfig({
     apiToken: Redacted.make(options.paddleApiToken ?? ""),
     webhookToken: Redacted.make(options.paddleWebhookToken ?? ""),
-    environment: options.environment
+    environment: options.environment,
+    checkoutUrl: Option.none()
   })
 }
 
@@ -50,7 +51,7 @@ export interface PrepareOptions {
   readonly exportName?: string | undefined
   readonly provider: PaymentProviderTag
   readonly environment: PaymentEnvironmentTag
-  readonly checkoutUrl?: string | undefined
+  readonly approvedCheckoutUrl?: string | undefined
   readonly webhookUrl?: string | undefined
   readonly apply: boolean
   readonly dryRun: boolean
@@ -67,7 +68,7 @@ export const parsePrepareOptions = (config: {
   readonly exportName: Option.Option<string>
   readonly provider: PaymentProviderTag
   readonly environment: PaymentEnvironmentTag
-  readonly checkoutUrl: Option.Option<string>
+  readonly approvedCheckoutUrl: Option.Option<string>
   readonly webhookUrl: Option.Option<string>
   readonly apply: boolean
   readonly dryRun: boolean
@@ -87,7 +88,7 @@ export const parsePrepareOptions = (config: {
     exportName: optionalValue(config.exportName),
     provider: config.provider,
     environment: config.environment,
-    checkoutUrl: optionalValue(config.checkoutUrl),
+    approvedCheckoutUrl: optionalValue(config.approvedCheckoutUrl),
     webhookUrl: optionalValue(config.webhookUrl),
     apply: config.apply,
     dryRun: !config.apply,
@@ -125,9 +126,9 @@ const prepareOptions = {
     ),
     Options.withDescription("Provider environment.")
   ),
-  checkoutUrl: Options.text("checkout-url").pipe(
+  approvedCheckoutUrl: Options.text("approved-checkout-url").pipe(
     Options.optional,
-    Options.withDescription("Desired provider checkout URL/origin.")
+    Options.withDescription("Desired approved checkout URL/origin to register with the provider dashboard.")
   ),
   webhookUrl: Options.text("webhook-url").pipe(
     Options.optional,
@@ -171,7 +172,7 @@ export const prepareCommand = Command.make("prepare", prepareOptions, (config) =
       prepareProvider({
         dryRun: options.dryRun,
         environment: options.environment,
-        checkoutUrl: options.checkoutUrl ?? providerConfig?.checkoutUrl,
+        approvedCheckoutUrl: options.approvedCheckoutUrl ?? providerConfig?.approvedCheckoutUrl,
         webhookUrl: options.webhookUrl ?? providerConfig?.webhookUrl,
         checkout: providerConfig?.checkout
       }).pipe(

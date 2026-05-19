@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  "include": ["scripts"],
+  "compilerOptions": {
+    "rootDir": "${configDir}/scripts",
+    "outDir": "${configDir}/dist-scripts",
+    "types": ["node"],
+    "composite": false,
+    "incremental": false,
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false
+  }
+}

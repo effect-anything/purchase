@@ -1,0 +1,1459 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dodo Payments API (minimal)",
+    "version": "0.1.0",
+    "description": "Minimal OpenAPI surface maintained locally until Dodo Payments publishes the raw Stainless OpenAPI spec. Paths and shapes are based on the official TypeScript SDK and public API docs."
+  },
+  "servers": [
+    { "url": "https://test.dodopayments.com", "description": "Test mode" },
+    { "url": "https://live.dodopayments.com", "description": "Live mode" }
+  ],
+  "paths": {
+    "/products": {
+      "get": {
+        "operationId": "listProducts",
+        "summary": "List products",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createProduct",
+        "summary": "Create product",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductCreateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Product",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } }
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "operationId": "getProduct",
+        "summary": "Get product",
+        "parameters": [{ "$ref": "#/components/parameters/ProductId" }],
+        "responses": {
+          "200": {
+            "description": "Product",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateProduct",
+        "summary": "Update product",
+        "parameters": [{ "$ref": "#/components/parameters/ProductId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductUpdateRequest" } } }
+        },
+        "responses": { "200": { "description": "No content" } }
+      },
+      "delete": {
+        "operationId": "archiveProduct",
+        "summary": "Archive product",
+        "parameters": [{ "$ref": "#/components/parameters/ProductId" }],
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/checkouts": {
+      "post": {
+        "operationId": "createCheckoutSession",
+        "summary": "Create checkout session",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CheckoutSessionCreateRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checkout session",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckoutSession" } } }
+          }
+        }
+      }
+    },
+    "/checkouts/{id}": {
+      "get": {
+        "operationId": "getCheckoutSession",
+        "summary": "Get checkout session",
+        "parameters": [{ "$ref": "#/components/parameters/CheckoutSessionId" }],
+        "responses": {
+          "200": {
+            "description": "Checkout session",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CheckoutSession" } } }
+          }
+        }
+      }
+    },
+    "/payments": {
+      "get": {
+        "operationId": "listPayments",
+        "summary": "List payments",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payments",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentListResponse" } } }
+          }
+        }
+      }
+    },
+    "/payments/{payment_id}": {
+      "get": {
+        "operationId": "getPayment",
+        "summary": "Get payment",
+        "parameters": [{ "$ref": "#/components/parameters/PaymentId" }],
+        "responses": {
+          "200": {
+            "description": "Payment",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Payment" } } }
+          }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "operationId": "listCustomers",
+        "summary": "List customers",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customers",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomerListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCustomer",
+        "summary": "Create customer",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomerCreateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Customer",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Customer" } } }
+          }
+        }
+      }
+    },
+    "/customers/{customer_id}": {
+      "get": {
+        "operationId": "getCustomer",
+        "summary": "Get customer",
+        "parameters": [{ "$ref": "#/components/parameters/CustomerId" }],
+        "responses": {
+          "200": {
+            "description": "Customer",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Customer" } } }
+          }
+        }
+      }
+    },
+    "/subscriptions": {
+      "get": {
+        "operationId": "listSubscriptions",
+        "summary": "List subscriptions",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscriptions",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubscriptionListResponse" } } }
+          }
+        }
+      }
+    },
+    "/subscriptions/{subscription_id}": {
+      "get": {
+        "operationId": "getSubscription",
+        "summary": "Get subscription",
+        "parameters": [{ "$ref": "#/components/parameters/SubscriptionId" }],
+        "responses": {
+          "200": {
+            "description": "Subscription",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Subscription" } } }
+          }
+        }
+      }
+    },
+    "/events/ingest": {
+      "post": {
+        "operationId": "ingestUsageEvents",
+        "summary": "Ingest usage events",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsageEventIngestRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Ingestion result",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsageEventIngestResponse" } } }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "listUsageEvents",
+        "summary": "List usage events",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "customer_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "event_name", "in": "query", "schema": { "type": "string" } },
+          { "name": "meter_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "start", "in": "query", "schema": { "type": "string" } },
+          { "name": "end", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsageEventListResponse" } } }
+          }
+        }
+      }
+    },
+    "/events/{event_id}": {
+      "get": {
+        "operationId": "getUsageEvent",
+        "summary": "Get usage event",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "responses": {
+          "200": {
+            "description": "Event",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UsageEvent" } } }
+          }
+        }
+      }
+    },
+    "/meters": {
+      "get": {
+        "operationId": "listMeters",
+        "summary": "List meters",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "archived", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meters",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MeterListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMeter",
+        "summary": "Create meter",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MeterCreateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Meter",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Meter" } } }
+          }
+        }
+      }
+    },
+    "/meters/{id}": {
+      "get": {
+        "operationId": "getMeter",
+        "summary": "Get meter",
+        "parameters": [{ "$ref": "#/components/parameters/MeterId" }],
+        "responses": {
+          "200": {
+            "description": "Meter",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Meter" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "archiveMeter",
+        "summary": "Archive meter",
+        "parameters": [{ "$ref": "#/components/parameters/MeterId" }],
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/meters/{id}/unarchive": {
+      "post": {
+        "operationId": "unarchiveMeter",
+        "summary": "Unarchive meter",
+        "parameters": [{ "$ref": "#/components/parameters/MeterId" }],
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/refunds": {
+      "get": {
+        "operationId": "listRefunds",
+        "summary": "List refunds",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "created_at_gte", "in": "query", "schema": { "type": "string" } },
+          { "name": "created_at_lte", "in": "query", "schema": { "type": "string" } },
+          { "name": "customer_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "subscription_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/RefundStatus" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refunds",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefundListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createRefund",
+        "summary": "Create refund",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefundCreateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Refund",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Refund" } } }
+          }
+        }
+      }
+    },
+    "/refunds/{refund_id}": {
+      "get": {
+        "operationId": "getRefund",
+        "summary": "Get refund",
+        "parameters": [{ "$ref": "#/components/parameters/RefundId" }],
+        "responses": {
+          "200": {
+            "description": "Refund",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Refund" } } }
+          }
+        }
+      }
+    },
+    "/discounts": {
+      "get": {
+        "operationId": "listDiscounts",
+        "summary": "List discounts",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "code", "in": "query", "schema": { "type": "string" } },
+          { "name": "discount_type", "in": "query", "schema": { "$ref": "#/components/schemas/DiscountType" } },
+          { "name": "product_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Discounts",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DiscountListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createDiscount",
+        "summary": "Create discount",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DiscountCreateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Discount",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Discount" } } }
+          }
+        }
+      }
+    },
+    "/discounts/{discount_id}": {
+      "get": {
+        "operationId": "getDiscount",
+        "summary": "Get discount",
+        "parameters": [{ "$ref": "#/components/parameters/DiscountId" }],
+        "responses": {
+          "200": {
+            "description": "Discount",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Discount" } } }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateDiscount",
+        "summary": "Update discount",
+        "parameters": [{ "$ref": "#/components/parameters/DiscountId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DiscountUpdateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Discount",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Discount" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDiscount",
+        "summary": "Delete discount",
+        "parameters": [{ "$ref": "#/components/parameters/DiscountId" }],
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/discounts/code/{code}": {
+      "get": {
+        "operationId": "getDiscountByCode",
+        "summary": "Get discount by code",
+        "parameters": [{ "$ref": "#/components/parameters/DiscountCode" }],
+        "responses": {
+          "200": {
+            "description": "Discount",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Discount" } } }
+          }
+        }
+      }
+    },
+    "/license_keys": {
+      "get": {
+        "operationId": "listLicenseKeys",
+        "summary": "List license keys",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "created_at_gte", "in": "query", "schema": { "type": "string" } },
+          { "name": "created_at_lte", "in": "query", "schema": { "type": "string" } },
+          { "name": "customer_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "product_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "source", "in": "query", "schema": { "enum": ["auto", "import"] } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/LicenseKeyStatus" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "License keys",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseKeyListResponse" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createLicenseKey",
+        "summary": "Create license key",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseKeyCreateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "License key",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseKey" } } }
+          }
+        }
+      }
+    },
+    "/license_keys/{id}": {
+      "get": {
+        "operationId": "getLicenseKey",
+        "summary": "Get license key",
+        "parameters": [{ "$ref": "#/components/parameters/LicenseKeyId" }],
+        "responses": {
+          "200": {
+            "description": "License key",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseKey" } } }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateLicenseKey",
+        "summary": "Update license key",
+        "parameters": [{ "$ref": "#/components/parameters/LicenseKeyId" }],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseKeyUpdateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "License key",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseKey" } } }
+          }
+        }
+      }
+    },
+    "/licenses/activate": {
+      "post": {
+        "operationId": "activateLicense",
+        "summary": "Activate license",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseActivateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "License activation",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseActivateResponse" } } }
+          }
+        }
+      }
+    },
+    "/licenses/deactivate": {
+      "post": {
+        "operationId": "deactivateLicense",
+        "summary": "Deactivate license",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseDeactivateRequest" } } }
+        },
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/licenses/validate": {
+      "post": {
+        "operationId": "validateLicense",
+        "summary": "Validate license",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseValidateRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "License validation",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LicenseValidateResponse" } } }
+          }
+        }
+      }
+    },
+    "/credit-entitlements": {
+      "get": {
+        "operationId": "listCreditEntitlements",
+        "summary": "List credit entitlements",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "deleted", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit entitlements",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreditEntitlementListResponse" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCreditEntitlement",
+        "summary": "Create credit entitlement",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreditEntitlementCreateRequest" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Credit entitlement",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreditEntitlement" } } }
+          }
+        }
+      }
+    },
+    "/credit-entitlements/{id}": {
+      "get": {
+        "operationId": "getCreditEntitlement",
+        "summary": "Get credit entitlement",
+        "parameters": [{ "$ref": "#/components/parameters/CreditEntitlementId" }],
+        "responses": {
+          "200": {
+            "description": "Credit entitlement",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreditEntitlement" } } }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateCreditEntitlement",
+        "summary": "Update credit entitlement",
+        "parameters": [{ "$ref": "#/components/parameters/CreditEntitlementId" }],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreditEntitlementUpdateRequest" } }
+          }
+        },
+        "responses": { "200": { "description": "No content" } }
+      },
+      "delete": {
+        "operationId": "deleteCreditEntitlement",
+        "summary": "Delete credit entitlement",
+        "parameters": [{ "$ref": "#/components/parameters/CreditEntitlementId" }],
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/credit-entitlements/{id}/undelete": {
+      "post": {
+        "operationId": "undeleteCreditEntitlement",
+        "summary": "Undelete credit entitlement",
+        "parameters": [{ "$ref": "#/components/parameters/CreditEntitlementId" }],
+        "responses": { "200": { "description": "No content" } }
+      }
+    },
+    "/credit-entitlements/{credit_entitlement_id}/balances": {
+      "get": {
+        "operationId": "listCreditEntitlementBalances",
+        "summary": "List credit entitlement balances",
+        "parameters": [
+          { "$ref": "#/components/parameters/CreditEntitlementPathId" },
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "customer_id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balances",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CustomerCreditBalanceListResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/credit-entitlements/{credit_entitlement_id}/balances/{customer_id}": {
+      "get": {
+        "operationId": "getCreditEntitlementBalance",
+        "summary": "Get customer credit balance",
+        "parameters": [
+          { "$ref": "#/components/parameters/CreditEntitlementPathId" },
+          { "$ref": "#/components/parameters/CustomerId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomerCreditBalance" } } }
+          }
+        }
+      }
+    },
+    "/credit-entitlements/{credit_entitlement_id}/balances/{customer_id}/ledger-entries": {
+      "post": {
+        "operationId": "createCreditLedgerEntry",
+        "summary": "Create credit ledger entry",
+        "parameters": [
+          { "$ref": "#/components/parameters/CreditEntitlementPathId" },
+          { "$ref": "#/components/parameters/CustomerId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreditLedgerEntryCreateRequest" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ledger entry",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreditLedgerEntryCreateResponse" } }
+            }
+          }
+        }
+      }
+    },
+    "/credit-entitlements/{credit_entitlement_id}/balances/{customer_id}/grants": {
+      "get": {
+        "operationId": "listCreditGrants",
+        "summary": "List credit grants",
+        "parameters": [
+          { "$ref": "#/components/parameters/CreditEntitlementPathId" },
+          { "$ref": "#/components/parameters/CustomerId" },
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "status", "in": "query", "schema": { "enum": ["active", "expired", "depleted"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credit grants",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreditGrantListResponse" } } }
+          }
+        }
+      }
+    },
+    "/credit-entitlements/{credit_entitlement_id}/balances/{customer_id}/ledger": {
+      "get": {
+        "operationId": "listCreditLedger",
+        "summary": "List credit ledger",
+        "parameters": [
+          { "$ref": "#/components/parameters/CreditEntitlementPathId" },
+          { "$ref": "#/components/parameters/CustomerId" },
+          { "$ref": "#/components/parameters/PageNumber" },
+          { "$ref": "#/components/parameters/PageSize" },
+          { "name": "transaction_type", "in": "query", "schema": { "type": "string" } },
+          { "name": "start_date", "in": "query", "schema": { "type": "string" } },
+          { "name": "end_date", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ledger entries",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CreditLedgerEntryListResponse" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "PageNumber": { "name": "page_number", "in": "query", "schema": { "type": "number" } },
+      "PageSize": { "name": "page_size", "in": "query", "schema": { "type": "number" } },
+      "ProductId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "CheckoutSessionId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "PaymentId": { "name": "payment_id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "CustomerId": { "name": "customer_id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "SubscriptionId": { "name": "subscription_id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "EventId": { "name": "event_id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "MeterId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "RefundId": { "name": "refund_id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "DiscountId": { "name": "discount_id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "DiscountCode": { "name": "code", "in": "path", "required": true, "schema": { "type": "string" } },
+      "LicenseKeyId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "CreditEntitlementId": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+      "CreditEntitlementPathId": {
+        "name": "credit_entitlement_id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "Metadata": { "type": "object", "additionalProperties": { "type": "string" } },
+      "Money": {
+        "type": "object",
+        "required": ["amount", "currency"],
+        "properties": { "amount": { "type": "number" }, "currency": { "type": "string" } }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["product_id", "name"],
+        "properties": {
+          "product_id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        }
+      },
+      "ProductCreateRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "metadata": { "$ref": "#/components/schemas/Metadata" }
+        }
+      },
+      "ProductUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "metadata": { "$ref": "#/components/schemas/Metadata" }
+        }
+      },
+      "ProductListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+          "total": { "type": "number" }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "required": ["customer_id", "email"],
+        "properties": {
+          "customer_id": { "type": "string" },
+          "email": { "type": "string" },
+          "name": { "type": "string" },
+          "phone_number": { "type": ["string", "null"] },
+          "metadata": { "$ref": "#/components/schemas/Metadata" }
+        }
+      },
+      "CustomerCreateRequest": {
+        "type": "object",
+        "required": ["email", "name"],
+        "properties": {
+          "email": { "type": "string" },
+          "name": { "type": "string" },
+          "phone_number": { "type": "string" },
+          "metadata": { "$ref": "#/components/schemas/Metadata" }
+        }
+      },
+      "CustomerListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Customer" } },
+          "total": { "type": "number" }
+        }
+      },
+      "CheckoutSessionProductItem": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": { "product_id": { "type": "string" }, "quantity": { "type": "number" } }
+      },
+      "CheckoutSessionCreateRequest": {
+        "type": "object",
+        "required": ["product_cart"],
+        "properties": {
+          "product_cart": { "type": "array", "items": { "$ref": "#/components/schemas/CheckoutSessionProductItem" } },
+          "customer": { "$ref": "#/components/schemas/CustomerCreateRequest" },
+          "return_url": { "type": "string" },
+          "cancel_url": { "type": "string" },
+          "metadata": { "$ref": "#/components/schemas/Metadata" }
+        }
+      },
+      "CheckoutSession": {
+        "type": "object",
+        "required": ["checkout_id"],
+        "properties": {
+          "checkout_id": { "type": "string" },
+          "checkout_url": { "type": "string" },
+          "status": { "type": "string" },
+          "payment_id": { "type": ["string", "null"] },
+          "subscription_id": { "type": ["string", "null"] }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "required": ["payment_id", "status"],
+        "properties": {
+          "payment_id": { "type": "string" },
+          "status": { "type": "string" },
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "total_amount": { "type": "number" },
+          "currency": { "type": "string" },
+          "created_at": { "type": "string" }
+        }
+      },
+      "PaymentListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Payment" } },
+          "total": { "type": "number" }
+        }
+      },
+      "Subscription": {
+        "type": "object",
+        "required": ["subscription_id", "status"],
+        "properties": {
+          "subscription_id": { "type": "string" },
+          "status": { "type": "string" },
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "product": { "$ref": "#/components/schemas/Product" },
+          "created_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        }
+      },
+      "SubscriptionListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Subscription" } },
+          "total": { "type": "number" }
+        }
+      },
+      "UsageEvent": {
+        "type": "object",
+        "required": ["event_id", "customer_id", "event_name", "timestamp"],
+        "properties": {
+          "event_id": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "event_name": { "type": "string" },
+          "timestamp": { "type": "string" },
+          "metadata": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } }
+        }
+      },
+      "UsageEventIngestRequest": {
+        "type": "object",
+        "required": ["events"],
+        "properties": { "events": { "type": "array", "items": { "$ref": "#/components/schemas/UsageEvent" } } }
+      },
+      "UsageEventIngestResponse": {
+        "type": "object",
+        "required": ["ingested_count"],
+        "properties": { "ingested_count": { "type": "number" } }
+      },
+      "UsageEventListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/UsageEvent" } },
+          "total": { "type": "number" }
+        }
+      },
+      "FlexibleValue": { "type": ["string", "number", "boolean"] },
+      "MeterAggregationType": { "enum": ["count", "sum", "max", "last"] },
+      "MeterAggregation": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "$ref": "#/components/schemas/MeterAggregationType" },
+          "key": { "type": ["string", "null"] }
+        }
+      },
+      "Conjunction": { "enum": ["and", "or"] },
+      "FilterOperator": {
+        "enum": [
+          "equals",
+          "not_equals",
+          "greater_than",
+          "greater_than_or_equals",
+          "less_than",
+          "less_than_or_equals",
+          "contains",
+          "does_not_contain"
+        ]
+      },
+      "MeterFilterCondition": {
+        "type": "object",
+        "required": ["key", "operator", "value"],
+        "properties": {
+          "key": { "type": "string" },
+          "operator": { "$ref": "#/components/schemas/FilterOperator" },
+          "value": { "$ref": "#/components/schemas/FlexibleValue" }
+        }
+      },
+      "MeterFilter": {
+        "type": "object",
+        "required": ["clauses", "conjunction"],
+        "properties": {
+          "clauses": { "type": "array", "items": { "$ref": "#/components/schemas/MeterFilterCondition" } },
+          "conjunction": { "$ref": "#/components/schemas/Conjunction" }
+        }
+      },
+      "Meter": {
+        "type": "object",
+        "required": [
+          "id",
+          "aggregation",
+          "business_id",
+          "created_at",
+          "event_name",
+          "measurement_unit",
+          "name",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "aggregation": { "$ref": "#/components/schemas/MeterAggregation" },
+          "business_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "event_name": { "type": "string" },
+          "measurement_unit": { "type": "string" },
+          "name": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "filter": { "$ref": "#/components/schemas/MeterFilter" }
+        }
+      },
+      "MeterCreateRequest": {
+        "type": "object",
+        "required": ["aggregation", "event_name", "measurement_unit", "name"],
+        "properties": {
+          "aggregation": { "$ref": "#/components/schemas/MeterAggregation" },
+          "event_name": { "type": "string" },
+          "measurement_unit": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "filter": { "$ref": "#/components/schemas/MeterFilter" }
+        }
+      },
+      "MeterListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Meter" } },
+          "total": { "type": "number" }
+        }
+      },
+      "RefundStatus": { "enum": ["succeeded", "failed", "pending", "review"] },
+      "RefundItem": {
+        "type": "object",
+        "required": ["item_id"],
+        "properties": {
+          "item_id": { "type": "string" },
+          "amount": { "type": ["number", "null"] },
+          "tax_inclusive": { "type": "boolean" }
+        }
+      },
+      "RefundCreateRequest": {
+        "type": "object",
+        "required": ["payment_id"],
+        "properties": {
+          "payment_id": { "type": "string" },
+          "items": { "type": ["array", "null"], "items": { "$ref": "#/components/schemas/RefundItem" } },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "reason": { "type": ["string", "null"] }
+        }
+      },
+      "Refund": {
+        "type": "object",
+        "required": [
+          "business_id",
+          "created_at",
+          "customer",
+          "is_partial",
+          "metadata",
+          "payment_id",
+          "refund_id",
+          "status"
+        ],
+        "properties": {
+          "business_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "is_partial": { "type": "boolean" },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "payment_id": { "type": "string" },
+          "refund_id": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/RefundStatus" },
+          "amount": { "type": ["number", "null"] },
+          "currency": { "type": ["string", "null"] },
+          "reason": { "type": ["string", "null"] }
+        }
+      },
+      "RefundListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Refund" } },
+          "total": { "type": "number" }
+        }
+      },
+      "DiscountType": { "enum": ["percentage"] },
+      "Discount": {
+        "type": "object",
+        "required": [
+          "amount",
+          "business_id",
+          "code",
+          "created_at",
+          "discount_id",
+          "metadata",
+          "preserve_on_plan_change",
+          "restricted_to",
+          "times_used",
+          "type"
+        ],
+        "properties": {
+          "amount": { "type": "number" },
+          "business_id": { "type": "string" },
+          "code": { "type": "string" },
+          "created_at": { "type": "string" },
+          "discount_id": { "type": "string" },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "preserve_on_plan_change": { "type": "boolean" },
+          "restricted_to": { "type": "array", "items": { "type": "string" } },
+          "times_used": { "type": "number" },
+          "type": { "$ref": "#/components/schemas/DiscountType" },
+          "expires_at": { "type": ["string", "null"] },
+          "name": { "type": ["string", "null"] },
+          "subscription_cycles": { "type": ["number", "null"] },
+          "usage_limit": { "type": ["number", "null"] }
+        }
+      },
+      "DiscountCreateRequest": {
+        "type": "object",
+        "required": ["amount", "type"],
+        "properties": {
+          "amount": { "type": "number" },
+          "type": { "$ref": "#/components/schemas/DiscountType" },
+          "code": { "type": ["string", "null"] },
+          "expires_at": { "type": ["string", "null"] },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "name": { "type": ["string", "null"] },
+          "preserve_on_plan_change": { "type": "boolean" },
+          "restricted_to": { "type": ["array", "null"], "items": { "type": "string" } },
+          "subscription_cycles": { "type": ["number", "null"] },
+          "usage_limit": { "type": ["number", "null"] }
+        }
+      },
+      "DiscountUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "amount": { "type": ["number", "null"] },
+          "code": { "type": ["string", "null"] },
+          "expires_at": { "type": ["string", "null"] },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "name": { "type": ["string", "null"] },
+          "preserve_on_plan_change": { "type": ["boolean", "null"] },
+          "restricted_to": { "type": ["array", "null"], "items": { "type": "string" } },
+          "subscription_cycles": { "type": ["number", "null"] },
+          "type": { "$ref": "#/components/schemas/DiscountType" },
+          "usage_limit": { "type": ["number", "null"] }
+        }
+      },
+      "DiscountListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Discount" } },
+          "total": { "type": "number" }
+        }
+      },
+      "LicenseKeyStatus": { "enum": ["active", "expired", "disabled"] },
+      "LicenseKey": {
+        "type": "object",
+        "required": [
+          "id",
+          "business_id",
+          "created_at",
+          "customer_id",
+          "instances_count",
+          "key",
+          "product_id",
+          "source",
+          "status"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "business_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "instances_count": { "type": "number" },
+          "key": { "type": "string" },
+          "product_id": { "type": "string" },
+          "source": { "enum": ["auto", "import"] },
+          "status": { "$ref": "#/components/schemas/LicenseKeyStatus" },
+          "activations_limit": { "type": ["number", "null"] },
+          "expires_at": { "type": ["string", "null"] },
+          "payment_id": { "type": ["string", "null"] },
+          "subscription_id": { "type": ["string", "null"] }
+        }
+      },
+      "LicenseKeyCreateRequest": {
+        "type": "object",
+        "required": ["customer_id", "key", "product_id"],
+        "properties": {
+          "customer_id": { "type": "string" },
+          "key": { "type": "string" },
+          "product_id": { "type": "string" },
+          "activations_limit": { "type": ["number", "null"] },
+          "expires_at": { "type": ["string", "null"] }
+        }
+      },
+      "LicenseKeyUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "activations_limit": { "type": ["number", "null"] },
+          "disabled": { "type": ["boolean", "null"] },
+          "expires_at": { "type": ["string", "null"] }
+        }
+      },
+      "LicenseKeyListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/LicenseKey" } },
+          "total": { "type": "number" }
+        }
+      },
+      "LicenseActivateRequest": {
+        "type": "object",
+        "required": ["license_key", "name"],
+        "properties": { "license_key": { "type": "string" }, "name": { "type": "string" } }
+      },
+      "LicenseDeactivateRequest": {
+        "type": "object",
+        "required": ["license_key", "license_key_instance_id"],
+        "properties": { "license_key": { "type": "string" }, "license_key_instance_id": { "type": "string" } }
+      },
+      "LicenseValidateRequest": {
+        "type": "object",
+        "required": ["license_key"],
+        "properties": { "license_key": { "type": "string" }, "license_key_instance_id": { "type": ["string", "null"] } }
+      },
+      "LicenseActivateProduct": {
+        "type": "object",
+        "required": ["product_id"],
+        "properties": { "product_id": { "type": "string" }, "name": { "type": ["string", "null"] } }
+      },
+      "LicenseActivateResponse": {
+        "type": "object",
+        "required": ["id", "business_id", "created_at", "customer", "license_key_id", "name", "product"],
+        "properties": {
+          "id": { "type": "string" },
+          "business_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "customer": { "$ref": "#/components/schemas/Customer" },
+          "license_key_id": { "type": "string" },
+          "name": { "type": "string" },
+          "product": { "$ref": "#/components/schemas/LicenseActivateProduct" }
+        }
+      },
+      "LicenseValidateResponse": {
+        "type": "object",
+        "required": ["valid"],
+        "properties": { "valid": { "type": "boolean" } }
+      },
+      "TimeInterval": { "enum": ["day", "week", "month", "year"] },
+      "CbbOverageBehavior": {
+        "enum": ["forgive_at_reset", "invoice_at_billing", "carry_deficit", "carry_deficit_auto_repay"]
+      },
+      "CreditEntitlement": {
+        "type": "object",
+        "required": [
+          "id",
+          "business_id",
+          "created_at",
+          "name",
+          "overage_behavior",
+          "overage_enabled",
+          "precision",
+          "rollover_enabled",
+          "unit",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "business_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "name": { "type": "string" },
+          "overage_behavior": { "$ref": "#/components/schemas/CbbOverageBehavior" },
+          "overage_enabled": { "type": "boolean" },
+          "precision": { "type": "number" },
+          "rollover_enabled": { "type": "boolean" },
+          "unit": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "currency": { "type": ["string", "null"] },
+          "description": { "type": ["string", "null"] },
+          "expires_after_days": { "type": ["number", "null"] },
+          "max_rollover_count": { "type": ["number", "null"] },
+          "overage_limit": { "type": ["number", "null"] },
+          "price_per_unit": { "type": ["string", "null"] },
+          "rollover_percentage": { "type": ["number", "null"] },
+          "rollover_timeframe_count": { "type": ["number", "null"] },
+          "rollover_timeframe_interval": { "$ref": "#/components/schemas/TimeInterval" }
+        }
+      },
+      "CreditEntitlementCreateRequest": {
+        "type": "object",
+        "required": ["name", "overage_enabled", "precision", "rollover_enabled", "unit"],
+        "properties": {
+          "name": { "type": "string" },
+          "overage_enabled": { "type": "boolean" },
+          "precision": { "type": "number" },
+          "rollover_enabled": { "type": "boolean" },
+          "unit": { "type": "string" },
+          "currency": { "type": ["string", "null"] },
+          "description": { "type": ["string", "null"] },
+          "expires_after_days": { "type": ["number", "null"] },
+          "max_rollover_count": { "type": ["number", "null"] },
+          "overage_behavior": { "$ref": "#/components/schemas/CbbOverageBehavior" },
+          "overage_limit": { "type": ["number", "null"] },
+          "price_per_unit": { "type": ["string", "null"] },
+          "rollover_percentage": { "type": ["number", "null"] },
+          "rollover_timeframe_count": { "type": ["number", "null"] },
+          "rollover_timeframe_interval": { "$ref": "#/components/schemas/TimeInterval" }
+        }
+      },
+      "CreditEntitlementUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "currency": { "type": ["string", "null"] },
+          "description": { "type": ["string", "null"] },
+          "expires_after_days": { "type": ["number", "null"] },
+          "max_rollover_count": { "type": ["number", "null"] },
+          "name": { "type": ["string", "null"] },
+          "overage_behavior": { "$ref": "#/components/schemas/CbbOverageBehavior" },
+          "overage_enabled": { "type": ["boolean", "null"] },
+          "overage_limit": { "type": ["number", "null"] },
+          "price_per_unit": { "type": ["string", "null"] },
+          "rollover_enabled": { "type": ["boolean", "null"] },
+          "rollover_percentage": { "type": ["number", "null"] },
+          "rollover_timeframe_count": { "type": ["number", "null"] },
+          "rollover_timeframe_interval": { "$ref": "#/components/schemas/TimeInterval" },
+          "unit": { "type": ["string", "null"] }
+        }
+      },
+      "CreditEntitlementListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CreditEntitlement" } },
+          "total": { "type": "number" }
+        }
+      },
+      "CustomerCreditBalance": {
+        "type": "object",
+        "required": ["id", "balance", "created_at", "credit_entitlement_id", "customer_id", "overage", "updated_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "balance": { "type": "string" },
+          "created_at": { "type": "string" },
+          "credit_entitlement_id": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "overage": { "type": "string" },
+          "updated_at": { "type": "string" },
+          "last_transaction_at": { "type": ["string", "null"] }
+        }
+      },
+      "CustomerCreditBalanceListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CustomerCreditBalance" } },
+          "total": { "type": "number" }
+        }
+      },
+      "LedgerEntryType": { "enum": ["credit", "debit"] },
+      "CreditLedgerTransactionType": {
+        "enum": [
+          "credit_added",
+          "credit_deducted",
+          "credit_expired",
+          "credit_rolled_over",
+          "rollover_forfeited",
+          "overage_charged",
+          "overage_reset",
+          "auto_top_up",
+          "manual_adjustment",
+          "refund"
+        ]
+      },
+      "CreditLedgerEntryCreateRequest": {
+        "type": "object",
+        "required": ["amount", "entry_type"],
+        "properties": {
+          "amount": { "type": "string" },
+          "entry_type": { "$ref": "#/components/schemas/LedgerEntryType" },
+          "expires_at": { "type": ["string", "null"] },
+          "idempotency_key": { "type": ["string", "null"] },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "reason": { "type": ["string", "null"] }
+        }
+      },
+      "CreditLedgerEntryCreateResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "amount",
+          "balance_after",
+          "balance_before",
+          "created_at",
+          "credit_entitlement_id",
+          "customer_id",
+          "entry_type",
+          "is_credit",
+          "overage_after",
+          "overage_before"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "amount": { "type": "string" },
+          "balance_after": { "type": "string" },
+          "balance_before": { "type": "string" },
+          "created_at": { "type": "string" },
+          "credit_entitlement_id": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "entry_type": { "$ref": "#/components/schemas/LedgerEntryType" },
+          "is_credit": { "type": "boolean" },
+          "overage_after": { "type": "string" },
+          "overage_before": { "type": "string" },
+          "grant_id": { "type": ["string", "null"] },
+          "reason": { "type": ["string", "null"] }
+        }
+      },
+      "CreditLedgerEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "amount",
+          "balance_after",
+          "balance_before",
+          "business_id",
+          "created_at",
+          "credit_entitlement_id",
+          "customer_id",
+          "is_credit",
+          "overage_after",
+          "overage_before",
+          "transaction_type"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "amount": { "type": "string" },
+          "balance_after": { "type": "string" },
+          "balance_before": { "type": "string" },
+          "business_id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "credit_entitlement_id": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "is_credit": { "type": "boolean" },
+          "overage_after": { "type": "string" },
+          "overage_before": { "type": "string" },
+          "transaction_type": { "$ref": "#/components/schemas/CreditLedgerTransactionType" },
+          "description": { "type": ["string", "null"] },
+          "grant_id": { "type": ["string", "null"] },
+          "reference_id": { "type": ["string", "null"] },
+          "reference_type": { "type": ["string", "null"] }
+        }
+      },
+      "CreditLedgerEntryListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CreditLedgerEntry" } },
+          "total": { "type": "number" }
+        }
+      },
+      "CreditGrant": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "credit_entitlement_id",
+          "customer_id",
+          "initial_amount",
+          "is_expired",
+          "is_rolled_over",
+          "remaining_amount",
+          "rollover_count",
+          "source_type",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "created_at": { "type": "string" },
+          "credit_entitlement_id": { "type": "string" },
+          "customer_id": { "type": "string" },
+          "initial_amount": { "type": "string" },
+          "is_expired": { "type": "boolean" },
+          "is_rolled_over": { "type": "boolean" },
+          "remaining_amount": { "type": "string" },
+          "rollover_count": { "type": "number" },
+          "source_type": { "enum": ["subscription", "one_time", "addon", "api", "rollover"] },
+          "updated_at": { "type": "string" },
+          "expires_at": { "type": ["string", "null"] },
+          "metadata": { "$ref": "#/components/schemas/Metadata" },
+          "parent_grant_id": { "type": ["string", "null"] },
+          "source_id": { "type": ["string", "null"] }
+        }
+      },
+      "CreditGrantListResponse": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CreditGrant" } },
+          "total": { "type": "number" }
+        }
+      }
+    }
+  }
+}

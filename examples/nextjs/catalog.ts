@@ -131,7 +131,7 @@ export default defineConfig({
   products: CommercialProducts,
   provider: {
     paddle: {
-      checkoutUrl: process.env.PURCHASE_CHECKOUT_URL,
+      approvedCheckoutUrl: process.env.PURCHASE_CHECKOUT_URL,
       webhookUrl: process.env.PURCHASE_WEBHOOK_URL,
       checkout: {
         paymentMethods: {
@@ -169,7 +169,6 @@ export default defineConfig({
       }
     },
     stripe: {
-      checkoutUrl: process.env.PURCHASE_CHECKOUT_URL,
       webhookUrl: process.env.PURCHASE_WEBHOOK_URL
     }
   }

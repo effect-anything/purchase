@@ -30,11 +30,13 @@ if (url.pathname === "/api/webhooks/stripe" || url.pathname === "/api/webhooks/p
 The runtime sends raw webhook data to Purchase:
 
 ```ts
-const result = yield* sdk.webhooks.handle({
-  provider: input.provider,
-  body: input.body,
-  signature: input.signature
-})
+const result =
+  yield *
+  sdk.webhooks.handle({
+    provider: input.provider,
+    body: input.body,
+    signature: input.signature
+  })
 ```
 
 This keeps provider parsing, verification, normalization, and reconciliation inside the SDK.

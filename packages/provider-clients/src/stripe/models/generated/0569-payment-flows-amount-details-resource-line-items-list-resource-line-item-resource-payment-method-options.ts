@@ -1,0 +1,10 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourcePaymentMethodOptions = Schema.Struct({
+  card: Schema.optional(Schema.suspend((): typeof Models.PaymentFlowsPrivatePaymentMethodsCardPaymentIntentAmountDetailsLineItemPaymentMethodOptions => Models.PaymentFlowsPrivatePaymentMethodsCardPaymentIntentAmountDetailsLineItemPaymentMethodOptions)),
+  card_present: Schema.optional(Schema.suspend((): typeof Models.PaymentFlowsPrivatePaymentMethodsCardPresentAmountDetailsLineItemPaymentMethodOptions => Models.PaymentFlowsPrivatePaymentMethodsCardPresentAmountDetailsLineItemPaymentMethodOptions)),
+  klarna: Schema.optional(Schema.suspend((): typeof Models.PaymentFlowsPrivatePaymentMethodsKlarnaPaymentIntentAmountDetailsLineItemPaymentMethodOptions => Models.PaymentFlowsPrivatePaymentMethodsKlarnaPaymentIntentAmountDetailsLineItemPaymentMethodOptions)),
+  paypal: Schema.optional(Schema.suspend((): typeof Models.PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptions => Models.PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptions)),
+})
+export type PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourcePaymentMethodOptions = typeof PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourcePaymentMethodOptions.Type

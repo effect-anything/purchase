@@ -93,7 +93,7 @@ export class CloudflareExecutionContext extends Context.Tag("@cloudflare:executi
     )
   }
 
-  static getRawContext(): Effect.Effect<ExecutionContext> {
-    return CloudflareExecutionContext.use((ctx) => ctx.getRawContext())
-  }
+  static readonly getRawContext: Effect.Effect<ExecutionContext> = CloudflareExecutionContext.use((ctx) =>
+    ctx.getRawContext()
+  )
 }

@@ -83,6 +83,7 @@
   },
   "dependencies": {
     "@effect-x/db": "0.0.1",
+    "@effect-x/purchase-provider-clients": "workspace:*",
     "@effect/experimental": "catalog:",
     "@effect/sql": "catalog:",
     "effect": "catalog:"

@@ -211,7 +211,6 @@ const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
           offerId: payload.offerId as never,
           successUrl: "/account?checkout=success",
           cancelUrl: "/account?checkout=cancel",
-          // ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
           metadata: {
             ...(payload.runId ? { purchaseE2eRunId: payload.runId } : {}),
             workspaceSlug: user.workspaceSlug
@@ -234,7 +233,8 @@ const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
           offerId: checkout.offerId,
           intentId: checkout.intentId,
           sessionId: checkout.session.id,
-          url: checkout.session.url ?? null
+          mode: checkout.session.mode,
+          url: checkout.session.mode === "inline-sdk" ? null : checkout.session.url
         }
       }
     })

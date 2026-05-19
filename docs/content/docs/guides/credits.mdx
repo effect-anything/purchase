@@ -41,29 +41,35 @@ Many teams bolt credits on after subscriptions already exist. That usually creat
 ## Example operations
 
 ```ts
-const granted = yield* sdk.credits.grant({
-  customerId,
-  creditKey: "ai_credits",
-  offerId: "ai_credit_pack:ai_credits_500",
-  amount: 500,
-  idempotencyKey: "grant:campaign_123"
-})
+const granted =
+  yield *
+  sdk.credits.grant({
+    customerId,
+    creditKey: "ai_credits",
+    offerId: "ai_credit_pack:ai_credits_500",
+    amount: 500,
+    idempotencyKey: "grant:campaign_123"
+  })
 ```
 
 ```ts
-const consumed = yield* sdk.credits.consume({
-  customerId,
-  creditKey: "ai_credits",
-  amount: 25,
-  idempotencyKey: "consume:message_987"
-})
+const consumed =
+  yield *
+  sdk.credits.consume({
+    customerId,
+    creditKey: "ai_credits",
+    amount: 25,
+    idempotencyKey: "consume:message_987"
+  })
 ```
 
 ```ts
-const wallet = yield* sdk.credits.getWallet({
-  customerId,
-  creditKey: "ai_credits"
-})
+const wallet =
+  yield *
+  sdk.credits.getWallet({
+    customerId,
+    creditKey: "ai_credits"
+  })
 ```
 
 ## Why idempotency matters

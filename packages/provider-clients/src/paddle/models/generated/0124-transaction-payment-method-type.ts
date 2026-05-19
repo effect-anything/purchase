@@ -1,0 +1,5 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const TransactionPaymentMethodType = Schema.Literal("alipay", "apple_pay", "bancontact", "blik", "card", "google_pay", "ideal", "kakao_pay", "korea_local", "south_korea_local_card", "mb_way", "naver_pay", "offline", "payco", "paypal", "pix", "samsung_pay", "unknown", "upi", "wechat_pay", "wire_transfer")
+export type TransactionPaymentMethodType = typeof TransactionPaymentMethodType.Type

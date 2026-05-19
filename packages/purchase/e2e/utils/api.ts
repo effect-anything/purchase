@@ -4,7 +4,7 @@ import { SqlClient } from "@effect/sql"
 import { Effect, String as EffectString, Layer, Ref } from "effect"
 import { createServer } from "node:http"
 
-import type { BrokerEndpoint } from "../infra/types.ts"
+import type { BrokerEndpoint } from "./types.ts"
 
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
 import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
@@ -16,7 +16,6 @@ import { SessionStore } from "../http-api/session.ts"
 
 export interface HttpApiTestingOptions {
   readonly broker: BrokerEndpoint
-  readonly checkoutURL?: string | undefined
 }
 
 const DBMemory = SQLite.layer({
@@ -58,7 +57,6 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
           }
 
           const localBaseUrl = `http://${addr.hostname}:${addr.port}`
-          // const tunnel = yield* TunnelRuntime
           const ref = yield* Ref.make(Cookies.empty)
 
           const client = (yield* HttpClient.HttpClient).pipe(
@@ -74,9 +72,6 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
                 runId: `run_${crypto.randomUUID()}`,
                 baseURL: localBaseUrl,
                 broker: options.broker
-                // ...(tunnel.checkoutURL ? { checkoutURL: tunnel.checkoutURL } : {}),
-                // webhookURL: tunnel.webhookURL,
-                // ...(options.broker ? { brokerBaseURL: options.broker.localBaseURL } : {}),
               })
             )
           )

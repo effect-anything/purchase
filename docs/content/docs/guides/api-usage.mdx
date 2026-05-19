@@ -33,7 +33,10 @@ These are the main read APIs your app will use after workflow completion.
 <ApiTable
   rows={[
     { name: "sdk.customer.getSnapshot(...)", description: "Read the current projected customer state." },
-    { name: "sdk.customer.refreshSnapshot(...)", description: "Rebuild the projection after workflow or webhook changes." },
+    {
+      name: "sdk.customer.refreshSnapshot(...)",
+      description: "Rebuild the projection after workflow or webhook changes."
+    },
     { name: "sdk.customer.getEntitlements(...)", description: "Read the customer entitlement set." },
     { name: "sdk.customer.computeEntitlements(...)", description: "Compute entitlement output from available state." }
   ]}

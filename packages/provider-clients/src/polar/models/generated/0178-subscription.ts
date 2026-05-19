@@ -1,0 +1,38 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const Subscription = Schema.Struct({
+  created_at: Schema.String,
+  modified_at: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  amount: Schema.Number,
+  currency: Schema.String,
+  recurring_interval: Schema.suspend((): typeof Models.SubscriptionRecurringInterval => Models.SubscriptionRecurringInterval),
+  recurring_interval_count: Schema.Number,
+  status: Schema.suspend((): typeof Models.SubscriptionStatus => Models.SubscriptionStatus),
+  current_period_start: Schema.String,
+  current_period_end: Schema.String,
+  trial_start: Schema.NullOr(Schema.String),
+  trial_end: Schema.NullOr(Schema.String),
+  cancel_at_period_end: Schema.Boolean,
+  canceled_at: Schema.NullOr(Schema.String),
+  started_at: Schema.NullOr(Schema.String),
+  ends_at: Schema.NullOr(Schema.String),
+  ended_at: Schema.NullOr(Schema.String),
+  customer_id: Schema.String,
+  product_id: Schema.String,
+  discount_id: Schema.NullOr(Schema.String),
+  checkout_id: Schema.NullOr(Schema.String),
+  seats: Schema.optional(Schema.NullOr(Schema.Number)),
+  customer_cancellation_reason: Schema.NullOr(Schema.suspend((): typeof Models.CustomerCancellationReason => Models.CustomerCancellationReason)),
+  customer_cancellation_comment: Schema.NullOr(Schema.String),
+  metadata: Schema.suspend((): typeof Models.MetadataOutputType => Models.MetadataOutputType),
+  custom_field_data: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.NullOr(Schema.Union(Schema.String, Schema.Number, Schema.Boolean, Schema.String)) })),
+  customer: Schema.suspend((): typeof Models.SubscriptionCustomer => Models.SubscriptionCustomer),
+  product: Schema.suspend((): typeof Models.Product => Models.Product),
+  discount: Schema.NullOr(Schema.Union(Schema.suspend((): typeof Models.DiscountFixedOnceForeverDurationBase => Models.DiscountFixedOnceForeverDurationBase), Schema.suspend((): typeof Models.DiscountFixedRepeatDurationBase => Models.DiscountFixedRepeatDurationBase), Schema.suspend((): typeof Models.DiscountPercentageOnceForeverDurationBase => Models.DiscountPercentageOnceForeverDurationBase), Schema.suspend((): typeof Models.DiscountPercentageRepeatDurationBase => Models.DiscountPercentageRepeatDurationBase))),
+  prices: Schema.Array(Schema.Union(Schema.suspend((): typeof Models.LegacyRecurringProductPrice => Models.LegacyRecurringProductPrice), Schema.suspend((): typeof Models.ProductPrice => Models.ProductPrice))),
+  meters: Schema.Array(Schema.suspend((): typeof Models.SubscriptionMeter => Models.SubscriptionMeter)),
+  pending_update: Schema.NullOr(Schema.suspend((): typeof Models.PendingSubscriptionUpdate => Models.PendingSubscriptionUpdate)),
+})
+export type Subscription = typeof Subscription.Type

@@ -582,7 +582,16 @@ export class TransactionPreviewResult extends Schema.Class<TransactionPreviewRes
   static decode = Schema.decode(TransactionPreviewResult)
 }
 
-export const CheckoutMode = Schema.Literal("inline", "hosted", "portal")
+/**
+ * How the caller should open the checkout UX.
+ *
+ * - `redirect`: provider hosts the page; frontend navigates to `url`.
+ * - `bootstrap-redirect`: provider returns a URL that points back to an app-owned
+ *   page; that page must load the provider's web SDK to render the actual checkout.
+ * - `inline-sdk`: no URL is returned; the frontend opens the provider's overlay
+ *   in-place using the durable session/transaction id (e.g. `Paddle.Checkout.open`).
+ */
+export const CheckoutMode = Schema.Literal("redirect", "bootstrap-redirect", "inline-sdk")
 export type CheckoutMode = typeof CheckoutMode.Type
 
 export class CheckoutSession extends Schema.Class<CheckoutSession>("@pay:checkout-session")({
@@ -597,6 +606,10 @@ export class CheckoutSession extends Schema.Class<CheckoutSession>("@pay:checkou
   providerCustomerId: Schema.optional(CustomerProviderId),
   providerSubscriptionId: Schema.optional(SubscriptionId),
   providerTransactionId: Schema.optional(TransactionId),
+  /**
+   * Populated when `mode` is `redirect` or `bootstrap-redirect`.
+   * Always absent when `mode` is `inline-sdk`.
+   */
   url: Schema.optional(Schema.String),
   token: Schema.optional(Schema.String),
   metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.String }))

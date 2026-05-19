@@ -17,6 +17,8 @@ export {
 
 export { BillingPortalSession, SubscriptionChangePreview } from "./core/session-schema.ts"
 
+export { CheckoutMode } from "./provider/schema.ts"
+
 export {
   AgreementLifecycleStatus,
   BenefitResetInterval,

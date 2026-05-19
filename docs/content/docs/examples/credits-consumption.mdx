@@ -7,7 +7,7 @@ The example does not stop at selling credits. It also shows how the product cons
 
 Relevant files:
 
-- [workspace client](/examples/nextjs/app/(authed)/workspace/workspace-client.tsx)
+- [workspace client](</examples/nextjs/app/(authed)/workspace/workspace-client.tsx>)
 - [app runtime](/examples/nextjs/lib/app-runtime.ts)
 - [HTTP API schema](/examples/nextjs/lib/http-api.ts)
 - [HTTP API handler](/examples/nextjs/lib/http-api-handler.ts)
@@ -28,13 +28,16 @@ const response = await client.credits.consume({
 The server then calls:
 
 ```ts
-return yield* sdk.credits.consume({
-  customerId: asCustomerId(input.user.id),
-  creditKey: "ai_credits",
-  amount: input.amount,
-  idempotencyKey: `${input.user.id}:${Date.now()}:${input.amount}`,
-  reason: input.reason
-})
+return (
+  yield *
+  sdk.credits.consume({
+    customerId: asCustomerId(input.user.id),
+    creditKey: "ai_credits",
+    amount: input.amount,
+    idempotencyKey: `${input.user.id}:${Date.now()}:${input.amount}`,
+    reason: input.reason
+  })
+)
 ```
 
 ## Why this matters

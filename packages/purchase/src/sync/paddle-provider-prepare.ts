@@ -297,7 +297,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
 
       return {
         providerSettings: {
-          checkoutUrl: checkoutSnapshot.checkoutUrl,
+          approvedCheckoutUrl: checkoutSnapshot.checkoutUrl,
           webhookUrl: notificationSetting?.destination,
           checkout: checkoutSnapshot.checkout
         } satisfies PurchaseProviderSettings as PurchaseProviderSettings,
@@ -322,7 +322,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
           const response = yield* vendorRequest({
             operationName: "SaveCheckoutSettings",
             variables: PaddleVendorCheckoutSettingsData.buildMutationVariables({
-              checkoutUrl: input.checkoutUrl,
+              checkoutUrl: input.approvedCheckoutUrl,
               checkout: input.checkout
             }),
             query: SAVE_CHECKOUT_SETTINGS_MUTATION
@@ -390,12 +390,12 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
       return {
         status: "ready",
         changes,
-        ...(input.checkoutUrl
+        ...(input.approvedCheckoutUrl
           ? {
-              checkoutUrl: {
-                current: input.current?.checkoutUrl,
-                desired: input.checkoutUrl,
-                action: determineUnsupportedAction(input.current?.checkoutUrl, input.checkoutUrl)
+              approvedCheckoutUrl: {
+                current: input.current?.approvedCheckoutUrl,
+                desired: input.approvedCheckoutUrl,
+                action: determineUnsupportedAction(input.current?.approvedCheckoutUrl, input.approvedCheckoutUrl)
               }
             }
           : {}),
@@ -428,7 +428,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
           Exit.match(currentStateResult, {
             onFailure: () =>
               ({
-                checkoutUrl: input.checkoutUrl,
+                approvedCheckoutUrl: input.approvedCheckoutUrl,
                 webhookUrl: notificationSetting?.destination
               }) satisfies PurchaseProviderSettings as PurchaseProviderSettings,
             onSuccess: (_) => _.providerSettings
@@ -444,7 +444,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
               fetchPaddleNotificationSetting.pipe(
                 Effect.map((verifiedNotificationSetting) => ({
                   providerSettings: {
-                    checkoutUrl: input.checkoutUrl,
+                    approvedCheckoutUrl: input.approvedCheckoutUrl,
                     webhookUrl: verifiedNotificationSetting?.destination
                   } satisfies PurchaseProviderSettings,
                   notificationSetting: verifiedNotificationSetting

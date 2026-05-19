@@ -1,0 +1,29 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const Transaction = Schema.Struct({
+  id: Schema.suspend(() => Models.TransactionId),
+  status: Schema.suspend(() => Models.TransactionStatus),
+  customer_id: Schema.NullOr(Schema.suspend(() => Models.CustomerId)),
+  address_id: Schema.NullOr(Schema.suspend(() => Models.AddressId)),
+  business_id: Schema.NullOr(Schema.suspend(() => Models.BusinessId)),
+  custom_data: Schema.NullOr(Schema.suspend(() => Models.CustomData)),
+  currency_code: Schema.suspend(() => Models.CurrencyCode),
+  origin: Schema.suspend(() => Models.TransactionOrigin),
+  subscription_id: Schema.NullOr(Schema.suspend(() => Models.SubscriptionId)),
+  invoice_id: Schema.NullOr(Schema.String),
+  invoice_number: Schema.NullOr(Schema.suspend(() => Models.DocumentNumber)),
+  collection_mode: Schema.suspend(() => Models.CollectionMode),
+  discount_id: Schema.NullOr(Schema.suspend(() => Models.DiscountId)),
+  billing_details: Schema.NullOr(Schema.suspend(() => Models.BillingDetails)),
+  billing_period: Schema.NullOr(Schema.suspend(() => Models.TimePeriod)),
+  items: Schema.Array(Schema.suspend(() => Models.TransactionItem)),
+  details: Schema.suspend(() => Models.TransactionDetails),
+  payments: Schema.Array(Schema.suspend(() => Models.TransactionPaymentAttempt)),
+  checkout: Schema.NullOr(Schema.suspend(() => Models.TransactionCheckout)),
+  created_at: Schema.suspend(() => Models.CreatedAt),
+  updated_at: Schema.suspend(() => Models.UpdatedAt),
+  billed_at: Schema.NullOr(Schema.suspend(() => Models.Timestamp)),
+  revised_at: Schema.NullOr(Schema.suspend(() => Models.Timestamp)),
+})
+export type Transaction = typeof Transaction.Type

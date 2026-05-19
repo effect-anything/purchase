@@ -310,15 +310,11 @@ export class CloudflareBindings extends Context.Tag("@cloudflare:bindings")<Clou
     return CloudflareBindings.use((bindings) => bindings.hasBinding(name))
   }
 
-  static getBindings(): Effect.Effect<Record<string, Binding>> {
-    return CloudflareBindings.use((bindings) => bindings.getBindings())
-  }
+  static readonly getBindings: Effect.Effect<Record<string, Binding>, never, never> = CloudflareBindings.use(
+    (bindings) => bindings.getBindings()
+  )
 
-  static getEnv(): Effect.Effect<Record<string, any>> {
-    return CloudflareBindings.use((bindings) => bindings.getEnv())
-  }
+  static readonly getEnv: Effect.Effect<Record<string, any>> = CloudflareBindings.use((bindings) => bindings.getEnv())
 
-  static getRaw(): Effect.Effect<Record<string, any>> {
-    return CloudflareBindings.use((bindings) => bindings.getRaw())
-  }
+  static readonly getRaw: Effect.Effect<Record<string, any>> = CloudflareBindings.use((bindings) => bindings.getRaw())
 }

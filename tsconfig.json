@@ -28,6 +28,9 @@
       "@effect-x/purchase": ["./packages/purchase/src/public.ts"],
       "@effect-x/purchase/*": ["./packages/purchase/src/*.ts"],
 
+      "@effect-x/purchase-provider-clients": ["./packages/provider-clients/src/public.ts"],
+      "@effect-x/purchase-provider-clients/*": ["./packages/provider-clients/src/*.ts"],
+
       //
       "@effect/oxc": ["./packages/tools/oxc/src/index.ts"],
       "@effect/oxc/*": ["./packages/tools/oxc/src/*.ts"]

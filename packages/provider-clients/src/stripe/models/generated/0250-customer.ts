@@ -1,0 +1,52 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const Customer = Schema.Struct({
+  address: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.Address => Models.Address))),
+  balance: Schema.optional(Schema.Number),
+  business_name: Schema.optional(Schema.String),
+  cash_balance: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.CashBalance => Models.CashBalance))),
+  created: Schema.Number,
+  currency: Schema.optional(Schema.NullOr(Schema.String)),
+  customer_account: Schema.optional(Schema.NullOr(Schema.String)),
+  default_source: Schema.NullOr(Schema.Union(Schema.String, Schema.suspend((): typeof Models.PaymentSource => Models.PaymentSource))),
+  delinquent: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  description: Schema.NullOr(Schema.String),
+  discount: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.Discount => Models.Discount))),
+  email: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  individual_name: Schema.optional(Schema.String),
+  invoice_credit_balance: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Number })),
+  invoice_prefix: Schema.optional(Schema.NullOr(Schema.String)),
+  invoice_settings: Schema.optional(Schema.suspend((): typeof Models.InvoiceSettingCustomerSetting => Models.InvoiceSettingCustomerSetting)),
+  livemode: Schema.Boolean,
+  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.String })),
+  name: Schema.optional(Schema.NullOr(Schema.String)),
+  next_invoice_sequence: Schema.optional(Schema.Number),
+  object: Schema.Literal("customer"),
+  phone: Schema.optional(Schema.NullOr(Schema.String)),
+  preferred_locales: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+  shipping: Schema.NullOr(Schema.suspend((): typeof Models.Shipping => Models.Shipping)),
+  sources: Schema.optional(Schema.Struct({
+  data: Schema.Array(Schema.suspend((): typeof Models.PaymentSource => Models.PaymentSource)),
+  has_more: Schema.Boolean,
+  object: Schema.Literal("list"),
+  url: Schema.String,
+})),
+  subscriptions: Schema.optional(Schema.Struct({
+  data: Schema.Array(Schema.suspend((): typeof Models.Subscription => Models.Subscription)),
+  has_more: Schema.Boolean,
+  object: Schema.Literal("list"),
+  url: Schema.String,
+})),
+  tax: Schema.optional(Schema.suspend((): typeof Models.CustomerTax => Models.CustomerTax)),
+  tax_exempt: Schema.optional(Schema.NullOr(Schema.Literal("exempt", "none", "reverse"))),
+  tax_ids: Schema.optional(Schema.Struct({
+  data: Schema.Array(Schema.suspend((): typeof Models.TaxId => Models.TaxId)),
+  has_more: Schema.Boolean,
+  object: Schema.Literal("list"),
+  url: Schema.String,
+})),
+  test_clock: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.suspend((): typeof Models.TestHelpersTestClock => Models.TestHelpersTestClock)))),
+})
+export type Customer = typeof Customer.Type

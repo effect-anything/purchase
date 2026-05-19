@@ -1,5 +1,7 @@
 import type * as Layer from "effect/Layer"
 
+
+
 import * as Command from "@effect/cli/Command"
 import * as Options from "@effect/cli/Options"
 import * as PgClient from "@effect/sql-pg/PgClient"
@@ -82,7 +84,8 @@ const makeProviderLayer = (options: CliOptions): Layer.Layer<any, unknown> => {
   return Paddle.layerConfig({
     apiToken: Redacted.make(options.paddleApiToken ?? ""),
     webhookToken: Redacted.make(options.paddleWebhookToken ?? ""),
-    environment: options.environment
+    environment: options.environment,
+    checkoutUrl: Option.none()
   })
 }
 

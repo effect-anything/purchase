@@ -19,15 +19,17 @@ The provider adapter then maps that to Stripe or Paddle objects.
 ## Example
 
 ```ts
-const checkout = yield* sdk.checkout.start({
-  customerId,
-  offerId: "app:pro_monthly",
-  successUrl: "https://app.example.com/settings/billing/success",
-  cancelUrl: "https://app.example.com/settings/billing/cancel",
-  metadata: {
-    source: "pricing_page"
-  }
-})
+const checkout =
+  yield *
+  sdk.checkout.start({
+    customerId,
+    offerId: "app:pro_monthly",
+    successUrl: "https://app.example.com/settings/billing/success",
+    cancelUrl: "https://app.example.com/settings/billing/cancel",
+    metadata: {
+      source: "pricing_page"
+    }
+  })
 ```
 
 ## Result shape

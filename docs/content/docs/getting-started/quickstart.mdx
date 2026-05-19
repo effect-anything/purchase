@@ -77,12 +77,14 @@ export class Pay extends BaseSDK<Pay, {}, typeof CommercialPlans, typeof Commerc
 ## 3. Start checkout
 
 ```ts
-const result = yield* sdk.checkout.start({
-  customerId,
-  offerId: "app:pro_monthly",
-  successUrl: "https://app.example.com/billing/success",
-  cancelUrl: "https://app.example.com/billing/cancel"
-})
+const result =
+  yield *
+  sdk.checkout.start({
+    customerId,
+    offerId: "app:pro_monthly",
+    successUrl: "https://app.example.com/billing/success",
+    cancelUrl: "https://app.example.com/billing/cancel"
+  })
 ```
 
 The result gives you a provider-neutral checkout intent plus the provider checkout session reference.
@@ -101,11 +103,13 @@ Typical fields in the checkout result are:
 Your application receives the raw provider payload and passes it into the shared webhook runtime:
 
 ```ts
-const result = yield* sdk.webhooks.handle({
-  provider: "stripe",
-  signature: request.headers.get("stripe-signature") ?? "",
-  body: await request.text()
-})
+const result =
+  yield *
+  sdk.webhooks.handle({
+    provider: "stripe",
+    signature: request.headers.get("stripe-signature") ?? "",
+    body: await request.text()
+  })
 ```
 
 Purchase normalizes provider events, updates workflow state, and refreshes customer projections.
@@ -120,8 +124,8 @@ The webhook result is deliberately operational. It includes:
 ## 5. Read customer state
 
 ```ts
-const snapshot = yield* sdk.customer.getSnapshot({ customerId })
-const entitlements = yield* sdk.customer.getEntitlements({ customerId })
+const snapshot = yield * sdk.customer.getSnapshot({ customerId })
+const entitlements = yield * sdk.customer.getEntitlements({ customerId })
 ```
 
 This is the main usage pattern: workflows write commercial events and state, and your app reads normalized customer state back out.

@@ -30,11 +30,7 @@ export class PurchaseService extends PurchaseSDK<
   // These helpers are intentionally provider-config-free. App runtimes compose
   // them with Stripe.layerConfig(...) or Paddle.layerConfig(...) so sandbox/test
   // credentials stay at the runtime boundary.
-  static get Stripe() {
-    return this.Default.pipe(Layer.provide(Stripe.layer))
-  }
+  static readonly Stripe = this.Default.pipe(Layer.provide(Stripe.layer))
 
-  static get Paddle() {
-    return this.Default.pipe(Layer.provide(Paddle.layer))
-  }
+  static readonly Paddle = this.Default.pipe(Layer.provide(Paddle.layer))
 }

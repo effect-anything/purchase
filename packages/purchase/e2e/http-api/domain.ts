@@ -1,4 +1,5 @@
-import { CommercialCatalog } from "@effect-x/purchase/schema"
+import { PaymentEnvironmentTag, PaymentProviderTag } from "@effect-x/purchase/provider"
+import { CheckoutMode, CommercialCatalog } from "@effect-x/purchase/schema"
 import { Context, Schema } from "effect"
 
 export class AuthenticationRequired extends Schema.TaggedError<AuthenticationRequired>()("AuthenticationRequired", {
@@ -34,8 +35,8 @@ export type AuthenticatedUser = typeof AuthenticatedUser.Type
 export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, typeof AuthenticatedUser.Type>() {}
 
 export const AccountApiResponse = Schema.Struct({
-  environment: Schema.String,
-  provider: Schema.String,
+  environment: PaymentEnvironmentTag,
+  provider: PaymentProviderTag,
   user: AuthenticatedUser,
   snapshot: Schema.Struct({
     activeOfferIds: Schema.Array(Schema.String),
@@ -79,8 +80,8 @@ export const AccountApiResponse = Schema.Struct({
 })
 
 export const CatalogApiResponse = Schema.Struct({
-  environment: Schema.String,
-  provider: Schema.String,
+  environment: PaymentEnvironmentTag,
+  provider: PaymentProviderTag,
   catalog: CommercialCatalog
 })
 
@@ -93,12 +94,13 @@ export const CheckoutStartResult = Schema.Struct({
   offerId: Schema.String,
   intentId: Schema.String,
   sessionId: Schema.String,
+  mode: CheckoutMode,
   url: Schema.NullOr(Schema.String)
 })
 
 export const CheckoutStartApiResponse = Schema.Struct({
-  environment: Schema.String,
-  provider: Schema.String,
+  environment: PaymentEnvironmentTag,
+  provider: PaymentProviderTag,
   checkout: CheckoutStartResult
 })
 

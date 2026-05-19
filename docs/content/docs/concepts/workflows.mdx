@@ -14,19 +14,30 @@ The public SDK exposes a workflow-oriented surface instead of a provider-API sur
     {
       key: "ingress",
       name: <span>Checkout and webhook ingress</span>,
-      description: <><code>checkout.start</code>, <code>webhooks.handle</code>, <code>webhooks.replay</code></>
+      description: (
+        <>
+          <code>checkout.start</code>, <code>webhooks.handle</code>, <code>webhooks.replay</code>
+        </>
+      )
     },
     {
       key: "portal",
       name: <span>Portal and subscription ops</span>,
       description: (
-        <><code>portal.createSession</code>, <code>subscriptions.cancel</code>, <code>subscriptions.change</code>, <code>subscriptions.pause</code>, <code>subscriptions.resume</code>, <code>subscriptions.previewChange</code></>
+        <>
+          <code>portal.createSession</code>, <code>subscriptions.cancel</code>, <code>subscriptions.change</code>,{" "}
+          <code>subscriptions.pause</code>, <code>subscriptions.resume</code>, <code>subscriptions.previewChange</code>
+        </>
       )
     },
     {
       key: "purchase",
       name: <span>Purchase and credit ops</span>,
-      description: <><code>purchases.refund</code>, <code>credits.grant</code>, <code>credits.consume</code></>
+      description: (
+        <>
+          <code>purchases.refund</code>, <code>credits.grant</code>, <code>credits.consume</code>
+        </>
+      )
     }
   ]}
 />

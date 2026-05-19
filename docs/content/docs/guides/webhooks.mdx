@@ -10,11 +10,13 @@ Webhooks are where billing integrations usually become fragile. Purchase treats 
 Your application receives raw provider data and passes it to the SDK:
 
 ```ts
-const result = yield* sdk.webhooks.handle({
-  provider: "stripe",
-  signature,
-  body
-})
+const result =
+  yield *
+  sdk.webhooks.handle({
+    provider: "stripe",
+    signature,
+    body
+  })
 ```
 
 ## What the runtime should own

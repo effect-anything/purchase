@@ -10,7 +10,7 @@ import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
 import { Layer } from "effect"
 import * as path from "node:path"
 
-import { Live } from "./setup/runtime.ts"
+import { Live } from "./utils/runtime.ts"
 
 const repoRoot = new URL("../../..", import.meta.url).pathname
 

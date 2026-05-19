@@ -10,10 +10,12 @@ Purchase already includes workflow surfaces for customer portal access and purch
 Use the portal workflow when you want the provider to handle self-service billing operations such as payment method updates or subscription management.
 
 ```ts
-const portal = yield* sdk.portal.createSession({
-  customerId,
-  returnUrl: "https://app.example.com/account"
-})
+const portal =
+  yield *
+  sdk.portal.createSession({
+    customerId,
+    returnUrl: "https://app.example.com/account"
+  })
 ```
 
 Depending on the provider and flow, the runtime may also require an `agreementId`.
@@ -31,11 +33,13 @@ Portal behavior is not identical across providers. Treating it as a workflow let
 Purchase also exposes a provider-neutral refund workflow for one-time purchase agreements.
 
 ```ts
-const receipt = yield* sdk.purchases.refund({
-  customerId,
-  agreementId,
-  reason: "support_resolution"
-})
+const receipt =
+  yield *
+  sdk.purchases.refund({
+    customerId,
+    agreementId,
+    reason: "support_resolution"
+  })
 ```
 
 ## Refund lifecycle

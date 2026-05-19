@@ -57,10 +57,11 @@ function formatBlock(code: string, ext: string): string | null {
       return null
     }
     // Strip the single level of indentation oxfmt added inside the function.
-    out = match[1]
-      .split("\n")
-      .map((l) => (l.startsWith("  ") ? l.slice(2) : l))
-      .join("\n") + "\n"
+    out =
+      match[1]
+        .split("\n")
+        .map((l) => (l.startsWith("  ") ? l.slice(2) : l))
+        .join("\n") + "\n"
   }
   return out
 }

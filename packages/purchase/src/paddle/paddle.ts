@@ -27,6 +27,7 @@ import {
 } from "../provider/client.ts"
 import {
   BillingPortalSession,
+  type CheckoutMode,
   CheckoutSession,
   Customer,
   Price,
@@ -621,18 +622,23 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         })
         .pipe(Effect.orDie)
 
+      const bootstrapUrl = Option.getOrUndefined(config.checkoutUrl)
+
       const transaction = yield* paddle.transactions
         .create({
           customerId: args.providerCustomerId,
           addressId: address.id,
           priceId: args.providerOfferId,
-          checkoutUrl: args.checkoutUrl,
+          checkoutUrl: bootstrapUrl,
           customData: metadata
         })
         .pipe(Effect.orDie)
 
+      const mode: CheckoutMode = bootstrapUrl ? "bootstrap-redirect" : "inline-sdk"
+      const url = mode === "bootstrap-redirect" ? (transaction.checkout.url ?? undefined) : undefined
+
       return CheckoutSession.make({
-        mode: "hosted",
+        mode,
         provider: "paddle",
         environment: config.environment,
         offerId: CommercialOfferId.make(args.offerId),
@@ -641,7 +647,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
           ? { providerSubscriptionId: SubscriptionId.make(transaction.subscription_id) }
           : {}),
         providerTransactionId: TransactionId.make(transaction.id),
-        url: transaction.checkout.url,
+        ...(url ? { url } : {}),
         metadata
       })
     })

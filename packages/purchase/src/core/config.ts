@@ -4,7 +4,12 @@ import type { PaymentProviderTag } from "../provider.ts"
  * Provider-scoped runtime settings.
  */
 export interface PurchaseProviderSettings {
-  readonly checkoutUrl?: string | undefined
+  /**
+   * Approved checkout page URL configured at the provider (e.g. Paddle Dashboard
+   * Approved domains). This is sync-time deployment metadata pushed to the
+   * provider, not the URL used at runtime by `checkout.start`.
+   */
+  readonly approvedCheckoutUrl?: string | undefined
   readonly webhookUrl?: string | undefined
   readonly checkout?: PurchaseCheckoutSettings | undefined
 }

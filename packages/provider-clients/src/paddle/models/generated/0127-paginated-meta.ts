@@ -1,0 +1,8 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const PaginatedMeta = Schema.Struct({
+  request_id: Schema.String,
+  pagination: Schema.suspend(() => Models.Pagination),
+})
+export type PaginatedMeta = typeof PaginatedMeta.Type

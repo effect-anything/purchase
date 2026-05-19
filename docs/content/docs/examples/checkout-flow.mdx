@@ -7,8 +7,8 @@ The account page turns catalog offers into billing actions.
 
 Relevant files:
 
-- [account page](/examples/nextjs/app/(authed)/account/page.tsx)
-- [account actions](/examples/nextjs/app/(authed)/account/account-actions.tsx)
+- [account page](</examples/nextjs/app/(authed)/account/page.tsx>)
+- [account actions](</examples/nextjs/app/(authed)/account/account-actions.tsx>)
 - [app runtime](/examples/nextjs/lib/app-runtime.ts)
 
 ## Browser action
@@ -24,17 +24,19 @@ const response = await client.checkout.start({ payload: { offerId: props.offerId
 Server code authenticates the user, validates the offer, and then delegates to Purchase:
 
 ```ts
-const checkout = yield* sdk.checkout.start({
-  customerId: asCustomerId(input.user.id),
-  offerId: input.offerId as never,
-  successUrl: `${getAppBaseUrl()}/account?checkout=success&offer=${encodeURIComponent(input.offerId)}`,
-  cancelUrl: `${getAppBaseUrl()}/account?checkout=cancelled&offer=${encodeURIComponent(input.offerId)}`,
-  metadata: {
-    source: "nextjs-app",
-    workspaceSlug: input.user.workspaceSlug,
-    authUserId: input.user.id
-  }
-})
+const checkout =
+  yield *
+  sdk.checkout.start({
+    customerId: asCustomerId(input.user.id),
+    offerId: input.offerId as never,
+    successUrl: `${getAppBaseUrl()}/account?checkout=success&offer=${encodeURIComponent(input.offerId)}`,
+    cancelUrl: `${getAppBaseUrl()}/account?checkout=cancelled&offer=${encodeURIComponent(input.offerId)}`,
+    metadata: {
+      source: "nextjs-app",
+      workspaceSlug: input.user.workspaceSlug,
+      authUserId: input.user.id
+    }
+  })
 ```
 
 ## Why this boundary is right

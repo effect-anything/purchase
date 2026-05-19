@@ -21,14 +21,24 @@ export function AccountCheckoutButton(props: { readonly offerId: string; readonl
           startTransition(async () => {
             const client = await makeBrowserHttpApiClient()
             const response = await Effect.runPromise(client.checkout.start({ payload: { offerId: props.offerId } }))
+            const { checkout } = response
 
-            if (response.checkout.url) {
-              window.location.href = response.checkout.url
-              return
+            switch (checkout.mode) {
+              case "redirect":
+              case "bootstrap-redirect":
+                if (checkout.url) {
+                  window.location.href = checkout.url
+                  return
+                }
+                setMessage(`Checkout ${checkout.intentId} returned no URL.`)
+                return
+              case "inline-sdk":
+                // TODO: open provider overlay in-place using checkout.sessionId
+                // e.g. Paddle.Checkout.open({ transactionId: checkout.sessionId })
+                setMessage(`Inline checkout ${checkout.intentId} ready (session ${checkout.sessionId}).`)
+                router.refresh()
+                return
             }
-
-            setMessage(`Checkout intent ${response.checkout.intentId} recorded.`)
-            router.refresh()
           })
         }}
       >

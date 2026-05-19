@@ -1,0 +1,110 @@
+{
+  "name": "@effect-x/purchase-provider-clients",
+  "version": "0.0.1",
+  "description": "Effect v3 OpenAPI-style clients for payment providers.",
+  "keywords": [
+    "effect",
+    "payments",
+    "stripe",
+    "paddle",
+    "openapi"
+  ],
+  "homepage": "https://github.com/effect-anything/purchase#readme",
+  "bugs": {
+    "url": "https://github.com/effect-anything/purchase/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effect-anything/purchase.git",
+    "directory": "packages/provider-clients"
+  },
+  "files": [
+    "src/**/*.ts",
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map"
+  ],
+  "type": "module",
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/public.ts",
+    "./core": "./src/core.ts",
+    "./stripe": "./src/stripe.ts",
+    "./stripe/models": "./src/stripe/models.ts",
+    "./stripe/operations": "./src/stripe/operations.ts",
+    "./paddle": "./src/paddle.ts",
+    "./paddle/models": "./src/paddle/models.ts",
+    "./paddle/operations": "./src/paddle/operations.ts",
+    "./polar": "./src/polar.ts",
+    "./polar/models": "./src/polar/models.ts",
+    "./polar/operations": "./src/polar/operations.ts",
+    "./creem": "./src/creem.ts",
+    "./creem/models": "./src/creem/models.ts",
+    "./creem/operations": "./src/creem/operations.ts",
+    "./dodo": "./src/dodo.ts",
+    "./dodo/models": "./src/dodo/models.ts",
+    "./dodo/operations": "./src/dodo/operations.ts",
+    "./lemon": "./src/lemon.ts",
+    "./lemon/models": "./src/lemon/models.ts",
+    "./lemon/operations": "./src/lemon/operations.ts",
+    "./internal/*": null,
+    "./*/index": null
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./dist/public.js",
+      "./core": "./dist/core.js",
+      "./stripe": "./dist/stripe.js",
+      "./stripe/models": "./dist/stripe/models.js",
+      "./stripe/operations": "./dist/stripe/operations.js",
+      "./paddle": "./dist/paddle.js",
+      "./paddle/models": "./dist/paddle/models.js",
+      "./paddle/operations": "./dist/paddle/operations.js",
+      "./polar": "./dist/polar.js",
+      "./polar/models": "./dist/polar/models.js",
+      "./polar/operations": "./dist/polar/operations.js",
+      "./creem": "./dist/creem.js",
+      "./creem/models": "./dist/creem/models.js",
+      "./creem/operations": "./dist/creem/operations.js",
+      "./dodo": "./dist/dodo.js",
+      "./dodo/models": "./dist/dodo/models.js",
+      "./dodo/operations": "./dist/dodo/operations.js",
+      "./lemon": "./dist/lemon.js",
+      "./lemon/models": "./dist/lemon/models.js",
+      "./lemon/operations": "./dist/lemon/operations.js",
+      "./internal/*": null,
+      "./*/index": null
+    },
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsgo -b tsconfig.json && pnpm babel",
+    "babel": "babel dist --plugins annotate-pure-calls --out-dir dist --source-maps",
+    "check": "tsgo -b tsconfig.json",
+    "generate": "tsx scripts/generate.ts",
+    "generate:stripe": "tsx scripts/generate.ts stripe",
+    "generate:paddle": "tsx scripts/generate.ts paddle",
+    "generate:polar": "tsx scripts/generate.ts polar",
+    "generate:creem": "tsx scripts/generate.ts creem",
+    "generate:dodo": "tsx scripts/generate.ts dodo",
+    "generate:lemon": "tsx scripts/generate.ts lemon"
+  },
+  "dependencies": {
+    "@effect/platform": "catalog:",
+    "effect": "catalog:",
+    "yaml": "^2.8.4"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@types/node": "catalog:"
+  },
+  "tags": [
+    "typescript",
+    "effect"
+  ]
+}

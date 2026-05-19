@@ -32,7 +32,7 @@ import type {
 } from "./core/workflow-schema.ts"
 import type { InferOfferId, InferProductId, ProductsModule, PurchasePlansModule } from "./dsl.ts"
 import type { PaymentProviderTag } from "./provider.ts"
-import type { BillingPortalSession, SubscriptionChangePreview } from "./schema.ts"
+import type { BillingPortalSession, CheckoutMode, SubscriptionChangePreview } from "./schema.ts"
 
 import { buildCommercialCatalog, CatalogState } from "./core/catalog-builder.ts"
 import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./core/catalog-service.ts"
@@ -68,15 +68,22 @@ export interface PurchaseCheckoutRequest<TProducts extends ReadonlyArray<unknown
    */
   readonly cancelUrl?: string | undefined
   /**
-   * Provider-hosted checkout page URL. Paddle uses this as the transaction
-   * checkout payment link base and requires it to be an approved website.
-   */
-  readonly checkoutUrl?: string | undefined
-  /**
    * Caller metadata persisted on the checkout intent and passed to the provider.
    */
   readonly metadata?: Readonly<Record<string, string>> | undefined
 }
+
+/**
+ * Discriminated checkout session returned by the SDK.
+ *
+ * Frontend code should switch on `mode`:
+ * - `redirect` / `bootstrap-redirect`: navigate the browser to `url`.
+ * - `inline-sdk`: open the provider's overlay in place using `id` (no navigation).
+ */
+export type PurchaseCheckoutSession =
+  | { readonly mode: "redirect"; readonly id: string; readonly url: string }
+  | { readonly mode: "bootstrap-redirect"; readonly id: string; readonly url: string }
+  | { readonly mode: "inline-sdk"; readonly id: string }
 
 /**
  * Commercial checkout result returned by the default SDK.
@@ -96,16 +103,7 @@ export interface PurchaseCheckoutResult<TProducts extends ReadonlyArray<unknown>
    * Stable commercial offer sold by the checkout target.
    */
   readonly offerId: InferOfferId<TProducts>
-  readonly session: {
-    /**
-     * Durable provider checkout identifier.
-     */
-    readonly id: string
-    /**
-     * Hosted checkout URL when the provider exposes one.
-     */
-    readonly url?: string | undefined
-  }
+  readonly session: PurchaseCheckoutSession
   readonly intentId: string
   /**
    * Correlation metadata written alongside the workflow intent.
@@ -302,19 +300,17 @@ export function PurchaseSDK<
                 offerId: input.offerId as never,
                 successUrl: input.successUrl,
                 cancelUrl: input.cancelUrl,
-                checkoutUrl: input.checkoutUrl,
                 metadata
               })
+
+              const session = buildCheckoutSession(result.mode, result.checkoutSessionId, result.checkoutUrl)
 
               return {
                 provider: result.provider,
                 customerId: input.customerId,
                 productId: result.target.productId as unknown as InferProductId<TProducts>,
                 offerId: result.target.offerId as unknown as InferOfferId<TProducts>,
-                session: {
-                  id: result.checkoutSessionId,
-                  ...(result.checkoutUrl ? { url: result.checkoutUrl } : {})
-                },
+                session,
                 intentId: result.intentId,
                 metadata
               } satisfies PurchaseCheckoutResult<TProducts>
@@ -401,3 +397,16 @@ const buildCheckoutMetadata = <TProducts extends ReadonlyArray<unknown>>(
   ...(input.successUrl ? { paySuccessUrl: input.successUrl } : {}),
   ...(input.cancelUrl ? { payCancelUrl: input.cancelUrl } : {})
 })
+
+const buildCheckoutSession = (mode: CheckoutMode, id: string, url: string | undefined): PurchaseCheckoutSession => {
+  switch (mode) {
+    case "redirect":
+    case "bootstrap-redirect":
+      if (!url) {
+        throw new Error(`Checkout mode "${mode}" requires a URL but the provider returned none`)
+      }
+      return { mode, id, url }
+    case "inline-sdk":
+      return { mode, id }
+  }
+}

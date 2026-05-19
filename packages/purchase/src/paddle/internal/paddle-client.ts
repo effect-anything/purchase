@@ -49,7 +49,14 @@ import {
 export const PaddleConfig = Config.all({
   apiToken: Config.redacted("PADDLE_API_TOKEN").pipe(Config.withDefault(Redacted.make(""))),
   webhookToken: Config.redacted("PADDLE_WEBHOOK_TOKEN").pipe(Config.withDefault(Redacted.make(""))),
-  environment: Config.literal("sandbox", "production")("PADDLE_ENVIRONMENT").pipe(Config.withDefault("sandbox"))
+  environment: Config.literal("sandbox", "production")("PADDLE_ENVIRONMENT").pipe(Config.withDefault("sandbox")),
+  /**
+   * App-owned page that Paddle.js bootstraps the checkout overlay on.
+   * Must be an absolute URL whose host is registered as an Approved domain
+   * in the Paddle Dashboard. When omitted, the provider returns sessions in
+   * `inline-sdk` mode (callers open the overlay using the transaction id).
+   */
+  checkoutUrl: Config.option(Config.string("PADDLE_CHECKOUT_URL"))
 })
 export type PaddleConfig = Config.Config.Success<typeof PaddleConfig>
 

@@ -1,0 +1,36 @@
+import * as Schema from "effect/Schema"
+import * as Models from "../../models.ts"
+
+export const IssuingAuthorization = Schema.Struct({
+  amount: Schema.Number,
+  amount_details: Schema.NullOr(Schema.suspend((): typeof Models.IssuingAuthorizationAmountDetails => Models.IssuingAuthorizationAmountDetails)),
+  approved: Schema.Boolean,
+  authorization_method: Schema.Literal("chip", "contactless", "keyed_in", "online", "swipe"),
+  balance_transactions: Schema.Array(Schema.suspend((): typeof Models.BalanceTransaction => Models.BalanceTransaction)),
+  card: Schema.suspend((): typeof Models.IssuingCard => Models.IssuingCard),
+  card_presence: Schema.NullOr(Schema.Literal("not_present", "present")),
+  cardholder: Schema.NullOr(Schema.Union(Schema.String, Schema.suspend((): typeof Models.IssuingCardholder => Models.IssuingCardholder))),
+  created: Schema.Number,
+  currency: Schema.String,
+  fleet: Schema.NullOr(Schema.suspend((): typeof Models.IssuingAuthorizationFleetData => Models.IssuingAuthorizationFleetData)),
+  fraud_challenges: Schema.optional(Schema.NullOr(Schema.Array(Schema.suspend((): typeof Models.IssuingAuthorizationFraudChallenge => Models.IssuingAuthorizationFraudChallenge)))),
+  fuel: Schema.NullOr(Schema.suspend((): typeof Models.IssuingAuthorizationFuelData => Models.IssuingAuthorizationFuelData)),
+  id: Schema.String,
+  livemode: Schema.Boolean,
+  merchant_amount: Schema.Number,
+  merchant_currency: Schema.String,
+  merchant_data: Schema.suspend((): typeof Models.IssuingAuthorizationMerchantData => Models.IssuingAuthorizationMerchantData),
+  metadata: Schema.Record({ key: Schema.String, value: Schema.String }),
+  network_data: Schema.NullOr(Schema.suspend((): typeof Models.IssuingAuthorizationNetworkData => Models.IssuingAuthorizationNetworkData)),
+  object: Schema.Literal("issuing.authorization"),
+  pending_request: Schema.NullOr(Schema.suspend((): typeof Models.IssuingAuthorizationPendingRequest => Models.IssuingAuthorizationPendingRequest)),
+  request_history: Schema.Array(Schema.suspend((): typeof Models.IssuingAuthorizationRequest2 => Models.IssuingAuthorizationRequest2)),
+  status: Schema.Literal("closed", "expired", "pending", "reversed"),
+  token: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.suspend((): typeof Models.IssuingToken => Models.IssuingToken)))),
+  transactions: Schema.Array(Schema.suspend((): typeof Models.IssuingTransaction => Models.IssuingTransaction)),
+  treasury: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.IssuingAuthorizationTreasury => Models.IssuingAuthorizationTreasury))),
+  verification_data: Schema.suspend((): typeof Models.IssuingAuthorizationVerificationData => Models.IssuingAuthorizationVerificationData),
+  verified_by_fraud_challenge: Schema.NullOr(Schema.Boolean),
+  wallet: Schema.NullOr(Schema.String),
+})
+export type IssuingAuthorization = typeof IssuingAuthorization.Type

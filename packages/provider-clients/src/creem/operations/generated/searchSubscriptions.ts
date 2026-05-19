@@ -1,0 +1,32 @@
+import * as Effect from "effect/Effect"
+import * as Schema from "effect/Schema"
+
+import { defineOperation } from "../../../core/operation.ts"
+import * as Models from "../../models.ts"
+import { CreemClient } from "../../client.ts"
+
+export const SearchSubscriptionsInput = Schema.Struct({
+  page_number: Schema.optional(Schema.Number),
+  page_size: Schema.optional(Schema.Number),
+})
+export type SearchSubscriptionsInput = typeof SearchSubscriptionsInput.Type
+
+export const SearchSubscriptionsOutput = Models.SubscriptionListEntity
+export type SearchSubscriptionsOutput = typeof SearchSubscriptionsOutput.Type
+
+export const searchSubscriptionsOperation = defineOperation({
+  id: "creem.searchSubscriptions",
+  method: "GET",
+  path: "/subscriptions/search",
+  inputSchema: SearchSubscriptionsInput,
+  outputSchema: SearchSubscriptionsOutput,
+  status: [200],
+  contentType: "json",
+  queryParams: ["page_number", "page_size"]
+})
+
+/**
+ * List all subscriptions
+ */
+export const searchSubscriptions = (input: SearchSubscriptionsInput) =>
+  CreemClient.pipe(Effect.flatMap((client) => client.request(searchSubscriptionsOperation, input)))

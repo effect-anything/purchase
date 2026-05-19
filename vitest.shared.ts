@@ -8,11 +8,11 @@ const config: ViteUserConfig = {
   plugins: [],
   server: {
     watch: {
-      ignored: ["**/.context/**", "**/.direnv/**", "**/.lalph/**", "**/.repos/**"]
+      ignored: ["**/.context/**", "**/.direnv/**", "**/.lalph/**", "**/.references/**"]
     }
   },
   test: {
-    exclude: ["**/.context/**", "**/.direnv/**", "**/.lalph/**", "**/.repos/**", "**/node_modules/**"],
+    exclude: ["**/.context/**", "**/.direnv/**", "**/.lalph/**", "**/.references/**", "**/node_modules/**"],
     fakeTimers: {
       toFake: undefined
     },

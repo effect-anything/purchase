@@ -16,7 +16,7 @@ export interface ProviderPreparePlan {
   readonly status: "ready" | "unsupported"
   readonly reason?: string | undefined
   readonly changes: ReadonlyArray<ProviderPreparePlanChange>
-  readonly checkoutUrl?:
+  readonly approvedCheckoutUrl?:
     | {
         readonly current?: string | undefined
         readonly desired: string
@@ -64,12 +64,12 @@ export const buildUnsupportedPrepareResult = (
     status: "unsupported",
     reason: `Provider prepare is not implemented for ${provider} yet.`,
     changes: collectPrepareChanges(input),
-    ...(input.checkoutUrl
+    ...(input.approvedCheckoutUrl
       ? {
-          checkoutUrl: {
-            current: input.current?.checkoutUrl,
-            desired: input.checkoutUrl,
-            action: determineUnsupportedAction(input.current?.checkoutUrl, input.checkoutUrl)
+          approvedCheckoutUrl: {
+            current: input.current?.approvedCheckoutUrl,
+            desired: input.approvedCheckoutUrl,
+            action: determineUnsupportedAction(input.current?.approvedCheckoutUrl, input.approvedCheckoutUrl)
           }
         }
       : {}),
@@ -88,12 +88,12 @@ export const buildUnsupportedPrepareResult = (
 export const collectPrepareChanges = (input: ProviderPrepareInput): ReadonlyArray<ProviderPreparePlanChange> => {
   const changes: Array<ProviderPreparePlanChange> = []
 
-  if (input.checkoutUrl) {
+  if (input.approvedCheckoutUrl) {
     changes.push({
       path: "checkout.defaultCheckoutUrl",
-      current: input.current?.checkoutUrl,
-      desired: input.checkoutUrl,
-      action: determineUnsupportedAction(input.current?.checkoutUrl, input.checkoutUrl)
+      current: input.current?.approvedCheckoutUrl,
+      desired: input.approvedCheckoutUrl,
+      action: determineUnsupportedAction(input.current?.approvedCheckoutUrl, input.approvedCheckoutUrl)
     })
   }
   if (input.webhookUrl) {
@@ -151,7 +151,7 @@ const appendNestedChanges = (
 export const determineUnsupportedAction = (
   current: unknown,
   desired: unknown
-): ProviderPreparePlanChange["action"] | NonNullable<ProviderPreparePlan["checkoutUrl"]>["action"] => {
+): ProviderPreparePlanChange["action"] | NonNullable<ProviderPreparePlan["approvedCheckoutUrl"]>["action"] => {
   if (Object.is(current, desired)) {
     return "none"
   }
@@ -195,13 +195,15 @@ export const formatPrepareResult = <
   if (result.plan.reason) {
     lines.push(`  ${result.plan.reason}`)
   }
-  if (result.plan.checkoutUrl) {
-    lines.push(`  Checkout URL · ${describeAction(result.plan.checkoutUrl.action)} ${result.plan.checkoutUrl.desired}`)
+  if (result.plan.approvedCheckoutUrl) {
+    lines.push(
+      `  Approved Checkout URL · ${describeAction(result.plan.approvedCheckoutUrl.action)} ${result.plan.approvedCheckoutUrl.desired}`
+    )
   }
   if (result.plan.webhookUrl) {
     lines.push(`  Webhook URL  · ${describeAction(result.plan.webhookUrl.action)} ${result.plan.webhookUrl.desired}`)
   }
-  if (!result.plan.checkoutUrl && !result.plan.webhookUrl) {
+  if (!result.plan.approvedCheckoutUrl && !result.plan.webhookUrl) {
     lines.push("  No desired settings provided")
   }
   if (result.plan.changes.length > 0) {

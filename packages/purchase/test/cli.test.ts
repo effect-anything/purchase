@@ -137,7 +137,7 @@ describe("purchase cli options", () => {
       exportName: Option.none(),
       provider: "paddle",
       environment: "sandbox",
-      checkoutUrl: Option.some("https://checkout.example.test"),
+      approvedCheckoutUrl: Option.some("https://checkout.example.test"),
       webhookUrl: Option.some("https://app.example.test/api/webhooks/paddle"),
       apply: false,
       dryRun: false,
@@ -150,7 +150,7 @@ describe("purchase cli options", () => {
     })
 
     expect(options.dryRun).toBe(true)
-    expect(options.checkoutUrl).toBe("https://checkout.example.test")
+    expect(options.approvedCheckoutUrl).toBe("https://checkout.example.test")
     expect(options.webhookUrl).toBe("https://app.example.test/api/webhooks/paddle")
   })
 
@@ -160,7 +160,7 @@ describe("purchase cli options", () => {
         modulePath: "catalog.ts",
         provider: "paddle",
         environment: "sandbox",
-        checkoutUrl: "https://checkout.example.test",
+        approvedCheckoutUrl: "https://checkout.example.test",
         webhookUrl: "https://app.example.test/api/webhooks/paddle",
         apply: false,
         dryRun: true,
@@ -203,7 +203,7 @@ describe("purchase cli options", () => {
               action: "update"
             }
           ],
-          checkoutUrl: {
+          approvedCheckoutUrl: {
             current: undefined,
             desired: "https://checkout.example.test",
             action: "create"
@@ -218,7 +218,7 @@ describe("purchase cli options", () => {
     )
 
     expect(output).toContain("Provider · paddle (sandbox)")
-    expect(output).toContain("Checkout URL · + create https://checkout.example.test")
+    expect(output).toContain("Approved Checkout URL · + create https://checkout.example.test")
     expect(output).toContain("Webhook URL  · ~ update https://app.example.test/api/webhooks/paddle")
     expect(output).toContain("Webhook Secret · pdl_ntfs...tvalue")
     expect(output).toContain(

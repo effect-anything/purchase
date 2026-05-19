@@ -1,7 +1,3 @@
-<!-- shields.io badge used because pkg.pr.new/badge returns HTTP 404 status despite valid SVG content, causing GitHub's image proxy to fail -->
-
-[![pkg.pr.new](https://img.shields.io/badge/pkg.pr.new-Effect--TS%2Feffect--smol-black)](https://pkg.pr.new/~/Effect-TS/effect-smol)
-
 # Purchase
 
 `@effect-x/purchase` is a provider-neutral payment SDK for Effect applications. It is being built for small studios and product teams that run multiple apps and want one shared commercial runtime instead of re-implementing Stripe and Paddle details in every project.
@@ -13,72 +9,55 @@ The target product shape is:
 - multiple provider backends behind the same API
 - embeddable storage and schema integration for app-owned databases
 
+# Information
+
+- Run commands from the repo root.
+- The package manager used is `pnpm`, `node` runtime.
+- Avoid `index.ts` barrel files;
+
 ## Repository Layout
 
 - `packages/purchase`: SDK package
 - `examples/nextjs`: runnable integration example
 - `docs`: documentation site
+-
 
-## Current Focus
+## Working Loop
 
-The SDK already contains a substantial core: provider adapters, catalog sync, checkout workflows, webhook normalization/replay, snapshots, credits, and portal flows. What it still needs before it feels like a widely usable open-source payment system is stronger onboarding, a tighter public API, production-grade setup/migration ergonomics, and clearer release guarantees.
+1. Identify the target app or package.
+2. Follow local patterns in that directory.
+3. Run focused checks/tests for the target.
 
-The implementation roadmap now lives in the docs site:
-
-- `docs/content/docs/roadmap.mdx`
-
-## Local Development
-
-```bash
-pnpm install
-pnpm --filter @effect-x/purchase-nextjs dev
-pnpm --filter @effect-x/purchase-docs dev
-```
-
-## Operator Workflows
-
-### Paddle Vendor Session Capture
-
-Paddle checkout settings currently require a vendor web session for the private vendor GraphQL API. Keep these values local only; `.env.local` is ignored by git.
-
-1. Install the Playwright browser matching `packages/purchase`'s `playwright-core` version.
+## Quick Commands
 
 ```bash
-pnpm paddle-vendor:install
+pnpm check/lint/lint-fix/test
+pnpm build
 ```
 
-2. Add sandbox vendor credentials to `.env.local` at the repository root.
+# TypeScript Preflight Rule
 
-```env
-PADDLE_SANDBOX_EMAIL=seller@example.com
-PADDLE_SANDBOX_PASSWORD=change-me
-```
+- Before any TypeScript planning, multi-file edit, refactor, or architecture question, load the `architecture-preflight` skill first. Re-run it after substantial changes to verify alignment.
+- Trigger on: definitions, types, signatures, exports, services, layers, schemas, wiring, module boundaries, or broad source reading.
+- Posture: inspect declarations/signatures first, then narrow to implementation files only as needed.
 
-3. Capture a fresh session.
+# Specifications
 
-```bash
-pnpm paddle-vendor:capture
-```
+To learn more about previous and current specifications for this project, see
+the `.specs/README.md` file.
 
-The capture script writes `.purchase/paddle-vendor-sandbox-session.json` from `packages/purchase` by default. Override with `PADDLE_VENDOR_SESSION_FILE` when needed. Use `PADDLE_VENDOR_HEADLESS=1` for headless browser capture.
+# Learning more about the "effect" & "@effect/\*" packages
 
-4. Run Paddle vendor GraphQL research scripts when inspecting checkout settings or mutation payloads.
+- `.references/effect/README.md` is an authoritative source of information about the
+- "effect" and "@effect/\*" packages. Read this before looking elsewhere for information about these packages. It contains the best practices for using effect.
 
-```bash
-pnpm research:paddle-vendor
-pnpm research:paddle-vendor:mutations
-```
+Use this for learning more about the library, rather than browsing the code in
+`node_modules/`.
 
-### Purchase CLI
+## Engineering Principles
 
-The public CLI entry point is `packages/purchase/src/bin.ts` and exposes these command groups:
-
-- `pay prepare`: plans or applies provider setup such as checkout URL and webhook settings.
-- `pay catalog sync`: plans or applies catalog synchronization against Stripe or Paddle plus the local projection database.
-
-Common verification commands for this workflow:
-
-```bash
-pnpm --filter @effect-x/purchase test test/cli.test.ts test/catalog-sync.test.ts test/paddle-vendor-session.test.ts
-pnpm check
-```
+- **Proactive Progress**: Don't wait for instructions. Identify blockers, propose solutions, and push work forward autonomously.
+- **Robust & Scalable**: Prefer solutions that work reliably and can grow. Avoid fragile hacks that break under load.
+- **Globally Optimal**: Consider the whole system, not just the immediate fix. Trade-offs should be conscious and documented.
+- **Verify Reality**: Test assumptions. A working demo beats a perfect plan.
+- **Ship & Iterate**: Perfect is the enemy of done. Get to working state, then improve.

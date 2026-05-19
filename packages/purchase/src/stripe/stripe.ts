@@ -537,7 +537,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
         ),
         Effect.map((session) =>
           CheckoutSession.make({
-            mode: "hosted",
+            mode: "redirect",
             provider: "stripe",
             environment: config.environment,
             offerId: CommercialOfferId.make(args.offerId),

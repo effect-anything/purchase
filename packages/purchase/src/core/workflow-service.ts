@@ -735,7 +735,6 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
           providerCustomerId: providerCustomerId as never,
           successUrl: input.successUrl,
           cancelUrl: input.cancelUrl,
-          checkoutUrl: input.checkoutUrl,
           metadata: input.metadata
         })
         .pipe(
@@ -807,6 +806,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
         provider: providerTag,
         target,
         checkoutSessionId: checkoutSessionId as never,
+        mode: session.mode,
         ...(session.url ? { checkoutUrl: session.url } : {})
       })
     })
