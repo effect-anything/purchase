@@ -1,65 +1,56 @@
 import type { ProvidedContext } from "vitest"
 
-import { Exit, Scope, ManagedRuntime } from "effect"
-import { existsSync, readFileSync } from "node:fs"
+import { PlatformConfigProvider } from "@effect/platform"
+import { NodeFileSystem } from "@effect/platform-node"
+import { Effect, Layer, ManagedRuntime } from "effect"
+import * as path from "node:path"
 
-import { Live } from "../infra/runtime.ts"
+import { BrokerServer } from "../infra/webhook-broker.ts"
+import { Live } from "./runtime.ts"
 
 const repoRoot = new URL("../../../../", import.meta.url).pathname
 
-const parseDotEnvLine = (line: string): readonly [string, string] | undefined => {
-  const trimmed = line.trim()
-  if (!trimmed || trimmed.startsWith("#")) {
-    return undefined
-  }
+const EnvFileLayer = Layer.mergeAll(
+  PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),
+  PlatformConfigProvider.layerDotEnvAdd(path.join(repoRoot, ".env.local"))
+).pipe(
+  Layer.provide(NodeFileSystem.layer),
+  Layer.catchAll((error) =>
+    error._tag === "SystemError" && error.reason === "NotFound" ? Layer.empty : Layer.fail(error)
+  )
+)
 
-  const equalsIndex = trimmed.indexOf("=")
-  if (equalsIndex <= 0) {
-    return undefined
-  }
-
-  const key = trimmed.slice(0, equalsIndex).trim()
-  let value = trimmed.slice(equalsIndex + 1).trim()
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    value = value.slice(1, -1)
-  }
-
-  return [key, value]
-}
-
-export const loadE2eEnv = (paths: ReadonlyArray<string> = [`${repoRoot}.env.local`, `${repoRoot}.env`]) => {
-  console.log(paths)
-  for (const path of paths) {
-    if (!existsSync(path)) {
-      continue
-    }
-
-    for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-      const entry = parseDotEnvLine(line)
-      if (!entry) {
-        continue
-      }
-
-      const [key, value] = entry
-      process.env[key] ??= value
-    }
-  }
-}
-
+/**
+ * Vitest global setup for provider E2E tests.
+ *
+ * Responsibilities:
+ * 1. Load .env files so provider credentials are available.
+ * 2. Acquire a provider-level lock to prevent concurrent sandbox mutations.
+ * 3. Start the webhook broker (which starts a Wrangler tunnel and resolves a public URL).
+ * 4. Provide the broker endpoint to test workers via vitest context.
+ * 5. Return a teardown function that releases all resources.
+ */
 export default async function setup(project: {
-  readonly provide: (key: "purchaseProviderE2E", value: ProvidedContext["purchaseProviderE2E"]) => void
+  readonly provide: <K extends keyof ProvidedContext>(key: K, value: ProvidedContext[K]) => void
 }) {
-  // TODO: dot env
-  loadE2eEnv()
+  const program = Effect.gen(function* () {
+    const p = yield* BrokerServer
 
-  const runtime = ManagedRuntime.make(Live)
+    return p
+  })
+
+  const runtime = ManagedRuntime.make(Live.pipe(Layer.provide(EnvFileLayer)))
+
+  const brokerServerInfo = await runtime.runPromise(program)
 
   project.provide("purchaseProviderE2E", {
-    localBaseURL: "",
-    publicBaseURL: ""
+    broker: {
+      localBaseURL: brokerServerInfo.localBaseURL,
+      publicBaseURL: brokerServerInfo.publicBaseURL
+    }
   })
 
   return async () => {
-    runtime.dispose()
+    await runtime.dispose()
   }
 }

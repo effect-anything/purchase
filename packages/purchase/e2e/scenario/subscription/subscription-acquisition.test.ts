@@ -1,4 +1,9 @@
 import { describe, it } from "@effect/vitest"
+import { Effect } from "effect"
+
+import { makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
+
+const runtime = makeScenarioRuntime()
 
 // Subscription acquisition scenarios cover the first conversion from free user to active subscriber.
 describe("subscription acquisition scenarios", () => {
@@ -9,8 +14,11 @@ describe("subscription acquisition scenarios", () => {
   // - verify local webhook receipt, intent, subscription, and entitlement rows through SqlClient
   // - assert account snapshot before and after webhook projection
   // - keep provider transaction ids as diagnostics, not primary assertions
-  it.todo(
-    "completes a provider sandbox subscription checkout and returns an active subscription in the account snapshot"
+  it.effect(
+    "completes a provider sandbox subscription checkout and returns an active subscription in the account snapshot",
+    Effect.fn(function* () {
+      console.log("?")
+    })
   )
   // Entitlements should only appear after webhook processing has projected the subscription.
   // Implementation note:

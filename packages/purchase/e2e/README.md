@@ -537,7 +537,6 @@ Broker 默认应该按 `runId` 路由，不应该广播给所有测试应用。�
 例如 Paddle driver 负责：
 
 - 打开 checkout 页面。
-- 处理 ngrok warning 页面。
 - 填写 Paddle sandbox 卡片信息。
 - 提交支付。
 - 等待 provider transaction/subscription 状态。

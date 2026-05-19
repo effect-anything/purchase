@@ -1,11 +1,18 @@
+/**
+ * Standalone broker runner for manual testing outside vitest.
+ *
+ * This starts the broker with a Wrangler tunnel and keeps it alive until the process is
+ * terminated. Useful for debugging webhook delivery without running the full
+ * test suite.
+ */
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
 import { Layer } from "effect"
 import * as path from "node:path"
 
-import { Live } from "../infra/runtime.ts"
+import { Live } from "./setup/runtime.ts"
 
-const repoRoot = new URL("../../../../", import.meta.url).pathname
+const repoRoot = new URL("../../..", import.meta.url).pathname
 
 const EnvFileLayer = Layer.mergeAll(
   PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),

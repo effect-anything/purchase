@@ -4,14 +4,20 @@ import { SqlClient } from "@effect/sql"
 import { Effect, String as EffectString, Layer, Ref } from "effect"
 import { createServer } from "node:http"
 
+import type { BrokerEndpoint } from "../infra/types.ts"
+
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
-import { prepareProvider, PurchaseConfigLayer } from "../../src/sync/config-service.ts"
+import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
 import { CommercialPay, CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
 import { TestConfig } from "../http-api/config.ts"
 import { HttpRouterLive } from "../http-api/handler.ts"
 import { SessionStore } from "../http-api/session.ts"
-import { makeTunnelRuntime, TunnelRuntime } from "../http-api/tunnel.ts"
+
+export interface HttpApiTestingOptions {
+  readonly broker: BrokerEndpoint
+  readonly checkoutURL?: string | undefined
+}
 
 const DBMemory = SQLite.layer({
   filename: ":memory:",
@@ -22,17 +28,14 @@ const DBMemory = SQLite.layer({
 
 export const ApplyMigration = Layer.effectDiscard(
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient
-
+    yield* SqlClient.SqlClient
     yield* setupPayTables
   })
 ).pipe(Layer.provide(NodeFileSystem.layer))
 
-const runSeed = Effect.fn(function* () {})
+const ApplyMigrationAndSeed = ApplyMigration
 
-const ApplyMigrationAndSeed = Layer.effectDiscard(runSeed()).pipe(Layer.provide(ApplyMigration))
-
-export const makeHttpApiTesting = (provider: any) => {
+export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
   const PayLive = Layer.mergeAll(
     CommercialPay.Layer,
     PurchaseConfigLayer({
@@ -44,7 +47,6 @@ export const makeHttpApiTesting = (provider: any) => {
   return HttpRouterLive.pipe(
     Layer.provide(ApplyMigrationAndSeed),
     Layer.provideMerge(SessionStore.Live),
-    Layer.provideMerge(Layer.mergeAll(DBMemory)),
     Layer.provideMerge(
       Layer.unwrapEffect(
         Effect.gen(function* () {
@@ -56,7 +58,7 @@ export const makeHttpApiTesting = (provider: any) => {
           }
 
           const localBaseUrl = `http://${addr.hostname}:${addr.port}`
-          const tunnel = yield* TunnelRuntime
+          // const tunnel = yield* TunnelRuntime
           const ref = yield* Ref.make(Cookies.empty)
 
           const client = (yield* HttpClient.HttpClient).pipe(
@@ -69,48 +71,22 @@ export const makeHttpApiTesting = (provider: any) => {
             Layer.succeed(
               TestConfig,
               TestConfig.of({
+                runId: `run_${crypto.randomUUID()}`,
                 baseURL: localBaseUrl,
-                localBaseURL: tunnel.localBaseURL,
-                publicBaseURL: tunnel.publicBaseURL,
-                ...(tunnel.checkoutURL ? { checkoutURL: tunnel.checkoutURL } : {}),
-                webhookURL: tunnel.webhookURL,
-                ...(process.env.PURCHASE_E2E_BROKER_URL ? { brokerBaseURL: process.env.PURCHASE_E2E_BROKER_URL } : {}),
-                runId: `run_${crypto.randomUUID()}`
+                broker: options.broker
+                // ...(tunnel.checkoutURL ? { checkoutURL: tunnel.checkoutURL } : {}),
+                // webhookURL: tunnel.webhookURL,
+                // ...(options.broker ? { brokerBaseURL: options.broker.localBaseURL } : {}),
               })
             )
           )
         })
       ).pipe(Layer.provide(FetchHttpClient.layer))
     ),
-    Layer.provideMerge(
-      Layer.unwrapEffect(
-        Effect.gen(function* () {
-          const httpServer = yield* HttpServer.HttpServer
-          const addr = httpServer.address
-
-          if (addr._tag === "UnixAddress") {
-            return Layer.die("UnixAddress not supported")
-          }
-
-          const brokerBaseURL = process.env.PURCHASE_E2E_BROKER_URL
-          const brokerPublicBaseURL = process.env.PURCHASE_E2E_BROKER_PUBLIC_URL
-          if (brokerBaseURL && brokerPublicBaseURL) {
-            return Layer.succeed(
-              TunnelRuntime,
-              makeTunnelRuntime({
-                localBaseURL: `http://${addr.hostname}:${addr.port}`,
-                publicBaseURL: brokerPublicBaseURL
-              })
-            )
-          }
-
-          return TunnelRuntime.layer({ localBaseURL: `http://${addr.hostname}:${addr.port}` })
-        })
-      )
-    ),
     Layer.provideMerge(PayLive),
-    Layer.provide(NodeHttpServer.layer(createServer, { port: 0 })),
+    // TODO: provider payment client,
     Layer.provideMerge(Layer.mergeAll(DBMemory)),
+    Layer.provide(NodeHttpServer.layer(createServer, { port: 0 })),
     Layer.orDie
   )
 }

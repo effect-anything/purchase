@@ -4,8 +4,10 @@ import "vitest"
 declare module "vitest" {
   export interface ProvidedContext {
     readonly purchaseProviderE2E: {
-      readonly localBaseURL: string
-      readonly publicBaseURL: string
+      readonly broker: {
+        readonly localBaseURL: string
+        readonly publicBaseURL: string
+      }
     }
   }
 }

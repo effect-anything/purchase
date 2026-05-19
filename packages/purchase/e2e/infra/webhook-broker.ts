@@ -8,8 +8,7 @@ import {
   HttpServerResponse
 } from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Context, Data, Effect, Equivalence, Layer, Schema } from "effect"
-import { spawn } from "node:child_process"
+import { Config, Context, Data, Effect, Equivalence, Layer, Schema } from "effect"
 import { createServer } from "node:http"
 
 import { PaymentProviderTag } from "../../src/provider/types.ts"
@@ -20,15 +19,14 @@ import {
   type ProviderPrepareResult,
   type PurchaseConfigService
 } from "../../src/sync/config-service.ts"
-import { makeTunnelRuntime } from "../http-api/tunnel.ts"
+import { CloudflareTunnel } from "./cloudflare-tunnel.ts"
 import { acquireProviderE2ELock } from "./provider-lock.ts"
 
-export interface WebhookBrokerRegistration {
+interface WebhookBrokerRegistration {
   readonly provider: "paddle" | "stripe"
   readonly runId: string
   readonly targetUrl: string
 }
-
 const WebhookBrokerRegistration = Schema.Struct({
   provider: PaymentProviderTag,
   runId: Schema.String,
@@ -116,8 +114,11 @@ export class BrokerServer extends Context.Tag("BrokerServer")<
       }
 
       const localBaseURL = `http://${address.hostname}:${address.port}`
-      const publicEndpoint = yield* resolvePublicEndpoint(localBaseURL)
-      const publicBaseURL = publicEndpoint.publicBaseURL
+      const tunnels = yield* CloudflareTunnel
+      const publicBaseURL = yield* tunnels.resolveBrokerEndpoint({ localBaseURL }).pipe(
+        Effect.map(({ publicBaseURL }) => publicBaseURL),
+        Effect.mapError((cause) => new WebhookBrokerError({ message: cause.message, cause }))
+      )
 
       return { localBaseURL, publicBaseURL }
     })
@@ -207,15 +208,12 @@ const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handler
 
         const brokerProvider = yield* BrokerProvider
         const serverInfo = yield* BrokerServer
-        const tunnel = makeTunnelRuntime({
-          localBaseURL: serverInfo.localBaseURL,
-          publicBaseURL: serverInfo.publicBaseURL
-        })
+
         const brokerWebhookUrl = `${serverInfo.publicBaseURL}/api/webhooks/${payload.provider}`
         const prepareResult = yield* brokerProvider
           .prepare({
             environment: "sandbox",
-            ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
+            // ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
             webhookUrl: brokerWebhookUrl
           })
           .pipe(Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) })))
@@ -228,7 +226,7 @@ const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handler
           publicBaseURL: serverInfo.publicBaseURL,
           brokerWebhookUrl,
           targetUrl: payload.targetUrl,
-          ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
+          // ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
           ...(prepareResult.secrets?.webhook?.current ? { webhookSecret: prepareResult.secrets.webhook.current } : {})
         }
       })
@@ -236,8 +234,9 @@ const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handler
 )
 
 const WebhookHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "webhooks", (handlers) =>
-  handlers.handleRaw("forward", ({ path, request }) =>
-    Effect.gen(function* () {
+  handlers.handleRaw(
+    "forward",
+    Effect.fn(function* ({ path, request }) {
       const body = yield* request.arrayBuffer.pipe(
         Effect.map((arrayBuffer) => Buffer.from(arrayBuffer)),
         Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) }))
@@ -275,17 +274,29 @@ const BrokerApiLive = HttpLayerRouter.addHttpApi(WebhookBrokerApi).pipe(
   Layer.provide(Layer.mergeAll(BrokerHttpLive, WebhookHttpLive))
 )
 
-const WebhookBrokerRouter = HttpLayerRouter.serve(BrokerApiLive)
+const WebhookBrokerRouter = HttpLayerRouter.serve(BrokerApiLive, {
+  disableListenLog: true
+})
 
-const HttpServerLive = NodeHttpServer.layer(createServer, { port: 0 })
+const BrokerTunnelConfig = Config.all({
+  accountId: Config.option(Config.string("CLOUDFLARE_ACCOUNT_ID")),
+  apiToken: Config.option(Config.string("CLOUDFLARE_API_TOKEN")),
+  port: Config.number("DEV_TUNNEL_PORT").pipe(Config.withDefault(3333)),
+  host: Config.string("DEV_TUNNEL_HOST").pipe(Config.withDefault("127.0.0.1"))
+})
+
+const HttpServerLive = NodeHttpServer.layerConfig(
+  createServer,
+  Config.map(BrokerTunnelConfig, (config) => ({ host: config.host, port: config.port }))
+)
 
 export const BrokerLive = WebhookBrokerRouter.pipe(
-  Layer.provide([
-    HttpServerLive,
-    BrokerServer.Default.pipe(Layer.provide(HttpServerLive)),
-    BrokerState.Default,
-    BrokerProvider.Default
-  ])
+  Layer.provideMerge(
+    Layer.mergeAll(HttpServerLive, BrokerState.Default, BrokerProvider.Default, CloudflareTunnel.Default)
+  ),
+  Layer.provideMerge(
+    BrokerServer.Default.pipe(Layer.provideMerge(Layer.mergeAll(HttpServerLive, CloudflareTunnel.Default)))
+  )
 )
 
 const forwardWebhook = (targetUrl: string, requestHeaders: Record<string, string>, body: Buffer) =>
@@ -326,82 +337,9 @@ const readPaddleRunId = (body: Buffer) => {
     return undefined
   }
 }
-
-const resolvePublicEndpoint = Effect.fn(function* (localBaseURL: string) {
-  const configuredPublicBaseURL = normalizeUrl(globalThis.process.env.PURCHASE_E2E_BROKER_PUBLIC_URL)
-  if (configuredPublicBaseURL) {
-    return { publicBaseURL: configuredPublicBaseURL }
-  }
-  const localUrl = new URL(localBaseURL)
-  yield* spawnNgrok({ port: localUrl.port })
-  const publicBaseURL = yield* waitForNgrokPublicUrl()
-  return { publicBaseURL }
-})
-
-const spawnNgrok = (input: { readonly port: string }) =>
-  Effect.acquireRelease(
-    Effect.try({
-      try: () =>
-        spawn("ngrok", ["http", input.port, "--log=stdout"], {
-          env: globalThis.process.env,
-          stdio: ["ignore", "pipe", "pipe"]
-        }),
-      catch: (cause) => new WebhookBrokerError({ message: "Failed to start ngrok for webhook broker", cause })
-    }),
-    (child) =>
-      Effect.sync(() => {
-        child.kill("SIGTERM")
-      }).pipe(Effect.catchAllDefect(() => Effect.void))
-  )
-
-const waitForNgrokPublicUrl = (timeoutMs = 20_000) =>
-  Effect.gen(function* () {
-    const startedAt = Date.now()
-
-    while (Date.now() - startedAt < timeoutMs) {
-      const url = yield* fetchNgrokTunnelUrl().pipe(Effect.orElseSucceed(() => undefined))
-      if (url) {
-        return url
-      }
-
-      yield* Effect.sleep(500)
-    }
-
-    return yield* new WebhookBrokerError({
-      message: `Timed out waiting for webhook broker ngrok public URL after ${timeoutMs}ms`
-    })
-  })
-
-const fetchNgrokTunnelUrl = () =>
-  Effect.tryPromise({
-    try: async () => {
-      const response = await fetch("http://127.0.0.1:4040/api/tunnels")
-      const json = (await response.json()) as {
-        readonly tunnels?: ReadonlyArray<{
-          readonly public_url?: string
-          readonly proto?: string
-        }>
-      }
-      const tunnel = json.tunnels?.find((entry) => entry.proto === "https" && entry.public_url)
-      if (!tunnel?.public_url) {
-        throw new Error("ngrok has not exposed an https tunnel yet")
-      }
-
-      return tunnel.public_url
-    },
-    catch: (cause) => new WebhookBrokerError({ message: "Failed to read ngrok tunnel API", cause })
-  })
-
 const describeCause = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 
 const routeKey = (provider: string, runId: string) => `${provider}:${runId}`
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value)
-
-const normalizeUrl = (value: string | undefined) => {
-  if (!value) {
-    return undefined
-  }
-  return value.replace(/\/+$/, "")
-}

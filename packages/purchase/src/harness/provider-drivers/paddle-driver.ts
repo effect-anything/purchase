@@ -28,13 +28,10 @@ export const makePaddleTestDriver = (input: {
       const page = yield* context.newPage
 
       yield* page.use((nativePage) => gotoWithRetry(nativePage, args.checkoutUrl))
-      yield* page.use((nativePage) => continuePastNgrokWarning(nativePage))
       const iframeReady = yield* page
         .use((nativePage) => nativePage.locator('iframe[name="paddle_frame"]').first().waitFor({ timeout: 30_000 }))
         .pipe(Effect.either)
-      if (iframeReady._tag === "Left") {
-        yield* page.use((nativePage) => continuePastNgrokWarning(nativePage))
-      }
+
       yield* page.waitForTimeout(5_000)
 
       const checkoutScope: Pick<typeof page, "locator" | "getByRole" | "getByLabel" | "getByText"> =
@@ -329,30 +326,6 @@ const gotoWithRetry = async (page: Page, url: string) => {
     }
   }
   throw lastError
-}
-
-const continuePastNgrokWarning = async (page: Page) => {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const warningVisible = await page
-      .getByText(/served for free through ngrok\.com/i)
-      .isVisible({ timeout: 2_000 })
-      .catch(() => false)
-    if (!warningVisible) {
-      return
-    }
-
-    const visitSite = page
-      .locator("button")
-      .filter({ hasText: /^Visit Site$/i })
-      .first()
-    if (await visitSite.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await visitSite.evaluate((element: SVGElement | HTMLElement) => {
-        ;(element as HTMLElement).click()
-      })
-      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => undefined)
-      await page.waitForTimeout(1_000)
-    }
-  }
 }
 
 const fillOptionalField = async (page: Page, selectors: ReadonlyArray<string>, value: string) => {

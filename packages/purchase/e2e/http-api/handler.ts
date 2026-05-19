@@ -14,7 +14,6 @@ import {
 } from "./domain.ts"
 import { AppApi } from "./http.ts"
 import { SessionStore } from "./session.ts"
-import { TunnelRuntime } from "./tunnel.ts"
 
 const provider = "paddle" as const
 const environment = "sandbox"
@@ -205,14 +204,14 @@ const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
       )
 
       const purchase = yield* CommercialPay
-      const tunnel = yield* TunnelRuntime
+
       const checkout = yield* purchase.checkout
         .start({
           customerId: user.id as never,
           offerId: payload.offerId as never,
           successUrl: "/account?checkout=success",
           cancelUrl: "/account?checkout=cancel",
-          ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
+          // ...(tunnel.checkoutURL ? { checkoutUrl: tunnel.checkoutURL } : {}),
           metadata: {
             ...(payload.runId ? { purchaseE2eRunId: payload.runId } : {}),
             workspaceSlug: user.workspaceSlug

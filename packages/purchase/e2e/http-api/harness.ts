@@ -83,9 +83,8 @@ interface WebhookTargetRegistration {
   readonly webhookSecret?: string | undefined
 }
 
-const withNgrokHeaders = (baseUrl: string, headers: HeadersInit = {}) => ({
+const withHeaders = (baseUrl: string, headers: HeadersInit = {}) => ({
   ...headers,
-  "ngrok-skip-browser-warning": "true",
   origin: baseUrl
 })
 
@@ -125,7 +124,7 @@ export const signUp = Effect.fn(function* (input?: SignUpInput | undefined) {
 
   return yield* fetchText(`${baseURL}/api/auth/sign-up/email`, {
     method: "POST",
-    headers: withNgrokHeaders(baseURL, { "content-type": "application/json" }),
+    headers: withHeaders(baseURL, { "content-type": "application/json" }),
     body: JSON.stringify({
       email,
       password,
@@ -153,7 +152,7 @@ export const getAccount = Effect.fn(function* (session: PublicAuthSession) {
   const { baseURL } = yield* TestConfig
 
   return yield* fetchJson<AccountOverview>(`${baseURL}/api/me/account`, {
-    headers: withNgrokHeaders(baseURL, { cookie: session.cookie })
+    headers: withHeaders(baseURL, { cookie: session.cookie })
   }).pipe(Effect.map(({ json }) => json))
 })
 
@@ -163,7 +162,7 @@ export const checkout = Effect.fn(function* (input: { readonly session: PublicAu
 
   return yield* fetchJson<{ readonly checkout: CheckoutStartResult }>(`${baseURL}/api/checkout/start`, {
     method: "POST",
-    headers: withNgrokHeaders(baseURL, { "content-type": "application/json", cookie: input.session.cookie }),
+    headers: withHeaders(baseURL, { "content-type": "application/json", cookie: input.session.cookie }),
     body: JSON.stringify({ offerId: input.offerId, runId })
   }).pipe(Effect.map(({ json }) => json.checkout))
 })
@@ -173,6 +172,7 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
   const config = yield* TestConfig
 
   const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
+
   const checkoutUrl =
     config.checkoutURL ??
     `${config.localBaseURL}/checkout?${new URLSearchParams({
@@ -181,6 +181,7 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
       country: "US",
       postal: "10001"
     }).toString()}`
+
   const payment = yield* paymentHarness.payCheckout({
     checkout: {
       provider: "paddle",
@@ -212,6 +213,7 @@ export const registerWebhookTarget = Effect.fn(function* () {
     return
   }
 
+  // 使用 broker http api client
   return yield* fetchJson<WebhookTargetRegistration>(`${config.brokerBaseURL}/__purchase-e2e/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },

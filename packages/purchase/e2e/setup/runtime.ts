@@ -8,7 +8,7 @@ import * as SQLite from "../../src/internal/node-sqlite-client.ts"
 import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
 import { CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
-import { BrokerLive } from "./webhook-broker.ts"
+import { BrokerLive } from "../infra/webhook-broker.ts"
 
 function resolveRepoPath(file: string) {
   return new URL(`../../../../${file}`, import.meta.url).pathname
