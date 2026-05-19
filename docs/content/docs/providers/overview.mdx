@@ -1,0 +1,47 @@
+---
+title: Overview
+description: Provider-neutral design and provider selection.
+---
+
+Purchase is built to keep provider-specific behavior behind a normalized runtime.
+
+## Current providers
+
+Stripe and Paddle.
+
+## Provider selection
+
+You can wire a provider directly:
+
+```ts
+const StripePayLayer = Pay.layer(Pay).pipe(Layer.provide(Stripe.layer))
+```
+
+Or choose based on config:
+
+```ts
+import { PayProvider } from "@effect-x/purchase"
+
+const providerLayer = PayProvider.FromTags({
+  stripe: Stripe.layer,
+  paddle: Paddle.layer
+})
+```
+
+## Capability model
+
+Providers are not identical. A good billing runtime should normalize the common path while still making capability gaps explicit.
+
+Provider-specific guides should call out checkout differences, subscription lifecycle differences, refund semantics, portal behavior, and webhook event shape differences.
+
+The repository already reflects this difference in code and tests. The goal is not to flatten providers into fake sameness. The goal is to keep divergence contained inside adapter and workflow layers.
+
+## Design goal
+
+The goal is not to pretend all providers are the same. The goal is to give application teams:
+
+one commercial model, one workflow API, one storage shape, and explicit provider-specific mapping only where it is actually required.
+
+## Recommended mental model
+
+Commercial ids are yours, provider ids are bridges, workflows are shared, capabilities may diverge, and normalization should happen once inside the SDK.

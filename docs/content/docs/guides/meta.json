@@ -1,0 +1,4 @@
+{
+  "title": "Guides",
+  "pages": ["checkout", "webhooks", "credits", "portal-and-refunds", "catalog-sync", "api-usage"]
+}

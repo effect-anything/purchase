@@ -1,0 +1,29 @@
+---
+title: Paddle
+description: Paddle support in Purchase.
+---
+
+Paddle is the second provider integration currently implemented in the repository.
+
+## What the integration covers
+
+The current codebase includes Paddle paths for:
+
+- checkout preparation
+- webhook verification and normalization
+- subscription lifecycle handling
+- refund-oriented event handling
+- catalog synchronization
+
+## Why Paddle matters here
+
+A provider-neutral runtime is only meaningful if it can survive real provider differences. Paddle is useful because it forces the architecture to handle:
+
+- different object models
+- different event names
+- different lifecycle timing
+- different customer and transaction semantics
+
+## Documentation direction
+
+The docs will keep expanding around concrete capability differences between Stripe and Paddle. That is important because good multi-provider design is not just about shared API names. It is about making divergences visible without letting them leak everywhere in the app.
