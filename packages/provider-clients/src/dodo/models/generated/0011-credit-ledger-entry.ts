@@ -15,7 +15,8 @@ export const CreditLedgerEntry = Schema.Struct({
   overage_after: Schema.String,
   overage_before: Schema.String,
   transaction_type: Schema.suspend(
-    (): Schema.Schema<Models.CreditLedgerTransactionType> => Models.CreditLedgerTransactionType
+    (): Schema.Schema<Models.CreditLedgerTransactionType, any, any> =>
+      Models.CreditLedgerTransactionType as Schema.Schema<Models.CreditLedgerTransactionType, any, any>
   ),
   description: Schema.optional(Schema.NullOr(Schema.String)),
   grant_id: Schema.optional(Schema.NullOr(Schema.String)),

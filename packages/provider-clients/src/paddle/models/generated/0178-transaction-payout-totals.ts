@@ -14,8 +14,14 @@ export const TransactionPayoutTotals = Schema.Struct({
   grand_total_tax: Schema.String,
   fee: Schema.String,
   earnings: Schema.String,
-  currency_code: Schema.suspend((): Schema.Schema<Models.CurrencyCodePayout> => Models.CurrencyCodePayout),
-  exchange_rate: Schema.suspend((): Schema.Schema<Models.CurrencyExchangeRate> => Models.CurrencyExchangeRate),
+  currency_code: Schema.suspend(
+    (): Schema.Schema<Models.CurrencyCodePayout, any, any> =>
+      Models.CurrencyCodePayout as Schema.Schema<Models.CurrencyCodePayout, any, any>
+  ),
+  exchange_rate: Schema.suspend(
+    (): Schema.Schema<Models.CurrencyExchangeRate, any, any> =>
+      Models.CurrencyExchangeRate as Schema.Schema<Models.CurrencyExchangeRate, any, any>
+  ),
   fee_rate: Schema.String
 })
 export type TransactionPayoutTotals = typeof TransactionPayoutTotals.Type

@@ -5,8 +5,12 @@ import * as Models from "../../models.ts"
 export const SubscriptionChargeCreateWithPriceAndProductModel = Schema.Struct({
   quantity: Schema.Number,
   price: Schema.suspend(
-    (): Schema.Schema<Models.SubscriptionChargeCreateWithPriceAndProductPrice> =>
-      Models.SubscriptionChargeCreateWithPriceAndProductPrice
+    (): Schema.Schema<Models.SubscriptionChargeCreateWithPriceAndProductPrice, any, any> =>
+      Models.SubscriptionChargeCreateWithPriceAndProductPrice as Schema.Schema<
+        Models.SubscriptionChargeCreateWithPriceAndProductPrice,
+        any,
+        any
+      >
   )
 })
 export type SubscriptionChargeCreateWithPriceAndProductModel =

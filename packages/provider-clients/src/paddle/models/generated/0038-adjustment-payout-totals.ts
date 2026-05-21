@@ -10,10 +10,18 @@ export const AdjustmentPayoutTotals = Schema.Struct({
   retained_fee: Schema.String,
   chargeback_fee: Schema.optional(
     Schema.suspend(
-      (): Schema.Schema<Models.AdjustmentPayoutTotalsChargebackFee> => Models.AdjustmentPayoutTotalsChargebackFee
+      (): Schema.Schema<Models.AdjustmentPayoutTotalsChargebackFee, any, any> =>
+        Models.AdjustmentPayoutTotalsChargebackFee as Schema.Schema<
+          Models.AdjustmentPayoutTotalsChargebackFee,
+          any,
+          any
+        >
     )
   ),
   earnings: Schema.String,
-  currency_code: Schema.suspend((): Schema.Schema<Models.CurrencyCodePayout> => Models.CurrencyCodePayout)
+  currency_code: Schema.suspend(
+    (): Schema.Schema<Models.CurrencyCodePayout, any, any> =>
+      Models.CurrencyCodePayout as Schema.Schema<Models.CurrencyCodePayout, any, any>
+  )
 })
 export type AdjustmentPayoutTotals = typeof AdjustmentPayoutTotals.Type

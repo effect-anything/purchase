@@ -10,7 +10,10 @@ export const CreditLedgerEntryCreateResponse = Schema.Struct({
   created_at: Schema.String,
   credit_entitlement_id: Schema.String,
   customer_id: Schema.String,
-  entry_type: Schema.suspend((): Schema.Schema<Models.LedgerEntryType> => Models.LedgerEntryType),
+  entry_type: Schema.suspend(
+    (): Schema.Schema<Models.LedgerEntryType, any, any> =>
+      Models.LedgerEntryType as Schema.Schema<Models.LedgerEntryType, any, any>
+  ),
   is_credit: Schema.Boolean,
   overage_after: Schema.String,
   overage_before: Schema.String,

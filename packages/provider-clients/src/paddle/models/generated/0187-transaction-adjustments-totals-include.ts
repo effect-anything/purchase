@@ -10,9 +10,16 @@ export const TransactionAdjustmentsTotalsInclude = Schema.Struct({
   retained_fee: Schema.String,
   earnings: Schema.String,
   breakdown: Schema.suspend(
-    (): Schema.Schema<Models.TransactionAdjustmentsTotalsIncludeBreakdown> =>
-      Models.TransactionAdjustmentsTotalsIncludeBreakdown
+    (): Schema.Schema<Models.TransactionAdjustmentsTotalsIncludeBreakdown, any, any> =>
+      Models.TransactionAdjustmentsTotalsIncludeBreakdown as Schema.Schema<
+        Models.TransactionAdjustmentsTotalsIncludeBreakdown,
+        any,
+        any
+      >
   ),
-  currency_code: Schema.suspend((): Schema.Schema<Models.CurrencyCode> => Models.CurrencyCode)
+  currency_code: Schema.suspend(
+    (): Schema.Schema<Models.CurrencyCode, any, any> =>
+      Models.CurrencyCode as Schema.Schema<Models.CurrencyCode, any, any>
+  )
 })
 export type TransactionAdjustmentsTotalsInclude = typeof TransactionAdjustmentsTotalsInclude.Type

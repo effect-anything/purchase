@@ -7,6 +7,10 @@ export const Customer = Schema.Struct({
   email: Schema.String,
   name: Schema.optional(Schema.String),
   phone_number: Schema.optional(Schema.NullOr(Schema.String)),
-  metadata: Schema.optional(Schema.suspend((): Schema.Schema<Models.Metadata> => Models.Metadata))
+  metadata: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.Metadata, any, any> => Models.Metadata as Schema.Schema<Models.Metadata, any, any>
+    )
+  )
 })
 export type Customer = typeof Customer.Type

@@ -4,7 +4,10 @@ import * as Models from "../../models.ts"
 
 export const LicenseInstanceEntity = Schema.Struct({
   id: Schema.String,
-  mode: Schema.suspend((): Schema.Schema<Models.EnvironmentMode> => Models.EnvironmentMode),
+  mode: Schema.suspend(
+    (): Schema.Schema<Models.EnvironmentMode, any, any> =>
+      Models.EnvironmentMode as Schema.Schema<Models.EnvironmentMode, any, any>
+  ),
   object: Schema.String,
   name: Schema.String,
   status: Schema.Literal("active", "deactivated"),

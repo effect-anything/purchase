@@ -4,7 +4,10 @@ import * as Models from "../../models.ts"
 
 export const OrderEntity = Schema.Struct({
   id: Schema.String,
-  mode: Schema.suspend((): Schema.Schema<Models.EnvironmentMode> => Models.EnvironmentMode),
+  mode: Schema.suspend(
+    (): Schema.Schema<Models.EnvironmentMode, any, any> =>
+      Models.EnvironmentMode as Schema.Schema<Models.EnvironmentMode, any, any>
+  ),
   object: Schema.String,
   customer: Schema.optional(Schema.NullOr(Schema.String)),
   product: Schema.String,
@@ -20,8 +23,12 @@ export const OrderEntity = Schema.Struct({
   fx_amount: Schema.optional(Schema.NullOr(Schema.Number)),
   fx_currency: Schema.optional(Schema.NullOr(Schema.String)),
   fx_rate: Schema.optional(Schema.NullOr(Schema.Number)),
-  status: Schema.suspend((): Schema.Schema<Models.OrderStatus> => Models.OrderStatus),
-  type: Schema.suspend((): Schema.Schema<Models.OrderType> => Models.OrderType),
+  status: Schema.suspend(
+    (): Schema.Schema<Models.OrderStatus, any, any> => Models.OrderStatus as Schema.Schema<Models.OrderStatus, any, any>
+  ),
+  type: Schema.suspend(
+    (): Schema.Schema<Models.OrderType, any, any> => Models.OrderType as Schema.Schema<Models.OrderType, any, any>
+  ),
   affiliate: Schema.optional(Schema.NullOr(Schema.String)),
   created_at: Schema.String,
   updated_at: Schema.String

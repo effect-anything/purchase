@@ -3,26 +3,71 @@ import * as Schema from "effect/Schema"
 import * as Models from "../../models.ts"
 
 export const PriceIncludes = Schema.Struct({
-  id: Schema.suspend((): Schema.Schema<Models.PriceId> => Models.PriceId),
-  product_id: Schema.suspend((): Schema.Schema<Models.ProductId> => Models.ProductId),
+  id: Schema.suspend(
+    (): Schema.Schema<Models.PriceId, any, any> => Models.PriceId as Schema.Schema<Models.PriceId, any, any>
+  ),
+  product_id: Schema.suspend(
+    (): Schema.Schema<Models.ProductId, any, any> => Models.ProductId as Schema.Schema<Models.ProductId, any, any>
+  ),
   description: Schema.String,
-  type: Schema.suspend((): Schema.Schema<Models.CatalogType> => Models.CatalogType),
-  name: Schema.NullOr(Schema.suspend((): Schema.Schema<Models.PriceName> => Models.PriceName)),
-  billing_cycle: Schema.NullOr(Schema.suspend((): Schema.Schema<Models.Duration> => Models.Duration)),
+  type: Schema.suspend(
+    (): Schema.Schema<Models.CatalogType, any, any> => Models.CatalogType as Schema.Schema<Models.CatalogType, any, any>
+  ),
+  name: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.PriceName, any, any> => Models.PriceName as Schema.Schema<Models.PriceName, any, any>
+    )
+  ),
+  billing_cycle: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.Duration, any, any> => Models.Duration as Schema.Schema<Models.Duration, any, any>
+    )
+  ),
   trial_period: Schema.NullOr(
-    Schema.suspend((): Schema.Schema<Models.PriceTrialDuration> => Models.PriceTrialDuration)
+    Schema.suspend(
+      (): Schema.Schema<Models.PriceTrialDuration, any, any> =>
+        Models.PriceTrialDuration as Schema.Schema<Models.PriceTrialDuration, any, any>
+    )
   ),
-  tax_mode: Schema.suspend((): Schema.Schema<Models.TaxMode> => Models.TaxMode),
-  unit_price: Schema.suspend((): Schema.Schema<Models.Money> => Models.Money),
+  tax_mode: Schema.suspend(
+    (): Schema.Schema<Models.TaxMode, any, any> => Models.TaxMode as Schema.Schema<Models.TaxMode, any, any>
+  ),
+  unit_price: Schema.suspend(
+    (): Schema.Schema<Models.Money, any, any> => Models.Money as Schema.Schema<Models.Money, any, any>
+  ),
   unit_price_overrides: Schema.Array(
-    Schema.suspend((): Schema.Schema<Models.UnitPriceOverride> => Models.UnitPriceOverride)
+    Schema.suspend(
+      (): Schema.Schema<Models.UnitPriceOverride, any, any> =>
+        Models.UnitPriceOverride as Schema.Schema<Models.UnitPriceOverride, any, any>
+    )
   ),
-  quantity: Schema.suspend((): Schema.Schema<Models.PriceQuantity> => Models.PriceQuantity),
-  status: Schema.suspend((): Schema.Schema<Models.Status> => Models.Status),
-  custom_data: Schema.NullOr(Schema.suspend((): Schema.Schema<Models.CustomData> => Models.CustomData)),
-  import_meta: Schema.NullOr(Schema.suspend((): Schema.Schema<Models.ImportMeta> => Models.ImportMeta)),
-  created_at: Schema.suspend((): Schema.Schema<Models.CreatedAt> => Models.CreatedAt),
-  updated_at: Schema.suspend((): Schema.Schema<Models.UpdatedAt> => Models.UpdatedAt),
-  product: Schema.optional(Schema.suspend((): Schema.Schema<Models.Product> => Models.Product))
+  quantity: Schema.suspend(
+    (): Schema.Schema<Models.PriceQuantity, any, any> =>
+      Models.PriceQuantity as Schema.Schema<Models.PriceQuantity, any, any>
+  ),
+  status: Schema.suspend(
+    (): Schema.Schema<Models.Status, any, any> => Models.Status as Schema.Schema<Models.Status, any, any>
+  ),
+  custom_data: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.CustomData, any, any> => Models.CustomData as Schema.Schema<Models.CustomData, any, any>
+    )
+  ),
+  import_meta: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.ImportMeta, any, any> => Models.ImportMeta as Schema.Schema<Models.ImportMeta, any, any>
+    )
+  ),
+  created_at: Schema.suspend(
+    (): Schema.Schema<Models.CreatedAt, any, any> => Models.CreatedAt as Schema.Schema<Models.CreatedAt, any, any>
+  ),
+  updated_at: Schema.suspend(
+    (): Schema.Schema<Models.UpdatedAt, any, any> => Models.UpdatedAt as Schema.Schema<Models.UpdatedAt, any, any>
+  ),
+  product: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.Product, any, any> => Models.Product as Schema.Schema<Models.Product, any, any>
+    )
+  )
 })
 export type PriceIncludes = typeof PriceIncludes.Type

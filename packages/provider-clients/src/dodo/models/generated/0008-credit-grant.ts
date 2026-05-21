@@ -15,7 +15,11 @@ export const CreditGrant = Schema.Struct({
   source_type: Schema.Literal("subscription", "one_time", "addon", "api", "rollover"),
   updated_at: Schema.String,
   expires_at: Schema.optional(Schema.NullOr(Schema.String)),
-  metadata: Schema.optional(Schema.suspend((): Schema.Schema<Models.Metadata> => Models.Metadata)),
+  metadata: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.Metadata, any, any> => Models.Metadata as Schema.Schema<Models.Metadata, any, any>
+    )
+  ),
   parent_grant_id: Schema.optional(Schema.NullOr(Schema.String)),
   source_id: Schema.optional(Schema.NullOr(Schema.String))
 })

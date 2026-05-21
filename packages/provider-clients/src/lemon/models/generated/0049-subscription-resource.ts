@@ -5,10 +5,21 @@ import * as Models from "../../models.ts"
 export const SubscriptionResource = Schema.Struct({
   type: Schema.Literal("subscriptions"),
   id: Schema.String,
-  attributes: Schema.suspend((): Schema.Schema<Models.SubscriptionAttributes> => Models.SubscriptionAttributes),
-  relationships: Schema.optional(
-    Schema.suspend((): Schema.Schema<Models.JsonApiRelationships> => Models.JsonApiRelationships)
+  attributes: Schema.suspend(
+    (): Schema.Schema<Models.SubscriptionAttributes, any, any> =>
+      Models.SubscriptionAttributes as Schema.Schema<Models.SubscriptionAttributes, any, any>
   ),
-  links: Schema.optional(Schema.suspend((): Schema.Schema<Models.JsonApiLinks> => Models.JsonApiLinks))
+  relationships: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.JsonApiRelationships, any, any> =>
+        Models.JsonApiRelationships as Schema.Schema<Models.JsonApiRelationships, any, any>
+    )
+  ),
+  links: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.JsonApiLinks, any, any> =>
+        Models.JsonApiLinks as Schema.Schema<Models.JsonApiLinks, any, any>
+    )
+  )
 })
 export type SubscriptionResource = typeof SubscriptionResource.Type

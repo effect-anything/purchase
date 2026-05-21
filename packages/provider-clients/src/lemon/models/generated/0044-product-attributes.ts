@@ -7,7 +7,10 @@ export const ProductAttributes = Schema.Struct({
   name: Schema.String,
   slug: Schema.String,
   description: Schema.optional(Schema.String),
-  status: Schema.suspend((): Schema.Schema<Models.ProductStatus> => Models.ProductStatus),
+  status: Schema.suspend(
+    (): Schema.Schema<Models.ProductStatus, any, any> =>
+      Models.ProductStatus as Schema.Schema<Models.ProductStatus, any, any>
+  ),
   status_formatted: Schema.optional(Schema.String),
   thumb_url: Schema.optional(Schema.NullOr(Schema.String)),
   large_thumb_url: Schema.optional(Schema.NullOr(Schema.String)),

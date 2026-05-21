@@ -7,7 +7,10 @@ export const CreditEntitlement = Schema.Struct({
   business_id: Schema.String,
   created_at: Schema.String,
   name: Schema.String,
-  overage_behavior: Schema.suspend((): Schema.Schema<Models.CbbOverageBehavior> => Models.CbbOverageBehavior),
+  overage_behavior: Schema.suspend(
+    (): Schema.Schema<Models.CbbOverageBehavior, any, any> =>
+      Models.CbbOverageBehavior as Schema.Schema<Models.CbbOverageBehavior, any, any>
+  ),
   overage_enabled: Schema.Boolean,
   precision: Schema.Number,
   rollover_enabled: Schema.Boolean,
@@ -22,7 +25,10 @@ export const CreditEntitlement = Schema.Struct({
   rollover_percentage: Schema.optional(Schema.NullOr(Schema.Number)),
   rollover_timeframe_count: Schema.optional(Schema.NullOr(Schema.Number)),
   rollover_timeframe_interval: Schema.optional(
-    Schema.suspend((): Schema.Schema<Models.TimeInterval> => Models.TimeInterval)
+    Schema.suspend(
+      (): Schema.Schema<Models.TimeInterval, any, any> =>
+        Models.TimeInterval as Schema.Schema<Models.TimeInterval, any, any>
+    )
   )
 })
 export type CreditEntitlement = typeof CreditEntitlement.Type

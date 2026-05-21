@@ -11,6 +11,9 @@ export const TransactionTotalsAdjusted = Schema.Struct({
   fee: Schema.NullOr(Schema.String),
   retained_fee: Schema.String,
   earnings: Schema.NullOr(Schema.String),
-  currency_code: Schema.suspend((): Schema.Schema<Models.CurrencyCode> => Models.CurrencyCode)
+  currency_code: Schema.suspend(
+    (): Schema.Schema<Models.CurrencyCode, any, any> =>
+      Models.CurrencyCode as Schema.Schema<Models.CurrencyCode, any, any>
+  )
 })
 export type TransactionTotalsAdjusted = typeof TransactionTotalsAdjusted.Type

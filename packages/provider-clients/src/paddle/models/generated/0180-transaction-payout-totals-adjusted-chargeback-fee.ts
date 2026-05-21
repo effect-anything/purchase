@@ -6,8 +6,12 @@ export const TransactionPayoutTotalsAdjustedChargebackFee = Schema.Struct({
   amount: Schema.String,
   original: Schema.NullOr(
     Schema.suspend(
-      (): Schema.Schema<Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal> =>
-        Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal
+      (): Schema.Schema<Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal, any, any> =>
+        Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal as Schema.Schema<
+          Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal,
+          any,
+          any
+        >
     )
   )
 })

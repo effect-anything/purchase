@@ -3,7 +3,10 @@ import * as Schema from "effect/Schema"
 import * as Models from "../../models.ts"
 
 export const Duration = Schema.Struct({
-  interval: Schema.suspend((): Schema.Schema<Models.DurationInterval> => Models.DurationInterval),
+  interval: Schema.suspend(
+    (): Schema.Schema<Models.DurationInterval, any, any> =>
+      Models.DurationInterval as Schema.Schema<Models.DurationInterval, any, any>
+  ),
   frequency: Schema.Number
 })
 export type Duration = typeof Duration.Type

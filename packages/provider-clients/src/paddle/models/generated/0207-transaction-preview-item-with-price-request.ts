@@ -6,10 +6,16 @@ export const TransactionPreviewItemWithPriceRequest = Schema.Struct({
   quantity: Schema.Number,
   include_in_totals: Schema.optional(Schema.Boolean),
   proration: Schema.optional(
-    Schema.NullOr(Schema.suspend((): Schema.Schema<Models.TransactionItemProration> => Models.TransactionItemProration))
+    Schema.NullOr(
+      Schema.suspend(
+        (): Schema.Schema<Models.TransactionItemProration, any, any> =>
+          Models.TransactionItemProration as Schema.Schema<Models.TransactionItemProration, any, any>
+      )
+    )
   ),
   price: Schema.suspend(
-    (): Schema.Schema<Models.TransactionPriceCreateWithProductId> => Models.TransactionPriceCreateWithProductId
+    (): Schema.Schema<Models.TransactionPriceCreateWithProductId, any, any> =>
+      Models.TransactionPriceCreateWithProductId as Schema.Schema<Models.TransactionPriceCreateWithProductId, any, any>
   )
 })
 export type TransactionPreviewItemWithPriceRequest = typeof TransactionPreviewItemWithPriceRequest.Type

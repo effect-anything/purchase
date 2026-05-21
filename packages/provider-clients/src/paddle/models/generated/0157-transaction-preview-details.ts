@@ -5,13 +5,23 @@ import * as Models from "../../models.ts"
 export const TransactionPreviewDetails = Schema.Struct({
   tax_rates_used: Schema.Array(
     Schema.suspend(
-      (): Schema.Schema<Models.TransactionPreviewDetailsTaxRatesUsedItem> =>
-        Models.TransactionPreviewDetailsTaxRatesUsedItem
+      (): Schema.Schema<Models.TransactionPreviewDetailsTaxRatesUsedItem, any, any> =>
+        Models.TransactionPreviewDetailsTaxRatesUsedItem as Schema.Schema<
+          Models.TransactionPreviewDetailsTaxRatesUsedItem,
+          any,
+          any
+        >
     )
   ),
-  totals: Schema.suspend((): Schema.Schema<Models.TransactionTotals> => Models.TransactionTotals),
+  totals: Schema.suspend(
+    (): Schema.Schema<Models.TransactionTotals, any, any> =>
+      Models.TransactionTotals as Schema.Schema<Models.TransactionTotals, any, any>
+  ),
   line_items: Schema.Array(
-    Schema.suspend((): Schema.Schema<Models.TransactionPreviewLineItem> => Models.TransactionPreviewLineItem)
+    Schema.suspend(
+      (): Schema.Schema<Models.TransactionPreviewLineItem, any, any> =>
+        Models.TransactionPreviewLineItem as Schema.Schema<Models.TransactionPreviewLineItem, any, any>
+    )
   )
 })
 export type TransactionPreviewDetails = typeof TransactionPreviewDetails.Type

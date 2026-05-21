@@ -7,6 +7,9 @@ export const LicenseValidateResponse = Schema.Struct({
   error: Schema.optional(Schema.NullOr(Schema.String)),
   license_key: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
   instance: Schema.optional(Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.Unknown }))),
-  meta: Schema.suspend((): Schema.Schema<Models.LicenseResponseMeta> => Models.LicenseResponseMeta)
+  meta: Schema.suspend(
+    (): Schema.Schema<Models.LicenseResponseMeta, any, any> =>
+      Models.LicenseResponseMeta as Schema.Schema<Models.LicenseResponseMeta, any, any>
+  )
 })
 export type LicenseValidateResponse = typeof LicenseValidateResponse.Type

@@ -11,7 +11,10 @@ export const LicenseKey = Schema.Struct({
   key: Schema.String,
   product_id: Schema.String,
   source: Schema.Literal("auto", "import"),
-  status: Schema.suspend((): Schema.Schema<Models.LicenseKeyStatus> => Models.LicenseKeyStatus),
+  status: Schema.suspend(
+    (): Schema.Schema<Models.LicenseKeyStatus, any, any> =>
+      Models.LicenseKeyStatus as Schema.Schema<Models.LicenseKeyStatus, any, any>
+  ),
   activations_limit: Schema.optional(Schema.NullOr(Schema.Number)),
   expires_at: Schema.optional(Schema.NullOr(Schema.String)),
   payment_id: Schema.optional(Schema.NullOr(Schema.String)),

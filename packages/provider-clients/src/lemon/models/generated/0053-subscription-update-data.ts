@@ -6,7 +6,8 @@ export const SubscriptionUpdateData = Schema.Struct({
   type: Schema.Literal("subscriptions"),
   id: Schema.String,
   attributes: Schema.suspend(
-    (): Schema.Schema<Models.SubscriptionUpdateAttributes> => Models.SubscriptionUpdateAttributes
+    (): Schema.Schema<Models.SubscriptionUpdateAttributes, any, any> =>
+      Models.SubscriptionUpdateAttributes as Schema.Schema<Models.SubscriptionUpdateAttributes, any, any>
   )
 })
 export type SubscriptionUpdateData = typeof SubscriptionUpdateData.Type

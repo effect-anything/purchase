@@ -4,7 +4,10 @@ import * as Models from "../../models.ts"
 
 export const CustomerEntity = Schema.Struct({
   id: Schema.String,
-  mode: Schema.suspend((): Schema.Schema<Models.EnvironmentMode> => Models.EnvironmentMode),
+  mode: Schema.suspend(
+    (): Schema.Schema<Models.EnvironmentMode, any, any> =>
+      Models.EnvironmentMode as Schema.Schema<Models.EnvironmentMode, any, any>
+  ),
   object: Schema.String,
   email: Schema.String,
   name: Schema.optional(Schema.NullOr(Schema.String)),

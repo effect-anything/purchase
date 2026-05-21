@@ -9,6 +9,9 @@ export const AdjustmentTotals = Schema.Struct({
   fee: Schema.String,
   retained_fee: Schema.optional(Schema.String),
   earnings: Schema.String,
-  currency_code: Schema.suspend((): Schema.Schema<Models.CurrencyCode> => Models.CurrencyCode)
+  currency_code: Schema.suspend(
+    (): Schema.Schema<Models.CurrencyCode, any, any> =>
+      Models.CurrencyCode as Schema.Schema<Models.CurrencyCode, any, any>
+  )
 })
 export type AdjustmentTotals = typeof AdjustmentTotals.Type

@@ -4,7 +4,10 @@ import * as Models from "../../models.ts"
 
 export const SubscriptionItemEntity = Schema.Struct({
   id: Schema.String,
-  mode: Schema.suspend((): Schema.Schema<Models.EnvironmentMode> => Models.EnvironmentMode),
+  mode: Schema.suspend(
+    (): Schema.Schema<Models.EnvironmentMode, any, any> =>
+      Models.EnvironmentMode as Schema.Schema<Models.EnvironmentMode, any, any>
+  ),
   object: Schema.String,
   product_id: Schema.optional(Schema.String),
   price_id: Schema.optional(Schema.String),
