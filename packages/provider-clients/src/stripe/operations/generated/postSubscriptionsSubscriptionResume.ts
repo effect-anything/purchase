@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const PostSubscriptionsSubscriptionResumeInput = Schema.Struct({
   subscription: Schema.String,
   billing_cycle_anchor: Schema.optional(Schema.Literal("now", "unchanged")),
   expand: Schema.optional(Schema.Array(Schema.String)),
   proration_behavior: Schema.optional(Schema.Literal("always_invoice", "create_prorations", "none")),
-  proration_date: Schema.optional(Schema.Number),
+  proration_date: Schema.optional(Schema.Number)
 })
 export type PostSubscriptionsSubscriptionResumeInput = typeof PostSubscriptionsSubscriptionResumeInput.Type
 

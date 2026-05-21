@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const LicenseKeyRead = Schema.Struct({
@@ -7,16 +8,22 @@ export const LicenseKeyRead = Schema.Struct({
   modified_at: Schema.NullOr(Schema.String),
   organization_id: Schema.String,
   customer_id: Schema.String,
-  customer: Schema.suspend((): typeof Models.LicenseKeyCustomer => Models.LicenseKeyCustomer),
+  customer: Schema.suspend(
+    (): Schema.Schema<Models.LicenseKeyCustomer, any, any> =>
+      Models.LicenseKeyCustomer as Schema.Schema<Models.LicenseKeyCustomer, any, any>
+  ),
   benefit_id: Schema.String,
   key: Schema.String,
   display_key: Schema.String,
-  status: Schema.suspend((): typeof Models.LicenseKeyStatus => Models.LicenseKeyStatus),
+  status: Schema.suspend(
+    (): Schema.Schema<Models.LicenseKeyStatus, any, any> =>
+      Models.LicenseKeyStatus as Schema.Schema<Models.LicenseKeyStatus, any, any>
+  ),
   limit_activations: Schema.NullOr(Schema.Number),
   usage: Schema.Number,
   limit_usage: Schema.NullOr(Schema.Number),
   validations: Schema.Number,
   last_validated_at: Schema.NullOr(Schema.String),
-  expires_at: Schema.NullOr(Schema.String),
+  expires_at: Schema.NullOr(Schema.String)
 })
 export type LicenseKeyRead = typeof LicenseKeyRead.Type

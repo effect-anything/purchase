@@ -1,7 +1,6 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
-export const PaymentMethodPix = Schema.Struct({
-
-})
+export const PaymentMethodPix = Schema.Struct({})
 export type PaymentMethodPix = typeof PaymentMethodPix.Type

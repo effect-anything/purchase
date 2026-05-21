@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const LicenseKeysGetActivationInput = Schema.Struct({
   id: Schema.String,
-  activation_id: Schema.String,
+  activation_id: Schema.String
 })
 export type LicenseKeysGetActivationInput = typeof LicenseKeysGetActivationInput.Type
 

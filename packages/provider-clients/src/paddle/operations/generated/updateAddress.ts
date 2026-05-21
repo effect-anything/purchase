@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdateAddressInput = Schema.Struct({
   address_id: Schema.String,
@@ -16,13 +16,13 @@ export const UpdateAddressInput = Schema.Struct({
   region: Schema.optional(Schema.NullOr(Schema.String)),
   country_code: Schema.optional(Models.CountryCode),
   custom_data: Schema.optional(Schema.NullOr(Models.CustomData)),
-  status: Schema.optional(Models.Status),
+  status: Schema.optional(Models.Status)
 })
 export type UpdateAddressInput = typeof UpdateAddressInput.Type
 
 export const UpdateAddressOutput = Schema.Struct({
   data: Models.Address,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type UpdateAddressOutput = typeof UpdateAddressOutput.Type
 
@@ -35,7 +35,17 @@ export const updateAddressOperation = defineOperation({
   status: [200],
   contentType: "json",
   pathParams: ["address_id", "customer_id"],
-  bodyParams: ["description", "first_line", "second_line", "city", "postal_code", "region", "country_code", "custom_data", "status"]
+  bodyParams: [
+    "description",
+    "first_line",
+    "second_line",
+    "city",
+    "postal_code",
+    "region",
+    "country_code",
+    "custom_data",
+    "status"
+  ]
 })
 
 /**

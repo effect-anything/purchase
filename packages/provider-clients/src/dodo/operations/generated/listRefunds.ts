@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListRefundsInput = Schema.Struct({
   page_number: Schema.optional(Schema.Number),
@@ -12,7 +12,7 @@ export const ListRefundsInput = Schema.Struct({
   created_at_lte: Schema.optional(Schema.String),
   customer_id: Schema.optional(Schema.String),
   subscription_id: Schema.optional(Schema.String),
-  status: Schema.optional(Models.RefundStatus),
+  status: Schema.optional(Models.RefundStatus)
 })
 export type ListRefundsInput = typeof ListRefundsInput.Type
 
@@ -27,7 +27,15 @@ export const listRefundsOperation = defineOperation({
   outputSchema: ListRefundsOutput,
   status: [200],
   contentType: "json",
-  queryParams: ["page_number", "page_size", "created_at_gte", "created_at_lte", "customer_id", "subscription_id", "status"]
+  queryParams: [
+    "page_number",
+    "page_size",
+    "created_at_gte",
+    "created_at_lte",
+    "customer_id",
+    "subscription_id",
+    "status"
+  ]
 })
 
 /**

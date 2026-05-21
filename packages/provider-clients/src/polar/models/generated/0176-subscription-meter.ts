@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SubscriptionMeter = Schema.Struct({
@@ -9,6 +10,8 @@ export const SubscriptionMeter = Schema.Struct({
   credited_units: Schema.Number,
   amount: Schema.Number,
   meter_id: Schema.String,
-  meter: Schema.suspend((): typeof Models.Meter => Models.Meter),
+  meter: Schema.suspend(
+    (): Schema.Schema<Models.Meter, any, any> => Models.Meter as Schema.Schema<Models.Meter, any, any>
+  )
 })
 export type SubscriptionMeter = typeof SubscriptionMeter.Type

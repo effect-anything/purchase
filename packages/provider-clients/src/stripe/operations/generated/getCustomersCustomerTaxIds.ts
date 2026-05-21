@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetCustomersCustomerTaxIdsInput = Schema.Struct({
   customer: Schema.String,
   ending_before: Schema.optional(Schema.String),
   expand: Schema.optional(Schema.Array(Schema.String)),
   limit: Schema.optional(Schema.Number),
-  starting_after: Schema.optional(Schema.String),
+  starting_after: Schema.optional(Schema.String)
 })
 export type GetCustomersCustomerTaxIdsInput = typeof GetCustomersCustomerTaxIdsInput.Type
 
@@ -18,7 +18,7 @@ export const GetCustomersCustomerTaxIdsOutput = Schema.Struct({
   data: Schema.Array(Models.TaxId),
   has_more: Schema.Boolean,
   object: Schema.Literal("list"),
-  url: Schema.String,
+  url: Schema.String
 })
 export type GetCustomersCustomerTaxIdsOutput = typeof GetCustomersCustomerTaxIdsOutput.Type
 

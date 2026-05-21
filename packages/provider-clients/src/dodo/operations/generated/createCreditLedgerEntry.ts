@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateCreditLedgerEntryInput = Schema.Struct({
   credit_entitlement_id: Schema.String,
@@ -13,7 +13,7 @@ export const CreateCreditLedgerEntryInput = Schema.Struct({
   expires_at: Schema.optional(Schema.NullOr(Schema.String)),
   idempotency_key: Schema.optional(Schema.NullOr(Schema.String)),
   metadata: Schema.optional(Models.Metadata),
-  reason: Schema.optional(Schema.NullOr(Schema.String)),
+  reason: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type CreateCreditLedgerEntryInput = typeof CreateCreditLedgerEntryInput.Type
 

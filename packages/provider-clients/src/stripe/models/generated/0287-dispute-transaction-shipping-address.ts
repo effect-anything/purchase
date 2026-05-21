@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const DisputeTransactionShippingAddress = Schema.Struct({
@@ -7,6 +8,6 @@ export const DisputeTransactionShippingAddress = Schema.Struct({
   line1: Schema.NullOr(Schema.String),
   line2: Schema.NullOr(Schema.String),
   postal_code: Schema.NullOr(Schema.String),
-  state: Schema.NullOr(Schema.String),
+  state: Schema.NullOr(Schema.String)
 })
 export type DisputeTransactionShippingAddress = typeof DisputeTransactionShippingAddress.Type

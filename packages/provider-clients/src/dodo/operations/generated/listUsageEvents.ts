@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListUsageEventsInput = Schema.Struct({
   page_number: Schema.optional(Schema.Number),
@@ -12,7 +12,7 @@ export const ListUsageEventsInput = Schema.Struct({
   event_name: Schema.optional(Schema.String),
   meter_id: Schema.optional(Schema.String),
   start: Schema.optional(Schema.String),
-  end: Schema.optional(Schema.String),
+  end: Schema.optional(Schema.String)
 })
 export type ListUsageEventsInput = typeof ListUsageEventsInput.Type
 

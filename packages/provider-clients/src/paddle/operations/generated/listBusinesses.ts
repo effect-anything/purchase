@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListBusinessesInput = Schema.Struct({
   id: Schema.optional(Schema.Array(Schema.String)),
@@ -12,13 +12,13 @@ export const ListBusinessesInput = Schema.Struct({
   order_by: Schema.optional(Schema.String),
   status: Schema.optional(Schema.Array(Models.StatusQuery)),
   search: Schema.optional(Schema.String),
-  customer_id: Schema.String,
+  customer_id: Schema.String
 })
 export type ListBusinessesInput = typeof ListBusinessesInput.Type
 
 export const ListBusinessesOutput = Schema.Struct({
   data: Schema.Array(Models.Business),
-  meta: Models.PaginatedMeta,
+  meta: Models.PaginatedMeta
 })
 export type ListBusinessesOutput = typeof ListBusinessesOutput.Type
 

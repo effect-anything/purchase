@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SourceTypeCardPresent = Schema.Struct({
@@ -27,6 +28,6 @@ export const SourceTypeCardPresent = Schema.Struct({
   read_method: Schema.optional(Schema.NullOr(Schema.String)),
   reader: Schema.optional(Schema.NullOr(Schema.String)),
   terminal_verification_results: Schema.optional(Schema.String),
-  transaction_status_information: Schema.optional(Schema.String),
+  transaction_status_information: Schema.optional(Schema.String)
 })
 export type SourceTypeCardPresent = typeof SourceTypeCardPresent.Type

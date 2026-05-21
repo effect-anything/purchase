@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ActivateLicenseInput = Schema.Struct({
   key: Schema.String,
-  instance_name: Schema.String,
+  instance_name: Schema.String
 })
 export type ActivateLicenseInput = typeof ActivateLicenseInput.Type
 

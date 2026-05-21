@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CheckoutsListInput = Schema.Struct({
   organization_id: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.Array(Schema.String)))),
@@ -14,7 +14,7 @@ export const CheckoutsListInput = Schema.Struct({
   query: Schema.optional(Schema.NullOr(Schema.String)),
   page: Schema.optional(Schema.Number),
   limit: Schema.optional(Schema.Number),
-  sorting: Schema.optional(Schema.NullOr(Schema.Array(Models.CheckoutSortProperty))),
+  sorting: Schema.optional(Schema.NullOr(Schema.Array(Models.CheckoutSortProperty)))
 })
 export type CheckoutsListInput = typeof CheckoutsListInput.Type
 
@@ -29,7 +29,17 @@ export const checkoutsListOperation = defineOperation({
   outputSchema: CheckoutsListOutput,
   status: [200],
   contentType: "json",
-  queryParams: ["organization_id", "product_id", "customer_id", "external_customer_id", "status", "query", "page", "limit", "sorting"]
+  queryParams: [
+    "organization_id",
+    "product_id",
+    "customer_id",
+    "external_customer_id",
+    "status",
+    "query",
+    "page",
+    "limit",
+    "sorting"
+  ]
 })
 
 /**

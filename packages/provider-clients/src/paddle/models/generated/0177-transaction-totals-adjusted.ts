@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const TransactionTotalsAdjusted = Schema.Struct({
@@ -10,6 +11,6 @@ export const TransactionTotalsAdjusted = Schema.Struct({
   fee: Schema.NullOr(Schema.String),
   retained_fee: Schema.String,
   earnings: Schema.NullOr(Schema.String),
-  currency_code: Schema.suspend(() => Models.CurrencyCode),
+  currency_code: Schema.suspend((): Schema.Schema<Models.CurrencyCode> => Models.CurrencyCode)
 })
 export type TransactionTotalsAdjusted = typeof TransactionTotalsAdjusted.Type

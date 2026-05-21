@@ -2,14 +2,14 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const PostCustomersCustomerSourcesIdVerifyInput = Schema.Struct({
   customer: Schema.String,
   id: Schema.String,
   amounts: Schema.optional(Schema.Array(Schema.Number)),
-  expand: Schema.optional(Schema.Array(Schema.String)),
+  expand: Schema.optional(Schema.Array(Schema.String))
 })
 export type PostCustomersCustomerSourcesIdVerifyInput = typeof PostCustomersCustomerSourcesIdVerifyInput.Type
 

@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const CreditEntitlement = Schema.Struct({
@@ -6,7 +7,7 @@ export const CreditEntitlement = Schema.Struct({
   business_id: Schema.String,
   created_at: Schema.String,
   name: Schema.String,
-  overage_behavior: Schema.suspend(() => Models.CbbOverageBehavior),
+  overage_behavior: Schema.suspend((): Schema.Schema<Models.CbbOverageBehavior> => Models.CbbOverageBehavior),
   overage_enabled: Schema.Boolean,
   precision: Schema.Number,
   rollover_enabled: Schema.Boolean,
@@ -20,6 +21,8 @@ export const CreditEntitlement = Schema.Struct({
   price_per_unit: Schema.optional(Schema.NullOr(Schema.String)),
   rollover_percentage: Schema.optional(Schema.NullOr(Schema.Number)),
   rollover_timeframe_count: Schema.optional(Schema.NullOr(Schema.Number)),
-  rollover_timeframe_interval: Schema.optional(Schema.suspend(() => Models.TimeInterval)),
+  rollover_timeframe_interval: Schema.optional(
+    Schema.suspend((): Schema.Schema<Models.TimeInterval> => Models.TimeInterval)
+  )
 })
 export type CreditEntitlement = typeof CreditEntitlement.Type

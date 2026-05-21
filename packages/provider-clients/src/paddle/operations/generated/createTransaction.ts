@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateTransactionInput = Schema.Struct({
   include: Schema.optional(Schema.Array(Models.TransactionIncludeQuery)),
@@ -27,13 +27,13 @@ export const CreateTransactionInput = Schema.Struct({
   checkout: Schema.optional(Schema.NullOr(Models.TransactionCheckoutCreate)),
   created_at: Schema.optional(Models.CreatedAt),
   updated_at: Schema.optional(Models.UpdatedAt),
-  billed_at: Schema.optional(Schema.NullOr(Models.Timestamp)),
+  billed_at: Schema.optional(Schema.NullOr(Models.Timestamp))
 })
 export type CreateTransactionInput = typeof CreateTransactionInput.Type
 
 export const CreateTransactionOutput = Schema.Struct({
   data: Models.TransactionIncludes,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type CreateTransactionOutput = typeof CreateTransactionOutput.Type
 
@@ -46,7 +46,30 @@ export const createTransactionOperation = defineOperation({
   status: [201],
   contentType: "json",
   queryParams: ["include"],
-  bodyParams: ["id", "status", "customer_id", "address_id", "business_id", "custom_data", "currency_code", "origin", "subscription_id", "invoice_id", "invoice_number", "collection_mode", "discount_id", "billing_details", "billing_period", "items", "details", "payments", "checkout", "created_at", "updated_at", "billed_at"]
+  bodyParams: [
+    "id",
+    "status",
+    "customer_id",
+    "address_id",
+    "business_id",
+    "custom_data",
+    "currency_code",
+    "origin",
+    "subscription_id",
+    "invoice_id",
+    "invoice_number",
+    "collection_mode",
+    "discount_id",
+    "billing_details",
+    "billing_period",
+    "items",
+    "details",
+    "payments",
+    "checkout",
+    "created_at",
+    "updated_at",
+    "billed_at"
+  ]
 })
 
 /**

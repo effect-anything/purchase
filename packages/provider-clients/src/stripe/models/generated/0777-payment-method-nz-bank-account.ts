@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodNzBankAccount = Schema.Struct({
@@ -7,6 +8,6 @@ export const PaymentMethodNzBankAccount = Schema.Struct({
   bank_name: Schema.String,
   branch_code: Schema.String,
   last4: Schema.String,
-  suffix: Schema.NullOr(Schema.String),
+  suffix: Schema.NullOr(Schema.String)
 })
 export type PaymentMethodNzBankAccount = typeof PaymentMethodNzBankAccount.Type

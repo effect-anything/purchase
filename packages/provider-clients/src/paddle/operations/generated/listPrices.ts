@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListPricesInput = Schema.Struct({
   id: Schema.optional(Schema.Array(Schema.String)),
@@ -14,13 +14,13 @@ export const ListPricesInput = Schema.Struct({
   product_id: Schema.optional(Schema.Array(Schema.String)),
   status: Schema.optional(Schema.Array(Models.StatusQuery)),
   recurring: Schema.optional(Schema.Boolean),
-  type: Schema.optional(Models.CatalogTypeQueryEnum),
+  type: Schema.optional(Models.CatalogTypeQueryEnum)
 })
 export type ListPricesInput = typeof ListPricesInput.Type
 
 export const ListPricesOutput = Schema.Struct({
   data: Schema.Array(Models.PriceIncludes),
-  meta: Models.PaginatedMeta,
+  meta: Models.PaginatedMeta
 })
 export type ListPricesOutput = typeof ListPricesOutput.Type
 

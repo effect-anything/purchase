@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const LicenseKeysListInput = Schema.Struct({
   organization_id: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.Array(Schema.String)))),
   benefit_id: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.Array(Schema.String)))),
   status: Schema.optional(Schema.NullOr(Schema.Union(Models.LicenseKeyStatus, Schema.Array(Models.LicenseKeyStatus)))),
   page: Schema.optional(Schema.Number),
-  limit: Schema.optional(Schema.Number),
+  limit: Schema.optional(Schema.Number)
 })
 export type LicenseKeysListInput = typeof LicenseKeysListInput.Type
 

@@ -2,13 +2,13 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const OrdersUpdateInput = Schema.Struct({
   id: Schema.String,
   billing_name: Schema.optional(Schema.NullOr(Schema.String)),
-  billing_address: Schema.optional(Schema.NullOr(Models.AddressInput)),
+  billing_address: Schema.optional(Schema.NullOr(Models.AddressInput))
 })
 export type OrdersUpdateInput = typeof OrdersUpdateInput.Type
 

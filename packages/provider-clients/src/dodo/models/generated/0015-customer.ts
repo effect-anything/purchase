@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const Customer = Schema.Struct({
@@ -6,6 +7,6 @@ export const Customer = Schema.Struct({
   email: Schema.String,
   name: Schema.optional(Schema.String),
   phone_number: Schema.optional(Schema.NullOr(Schema.String)),
-  metadata: Schema.optional(Schema.suspend(() => Models.Metadata)),
+  metadata: Schema.optional(Schema.suspend((): Schema.Schema<Models.Metadata> => Models.Metadata))
 })
 export type Customer = typeof Customer.Type

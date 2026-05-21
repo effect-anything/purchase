@@ -1,11 +1,20 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const BenefitFeatureFlagCreate = Schema.Struct({
-  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean) })),
+  metadata: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean)
+    })
+  ),
   type: Schema.String,
   description: Schema.String,
   organization_id: Schema.optional(Schema.NullOr(Schema.String)),
-  properties: Schema.suspend((): typeof Models.BenefitFeatureFlagCreateProperties => Models.BenefitFeatureFlagCreateProperties),
+  properties: Schema.suspend(
+    (): Schema.Schema<Models.BenefitFeatureFlagCreateProperties, any, any> =>
+      Models.BenefitFeatureFlagCreateProperties as Schema.Schema<Models.BenefitFeatureFlagCreateProperties, any, any>
+  )
 })
 export type BenefitFeatureFlagCreate = typeof BenefitFeatureFlagCreate.Type

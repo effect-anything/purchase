@@ -2,14 +2,14 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateCustomerInput = Schema.Struct({
   email: Schema.String,
   name: Schema.String,
   phone_number: Schema.optional(Schema.String),
-  metadata: Schema.optional(Models.Metadata),
+  metadata: Schema.optional(Models.Metadata)
 })
 export type CreateCustomerInput = typeof CreateCustomerInput.Type
 

@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const CreditGrant = Schema.Struct({
@@ -14,8 +15,8 @@ export const CreditGrant = Schema.Struct({
   source_type: Schema.Literal("subscription", "one_time", "addon", "api", "rollover"),
   updated_at: Schema.String,
   expires_at: Schema.optional(Schema.NullOr(Schema.String)),
-  metadata: Schema.optional(Schema.suspend(() => Models.Metadata)),
+  metadata: Schema.optional(Schema.suspend((): Schema.Schema<Models.Metadata> => Models.Metadata)),
   parent_grant_id: Schema.optional(Schema.NullOr(Schema.String)),
-  source_id: Schema.optional(Schema.NullOr(Schema.String)),
+  source_id: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type CreditGrant = typeof CreditGrant.Type

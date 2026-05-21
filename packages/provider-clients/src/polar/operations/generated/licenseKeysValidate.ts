@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const LicenseKeysValidateInput = Schema.Struct({
   key: Schema.String,
@@ -12,7 +12,12 @@ export const LicenseKeysValidateInput = Schema.Struct({
   benefit_id: Schema.optional(Schema.NullOr(Schema.String)),
   customer_id: Schema.optional(Schema.NullOr(Schema.String)),
   increment_usage: Schema.optional(Schema.NullOr(Schema.Number)),
-  conditions: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean) })),
+  conditions: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean)
+    })
+  )
 })
 export type LicenseKeysValidateInput = typeof LicenseKeysValidateInput.Type
 

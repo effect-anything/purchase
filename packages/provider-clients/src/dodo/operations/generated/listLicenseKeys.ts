@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListLicenseKeysInput = Schema.Struct({
   page_number: Schema.optional(Schema.Number),
@@ -13,7 +13,7 @@ export const ListLicenseKeysInput = Schema.Struct({
   customer_id: Schema.optional(Schema.String),
   product_id: Schema.optional(Schema.String),
   source: Schema.optional(Schema.Literal("auto", "import")),
-  status: Schema.optional(Models.LicenseKeyStatus),
+  status: Schema.optional(Models.LicenseKeyStatus)
 })
 export type ListLicenseKeysInput = typeof ListLicenseKeysInput.Type
 
@@ -28,7 +28,16 @@ export const listLicenseKeysOperation = defineOperation({
   outputSchema: ListLicenseKeysOutput,
   status: [200],
   contentType: "json",
-  queryParams: ["page_number", "page_size", "created_at_gte", "created_at_lte", "customer_id", "product_id", "source", "status"]
+  queryParams: [
+    "page_number",
+    "page_size",
+    "created_at_gte",
+    "created_at_lte",
+    "customer_id",
+    "product_id",
+    "source",
+    "status"
+  ]
 })
 
 /**

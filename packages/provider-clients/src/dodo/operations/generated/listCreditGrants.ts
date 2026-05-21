@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListCreditGrantsInput = Schema.Struct({
   credit_entitlement_id: Schema.String,
   customer_id: Schema.String,
   page_number: Schema.optional(Schema.Number),
   page_size: Schema.optional(Schema.Number),
-  status: Schema.optional(Schema.Literal("active", "expired", "depleted")),
+  status: Schema.optional(Schema.Literal("active", "expired", "depleted"))
 })
 export type ListCreditGrantsInput = typeof ListCreditGrantsInput.Type
 

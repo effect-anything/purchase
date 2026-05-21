@@ -2,13 +2,13 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListMetersInput = Schema.Struct({
   page_number: Schema.optional(Schema.Number),
   page_size: Schema.optional(Schema.Number),
-  archived: Schema.optional(Schema.Boolean),
+  archived: Schema.optional(Schema.Boolean)
 })
 export type ListMetersInput = typeof ListMetersInput.Type
 

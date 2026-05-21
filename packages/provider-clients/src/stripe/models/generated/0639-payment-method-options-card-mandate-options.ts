@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodOptionsCardMandateOptions = Schema.Struct({
@@ -10,6 +11,6 @@ export const PaymentMethodOptionsCardMandateOptions = Schema.Struct({
   interval_count: Schema.NullOr(Schema.Number),
   reference: Schema.String,
   start_date: Schema.Number,
-  supported_types: Schema.NullOr(Schema.Array(Schema.Literal("india"))),
+  supported_types: Schema.NullOr(Schema.Array(Schema.Literal("india")))
 })
 export type PaymentMethodOptionsCardMandateOptions = typeof PaymentMethodOptionsCardMandateOptions.Type

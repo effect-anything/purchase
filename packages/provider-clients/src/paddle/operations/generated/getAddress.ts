@@ -2,18 +2,18 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetAddressInput = Schema.Struct({
   address_id: Schema.String,
-  customer_id: Schema.String,
+  customer_id: Schema.String
 })
 export type GetAddressInput = typeof GetAddressInput.Type
 
 export const GetAddressOutput = Schema.Struct({
   data: Models.Address,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type GetAddressOutput = typeof GetAddressOutput.Type
 

@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CustomersDeleteExternalInput = Schema.Struct({
   external_id: Schema.String,
-  anonymize: Schema.optional(Schema.Boolean),
+  anonymize: Schema.optional(Schema.Boolean)
 })
 export type CustomersDeleteExternalInput = typeof CustomersDeleteExternalInput.Type
 

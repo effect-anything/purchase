@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const BenefitMeterCredit = Schema.Struct({
@@ -11,7 +12,13 @@ export const BenefitMeterCredit = Schema.Struct({
   deletable: Schema.Boolean,
   is_deleted: Schema.Boolean,
   organization_id: Schema.String,
-  metadata: Schema.suspend((): typeof Models.MetadataOutputType => Models.MetadataOutputType),
-  properties: Schema.suspend((): typeof Models.BenefitMeterCreditProperties => Models.BenefitMeterCreditProperties),
+  metadata: Schema.suspend(
+    (): Schema.Schema<Models.MetadataOutputType, any, any> =>
+      Models.MetadataOutputType as Schema.Schema<Models.MetadataOutputType, any, any>
+  ),
+  properties: Schema.suspend(
+    (): Schema.Schema<Models.BenefitMeterCreditProperties, any, any> =>
+      Models.BenefitMeterCreditProperties as Schema.Schema<Models.BenefitMeterCreditProperties, any, any>
+  )
 })
 export type BenefitMeterCredit = typeof BenefitMeterCredit.Type

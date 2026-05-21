@@ -2,12 +2,10 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
-export const CustomersCreateInput = Schema.Struct({
-
-})
+export const CustomersCreateInput = Schema.Struct({})
 export type CustomersCreateInput = typeof CustomersCreateInput.Type
 
 export const CustomersCreateOutput = Models.Customer

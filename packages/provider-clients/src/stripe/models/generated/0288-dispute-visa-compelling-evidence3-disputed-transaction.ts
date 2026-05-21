@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const DisputeVisaCompellingEvidence3DisputedTransaction = Schema.Struct({
@@ -9,6 +10,12 @@ export const DisputeVisaCompellingEvidence3DisputedTransaction = Schema.Struct({
   customer_purchase_ip: Schema.NullOr(Schema.String),
   merchandise_or_services: Schema.NullOr(Schema.Literal("merchandise", "services")),
   product_description: Schema.NullOr(Schema.String),
-  shipping_address: Schema.NullOr(Schema.suspend((): typeof Models.DisputeTransactionShippingAddress => Models.DisputeTransactionShippingAddress)),
+  shipping_address: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.DisputeTransactionShippingAddress, any, any> =>
+        Models.DisputeTransactionShippingAddress as Schema.Schema<Models.DisputeTransactionShippingAddress, any, any>
+    )
+  )
 })
-export type DisputeVisaCompellingEvidence3DisputedTransaction = typeof DisputeVisaCompellingEvidence3DisputedTransaction.Type
+export type DisputeVisaCompellingEvidence3DisputedTransaction =
+  typeof DisputeVisaCompellingEvidence3DisputedTransaction.Type

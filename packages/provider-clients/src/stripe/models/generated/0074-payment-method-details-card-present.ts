@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodDetailsCardPresent = Schema.Struct({
@@ -22,12 +23,47 @@ export const PaymentMethodDetailsCardPresent = Schema.Struct({
   location: Schema.optional(Schema.String),
   network: Schema.NullOr(Schema.String),
   network_transaction_id: Schema.NullOr(Schema.String),
-  offline: Schema.NullOr(Schema.suspend((): typeof Models.PaymentMethodDetailsCardPresentOffline => Models.PaymentMethodDetailsCardPresentOffline)),
+  offline: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.PaymentMethodDetailsCardPresentOffline, any, any> =>
+        Models.PaymentMethodDetailsCardPresentOffline as Schema.Schema<
+          Models.PaymentMethodDetailsCardPresentOffline,
+          any,
+          any
+        >
+    )
+  ),
   overcapture_supported: Schema.Boolean,
   preferred_locales: Schema.NullOr(Schema.Array(Schema.String)),
-  read_method: Schema.NullOr(Schema.Literal("contact_emv", "contactless_emv", "contactless_magstripe_mode", "magnetic_stripe_fallback", "magnetic_stripe_track2")),
+  read_method: Schema.NullOr(
+    Schema.Literal(
+      "contact_emv",
+      "contactless_emv",
+      "contactless_magstripe_mode",
+      "magnetic_stripe_fallback",
+      "magnetic_stripe_track2"
+    )
+  ),
   reader: Schema.optional(Schema.String),
-  receipt: Schema.NullOr(Schema.suspend((): typeof Models.PaymentMethodDetailsCardPresentReceipt => Models.PaymentMethodDetailsCardPresentReceipt)),
-  wallet: Schema.optional(Schema.suspend((): typeof Models.PaymentFlowsPrivatePaymentMethodsCardPresentCommonWallet => Models.PaymentFlowsPrivatePaymentMethodsCardPresentCommonWallet)),
+  receipt: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.PaymentMethodDetailsCardPresentReceipt, any, any> =>
+        Models.PaymentMethodDetailsCardPresentReceipt as Schema.Schema<
+          Models.PaymentMethodDetailsCardPresentReceipt,
+          any,
+          any
+        >
+    )
+  ),
+  wallet: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.PaymentFlowsPrivatePaymentMethodsCardPresentCommonWallet, any, any> =>
+        Models.PaymentFlowsPrivatePaymentMethodsCardPresentCommonWallet as Schema.Schema<
+          Models.PaymentFlowsPrivatePaymentMethodsCardPresentCommonWallet,
+          any,
+          any
+        >
+    )
+  )
 })
 export type PaymentMethodDetailsCardPresent = typeof PaymentMethodDetailsCardPresent.Type

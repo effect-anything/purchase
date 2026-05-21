@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListTransactionsInput = Schema.Struct({
   include: Schema.optional(Schema.Array(Models.TransactionIncludeQuery)),
@@ -19,13 +19,13 @@ export const ListTransactionsInput = Schema.Struct({
   status: Schema.optional(Schema.Array(Models.TransactionStatusQuery)),
   subscription_id: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
   per_page: Schema.optional(Schema.Number),
-  updated_at: Schema.optional(Schema.String),
+  updated_at: Schema.optional(Schema.String)
 })
 export type ListTransactionsInput = typeof ListTransactionsInput.Type
 
 export const ListTransactionsOutput = Schema.Struct({
   data: Schema.Array(Models.TransactionIncludes),
-  meta: Models.PaginatedMeta,
+  meta: Models.PaginatedMeta
 })
 export type ListTransactionsOutput = typeof ListTransactionsOutput.Type
 
@@ -37,7 +37,22 @@ export const listTransactionsOperation = defineOperation({
   outputSchema: ListTransactionsOutput,
   status: [200],
   contentType: "json",
-  queryParams: ["include", "id", "after", "billed_at", "collection_mode", "created_at", "customer_id", "invoice_number", "origin", "order_by", "status", "subscription_id", "per_page", "updated_at"]
+  queryParams: [
+    "include",
+    "id",
+    "after",
+    "billed_at",
+    "collection_mode",
+    "created_at",
+    "customer_id",
+    "invoice_number",
+    "origin",
+    "order_by",
+    "status",
+    "subscription_id",
+    "per_page",
+    "updated_at"
+  ]
 })
 
 /**

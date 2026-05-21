@@ -2,18 +2,20 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const PostSubscriptionsSubscriptionMigrateInput = Schema.Struct({
   subscription: Schema.String,
   billing_mode: Schema.Struct({
-  flexible: Schema.optional(Schema.Struct({
-  proration_discounts: Schema.optional(Schema.Literal("included", "itemized")),
-})),
-  type: Schema.Literal("flexible"),
-}),
-  expand: Schema.optional(Schema.Array(Schema.String)),
+    flexible: Schema.optional(
+      Schema.Struct({
+        proration_discounts: Schema.optional(Schema.Literal("included", "itemized"))
+      })
+    ),
+    type: Schema.Literal("flexible")
+  }),
+  expand: Schema.optional(Schema.Array(Schema.String))
 })
 export type PostSubscriptionsSubscriptionMigrateInput = typeof PostSubscriptionsSubscriptionMigrateInput.Type
 

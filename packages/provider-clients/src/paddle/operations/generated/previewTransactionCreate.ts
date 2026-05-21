@@ -2,17 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
-export const PreviewTransactionCreateInput = Schema.Struct({
-
-})
+export const PreviewTransactionCreateInput = Schema.Struct({})
 export type PreviewTransactionCreateInput = typeof PreviewTransactionCreateInput.Type
 
 export const PreviewTransactionCreateOutput = Schema.Struct({
   data: Models.TransactionPreview,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type PreviewTransactionCreateOutput = typeof PreviewTransactionCreateOutput.Type
 

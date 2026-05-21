@@ -2,18 +2,18 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateCustomerPortalSessionInput = Schema.Struct({
   customer_id: Schema.String,
-  subscription_ids: Schema.optional(Schema.Array(Models.SubscriptionId)),
+  subscription_ids: Schema.optional(Schema.Array(Models.SubscriptionId))
 })
 export type CreateCustomerPortalSessionInput = typeof CreateCustomerPortalSessionInput.Type
 
 export const CreateCustomerPortalSessionOutput = Schema.Struct({
   data: Models.CustomerPortalSession,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type CreateCustomerPortalSessionOutput = typeof CreateCustomerPortalSessionOutput.Type
 

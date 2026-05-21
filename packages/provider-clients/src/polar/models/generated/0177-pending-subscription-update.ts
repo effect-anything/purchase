@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PendingSubscriptionUpdate = Schema.Struct({
@@ -7,6 +8,6 @@ export const PendingSubscriptionUpdate = Schema.Struct({
   id: Schema.String,
   applies_at: Schema.String,
   product_id: Schema.NullOr(Schema.String),
-  seats: Schema.NullOr(Schema.Number),
+  seats: Schema.NullOr(Schema.Number)
 })
 export type PendingSubscriptionUpdate = typeof PendingSubscriptionUpdate.Type

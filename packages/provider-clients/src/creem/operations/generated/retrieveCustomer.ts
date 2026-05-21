@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const RetrieveCustomerInput = Schema.Struct({
   customer_id: Schema.optional(Schema.String),
-  email: Schema.optional(Schema.String),
+  email: Schema.optional(Schema.String)
 })
 export type RetrieveCustomerInput = typeof RetrieveCustomerInput.Type
 

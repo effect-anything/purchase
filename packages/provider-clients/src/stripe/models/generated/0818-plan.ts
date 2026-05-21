@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const Plan = Schema.Struct({
@@ -16,11 +17,33 @@ export const Plan = Schema.Struct({
   meter: Schema.NullOr(Schema.String),
   nickname: Schema.NullOr(Schema.String),
   object: Schema.Literal("plan"),
-  product: Schema.NullOr(Schema.Union(Schema.String, Schema.suspend((): typeof Models.Product => Models.Product), Schema.suspend((): typeof Models.DeletedProduct => Models.DeletedProduct))),
-  tiers: Schema.optional(Schema.Array(Schema.suspend((): typeof Models.PlanTier => Models.PlanTier))),
+  product: Schema.NullOr(
+    Schema.Union(
+      Schema.String,
+      Schema.suspend(
+        (): Schema.Schema<Models.Product, any, any> => Models.Product as Schema.Schema<Models.Product, any, any>
+      ),
+      Schema.suspend(
+        (): Schema.Schema<Models.DeletedProduct, any, any> =>
+          Models.DeletedProduct as Schema.Schema<Models.DeletedProduct, any, any>
+      )
+    )
+  ),
+  tiers: Schema.optional(
+    Schema.Array(
+      Schema.suspend(
+        (): Schema.Schema<Models.PlanTier, any, any> => Models.PlanTier as Schema.Schema<Models.PlanTier, any, any>
+      )
+    )
+  ),
   tiers_mode: Schema.NullOr(Schema.Literal("graduated", "volume")),
-  transform_usage: Schema.NullOr(Schema.suspend((): typeof Models.TransformUsage => Models.TransformUsage)),
+  transform_usage: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.TransformUsage, any, any> =>
+        Models.TransformUsage as Schema.Schema<Models.TransformUsage, any, any>
+    )
+  ),
   trial_period_days: Schema.NullOr(Schema.Number),
-  usage_type: Schema.Literal("licensed", "metered"),
+  usage_type: Schema.Literal("licensed", "metered")
 })
 export type Plan = typeof Plan.Type

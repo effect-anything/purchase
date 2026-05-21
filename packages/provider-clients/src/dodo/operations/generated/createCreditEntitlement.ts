@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateCreditEntitlementInput = Schema.Struct({
   name: Schema.String,
@@ -20,7 +20,7 @@ export const CreateCreditEntitlementInput = Schema.Struct({
   price_per_unit: Schema.optional(Schema.NullOr(Schema.String)),
   rollover_percentage: Schema.optional(Schema.NullOr(Schema.Number)),
   rollover_timeframe_count: Schema.optional(Schema.NullOr(Schema.Number)),
-  rollover_timeframe_interval: Schema.optional(Models.TimeInterval),
+  rollover_timeframe_interval: Schema.optional(Models.TimeInterval)
 })
 export type CreateCreditEntitlementInput = typeof CreateCreditEntitlementInput.Type
 
@@ -35,7 +35,23 @@ export const createCreditEntitlementOperation = defineOperation({
   outputSchema: CreateCreditEntitlementOutput,
   status: [201],
   contentType: "json",
-  bodyParams: ["name", "overage_enabled", "precision", "rollover_enabled", "unit", "currency", "description", "expires_after_days", "max_rollover_count", "overage_behavior", "overage_limit", "price_per_unit", "rollover_percentage", "rollover_timeframe_count", "rollover_timeframe_interval"]
+  bodyParams: [
+    "name",
+    "overage_enabled",
+    "precision",
+    "rollover_enabled",
+    "unit",
+    "currency",
+    "description",
+    "expires_after_days",
+    "max_rollover_count",
+    "overage_behavior",
+    "overage_limit",
+    "price_per_unit",
+    "rollover_percentage",
+    "rollover_timeframe_count",
+    "rollover_timeframe_interval"
+  ]
 })
 
 /**

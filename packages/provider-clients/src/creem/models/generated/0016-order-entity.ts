@@ -1,9 +1,10 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const OrderEntity = Schema.Struct({
   id: Schema.String,
-  mode: Schema.suspend(() => Models.EnvironmentMode),
+  mode: Schema.suspend((): Schema.Schema<Models.EnvironmentMode> => Models.EnvironmentMode),
   object: Schema.String,
   customer: Schema.optional(Schema.NullOr(Schema.String)),
   product: Schema.String,
@@ -19,10 +20,10 @@ export const OrderEntity = Schema.Struct({
   fx_amount: Schema.optional(Schema.NullOr(Schema.Number)),
   fx_currency: Schema.optional(Schema.NullOr(Schema.String)),
   fx_rate: Schema.optional(Schema.NullOr(Schema.Number)),
-  status: Schema.suspend(() => Models.OrderStatus),
-  type: Schema.suspend(() => Models.OrderType),
+  status: Schema.suspend((): Schema.Schema<Models.OrderStatus> => Models.OrderStatus),
+  type: Schema.suspend((): Schema.Schema<Models.OrderType> => Models.OrderType),
   affiliate: Schema.optional(Schema.NullOr(Schema.String)),
   created_at: Schema.String,
-  updated_at: Schema.String,
+  updated_at: Schema.String
 })
 export type OrderEntity = typeof OrderEntity.Type

@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListProductsInput = Schema.Struct({
   id: Schema.optional(Schema.Array(Schema.String)),
@@ -13,13 +13,13 @@ export const ListProductsInput = Schema.Struct({
   order_by: Schema.optional(Schema.String),
   status: Schema.optional(Schema.Array(Models.StatusQuery)),
   tax_category: Schema.optional(Schema.Array(Models.TaxCategoryQueryEnum)),
-  type: Schema.optional(Models.CatalogTypeQueryEnum),
+  type: Schema.optional(Models.CatalogTypeQueryEnum)
 })
 export type ListProductsInput = typeof ListProductsInput.Type
 
 export const ListProductsOutput = Schema.Struct({
   data: Schema.Array(Models.ProductIncludes),
-  meta: Models.PaginatedMeta,
+  meta: Models.PaginatedMeta
 })
 export type ListProductsOutput = typeof ListProductsOutput.Type
 

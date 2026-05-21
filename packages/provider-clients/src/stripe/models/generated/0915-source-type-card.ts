@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SourceTypeCard = Schema.Struct({
@@ -18,6 +19,6 @@ export const SourceTypeCard = Schema.Struct({
   last4: Schema.optional(Schema.NullOr(Schema.String)),
   name: Schema.optional(Schema.NullOr(Schema.String)),
   three_d_secure: Schema.optional(Schema.String),
-  tokenization_method: Schema.optional(Schema.NullOr(Schema.String)),
+  tokenization_method: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type SourceTypeCard = typeof SourceTypeCard.Type

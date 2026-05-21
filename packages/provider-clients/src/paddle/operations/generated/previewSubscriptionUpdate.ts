@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const PreviewSubscriptionUpdateInput = Schema.Struct({
   subscription_id: Schema.String,
@@ -19,13 +19,13 @@ export const PreviewSubscriptionUpdateInput = Schema.Struct({
   items: Schema.optional(Schema.Array(Models.SubscriptionUpdateItems)),
   custom_data: Schema.optional(Schema.NullOr(Models.CustomData)),
   proration_billing_mode: Schema.optional(Models.SubscriptionUpdateProrationBillingMode),
-  on_payment_failure: Schema.optional(Models.SubscriptionOnPaymentFailure),
+  on_payment_failure: Schema.optional(Models.SubscriptionOnPaymentFailure)
 })
 export type PreviewSubscriptionUpdateInput = typeof PreviewSubscriptionUpdateInput.Type
 
 export const PreviewSubscriptionUpdateOutput = Schema.Struct({
   data: Models.SubscriptionPreview,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type PreviewSubscriptionUpdateOutput = typeof PreviewSubscriptionUpdateOutput.Type
 
@@ -38,7 +38,21 @@ export const previewSubscriptionUpdateOperation = defineOperation({
   status: [200],
   contentType: "json",
   pathParams: ["subscription_id"],
-  bodyParams: ["customer_id", "address_id", "business_id", "currency_code", "next_billed_at", "discount", "collection_mode", "billing_details", "scheduled_change", "items", "custom_data", "proration_billing_mode", "on_payment_failure"]
+  bodyParams: [
+    "customer_id",
+    "address_id",
+    "business_id",
+    "currency_code",
+    "next_billed_at",
+    "discount",
+    "collection_mode",
+    "billing_details",
+    "scheduled_change",
+    "items",
+    "custom_data",
+    "proration_billing_mode",
+    "on_payment_failure"
+  ]
 })
 
 /**

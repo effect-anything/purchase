@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { LemonClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListLicenseKeysInput = Schema.Struct({
   "page[number]": Schema.optional(Schema.Number),
@@ -11,7 +11,7 @@ export const ListLicenseKeysInput = Schema.Struct({
   "filter[store_id]": Schema.optional(Schema.String),
   "filter[order_id]": Schema.optional(Schema.String),
   "filter[product_id]": Schema.optional(Schema.String),
-  include: Schema.optional(Schema.String),
+  include: Schema.optional(Schema.String)
 })
 export type ListLicenseKeysInput = typeof ListLicenseKeysInput.Type
 

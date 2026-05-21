@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { LemonClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListSubscriptionsInput = Schema.Struct({
   "page[number]": Schema.optional(Schema.Number),
@@ -14,7 +14,7 @@ export const ListSubscriptionsInput = Schema.Struct({
   "filter[variant_id]": Schema.optional(Schema.String),
   "filter[user_email]": Schema.optional(Schema.String),
   "filter[status]": Schema.optional(Schema.String),
-  include: Schema.optional(Schema.String),
+  include: Schema.optional(Schema.String)
 })
 export type ListSubscriptionsInput = typeof ListSubscriptionsInput.Type
 
@@ -29,7 +29,17 @@ export const listSubscriptionsOperation = defineOperation({
   outputSchema: ListSubscriptionsOutput,
   status: [200],
   contentType: "json",
-  queryParams: ["page[number]", "page[size]", "filter[store_id]", "filter[order_id]", "filter[product_id]", "filter[variant_id]", "filter[user_email]", "filter[status]", "include"]
+  queryParams: [
+    "page[number]",
+    "page[size]",
+    "filter[store_id]",
+    "filter[order_id]",
+    "filter[product_id]",
+    "filter[variant_id]",
+    "filter[user_email]",
+    "filter[status]",
+    "include"
+  ]
 })
 
 /**

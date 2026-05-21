@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SourceTypeKlarna = Schema.Struct({
@@ -27,6 +28,6 @@ export const SourceTypeKlarna = Schema.Struct({
   redirect_url: Schema.optional(Schema.String),
   shipping_delay: Schema.optional(Schema.Number),
   shipping_first_name: Schema.optional(Schema.String),
-  shipping_last_name: Schema.optional(Schema.String),
+  shipping_last_name: Schema.optional(Schema.String)
 })
 export type SourceTypeKlarna = typeof SourceTypeKlarna.Type

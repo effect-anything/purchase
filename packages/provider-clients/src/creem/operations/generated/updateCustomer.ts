@@ -2,13 +2,13 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdateCustomerInput = Schema.Struct({
   customer_id: Schema.String,
   name: Schema.optional(Schema.String),
-  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
+  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown }))
 })
 export type UpdateCustomerInput = typeof UpdateCustomerInput.Type
 

@@ -2,17 +2,17 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GenerateCustomerAuthenticationTokenInput = Schema.Struct({
-  customer_id: Schema.String,
+  customer_id: Schema.String
 })
 export type GenerateCustomerAuthenticationTokenInput = typeof GenerateCustomerAuthenticationTokenInput.Type
 
 export const GenerateCustomerAuthenticationTokenOutput = Schema.Struct({
   data: Models.CustomerAuthenticationToken,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type GenerateCustomerAuthenticationTokenOutput = typeof GenerateCustomerAuthenticationTokenOutput.Type
 

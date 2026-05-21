@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const ProductMediaFileRead = Schema.Struct({
@@ -18,6 +19,6 @@ export const ProductMediaFileRead = Schema.Struct({
   is_uploaded: Schema.Boolean,
   created_at: Schema.String,
   size_readable: Schema.String,
-  public_url: Schema.String,
+  public_url: Schema.String
 })
 export type ProductMediaFileRead = typeof ProductMediaFileRead.Type

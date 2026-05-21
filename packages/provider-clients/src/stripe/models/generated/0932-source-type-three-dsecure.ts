@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SourceTypeThreeDSecure = Schema.Struct({
@@ -21,6 +22,6 @@ export const SourceTypeThreeDSecure = Schema.Struct({
   last4: Schema.optional(Schema.NullOr(Schema.String)),
   name: Schema.optional(Schema.NullOr(Schema.String)),
   three_d_secure: Schema.optional(Schema.String),
-  tokenization_method: Schema.optional(Schema.NullOr(Schema.String)),
+  tokenization_method: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type SourceTypeThreeDSecure = typeof SourceTypeThreeDSecure.Type

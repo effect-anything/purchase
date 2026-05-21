@@ -1,8 +1,22 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodDetailsPaymentRecordAlma = Schema.Struct({
-  installments: Schema.optional(Schema.suspend((): typeof Models.PaymentsPrimitivesPaymentRecordsResourcePaymentMethodAlmaDetailsResourceInstallments => Models.PaymentsPrimitivesPaymentRecordsResourcePaymentMethodAlmaDetailsResourceInstallments)),
-  transaction_id: Schema.NullOr(Schema.String),
+  installments: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<
+        Models.PaymentsPrimitivesPaymentRecordsResourcePaymentMethodAlmaDetailsResourceInstallments,
+        any,
+        any
+      > =>
+        Models.PaymentsPrimitivesPaymentRecordsResourcePaymentMethodAlmaDetailsResourceInstallments as Schema.Schema<
+          Models.PaymentsPrimitivesPaymentRecordsResourcePaymentMethodAlmaDetailsResourceInstallments,
+          any,
+          any
+        >
+    )
+  ),
+  transaction_id: Schema.NullOr(Schema.String)
 })
 export type PaymentMethodDetailsPaymentRecordAlma = typeof PaymentMethodDetailsPaymentRecordAlma.Type

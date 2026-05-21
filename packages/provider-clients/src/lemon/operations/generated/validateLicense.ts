@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { LemonClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ValidateLicenseInput = Schema.Struct({
   license_key: Schema.String,
-  instance_id: Schema.optional(Schema.String),
+  instance_id: Schema.optional(Schema.String)
 })
 export type ValidateLicenseInput = typeof ValidateLicenseInput.Type
 

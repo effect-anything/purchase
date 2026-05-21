@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const BenefitsListInput = Schema.Struct({
   organization_id: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.Array(Schema.String)))),
@@ -14,7 +14,7 @@ export const BenefitsListInput = Schema.Struct({
   page: Schema.optional(Schema.Number),
   limit: Schema.optional(Schema.Number),
   sorting: Schema.optional(Schema.NullOr(Schema.Array(Models.BenefitSortProperty))),
-  metadata: Schema.optional(Models.MetadataQuery),
+  metadata: Schema.optional(Models.MetadataQuery)
 })
 export type BenefitsListInput = typeof BenefitsListInput.Type
 

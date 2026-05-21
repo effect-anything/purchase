@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const CustomerStateMeter = Schema.Struct({
@@ -8,6 +9,6 @@ export const CustomerStateMeter = Schema.Struct({
   meter_id: Schema.String,
   consumed_units: Schema.Number,
   credited_units: Schema.Number,
-  balance: Schema.Number,
+  balance: Schema.Number
 })
 export type CustomerStateMeter = typeof CustomerStateMeter.Type

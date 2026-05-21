@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const LicenseKeysUpdateInput = Schema.Struct({
   id: Schema.String,
@@ -11,7 +11,7 @@ export const LicenseKeysUpdateInput = Schema.Struct({
   usage: Schema.optional(Schema.Number),
   limit_activations: Schema.optional(Schema.NullOr(Schema.Number)),
   limit_usage: Schema.optional(Schema.NullOr(Schema.Number)),
-  expires_at: Schema.optional(Schema.NullOr(Schema.String)),
+  expires_at: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type LicenseKeysUpdateInput = typeof LicenseKeysUpdateInput.Type
 

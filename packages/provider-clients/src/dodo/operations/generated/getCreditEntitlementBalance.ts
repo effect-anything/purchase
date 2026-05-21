@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetCreditEntitlementBalanceInput = Schema.Struct({
   credit_entitlement_id: Schema.String,
-  customer_id: Schema.String,
+  customer_id: Schema.String
 })
 export type GetCreditEntitlementBalanceInput = typeof GetCreditEntitlementBalanceInput.Type
 

@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdateProductInput = Schema.Struct({
   product_id: Schema.String,
@@ -13,13 +13,13 @@ export const UpdateProductInput = Schema.Struct({
   tax_category: Schema.optional(Models.TaxCategory),
   image_url: Schema.optional(Schema.NullOr(Schema.Union(Models.ImageUrl, Models.EmptyString))),
   custom_data: Schema.optional(Schema.NullOr(Models.CustomData)),
-  status: Schema.optional(Models.Status),
+  status: Schema.optional(Models.Status)
 })
 export type UpdateProductInput = typeof UpdateProductInput.Type
 
 export const UpdateProductOutput = Schema.Struct({
   data: Models.Product,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type UpdateProductOutput = typeof UpdateProductOutput.Type
 

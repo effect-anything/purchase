@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdatePriceInput = Schema.Struct({
   price_id: Schema.String,
@@ -17,13 +17,13 @@ export const UpdatePriceInput = Schema.Struct({
   unit_price_overrides: Schema.optional(Schema.Array(Models.UnitPriceOverride)),
   quantity: Schema.optional(Models.PriceQuantity),
   status: Schema.optional(Models.Status),
-  custom_data: Schema.optional(Schema.NullOr(Models.CustomData)),
+  custom_data: Schema.optional(Schema.NullOr(Models.CustomData))
 })
 export type UpdatePriceInput = typeof UpdatePriceInput.Type
 
 export const UpdatePriceOutput = Schema.Struct({
   data: Models.Price,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type UpdatePriceOutput = typeof UpdatePriceOutput.Type
 
@@ -36,7 +36,19 @@ export const updatePriceOperation = defineOperation({
   status: [200],
   contentType: "json",
   pathParams: ["price_id"],
-  bodyParams: ["description", "type", "name", "billing_cycle", "trial_period", "tax_mode", "unit_price", "unit_price_overrides", "quantity", "status", "custom_data"]
+  bodyParams: [
+    "description",
+    "type",
+    "name",
+    "billing_cycle",
+    "trial_period",
+    "tax_mode",
+    "unit_price",
+    "unit_price_overrides",
+    "quantity",
+    "status",
+    "custom_data"
+  ]
 })
 
 /**

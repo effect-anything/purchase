@@ -2,13 +2,13 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const PostProductsProductFeaturesInput = Schema.Struct({
   product: Schema.String,
   entitlement_feature: Schema.String,
-  expand: Schema.optional(Schema.Array(Schema.String)),
+  expand: Schema.optional(Schema.Array(Schema.String))
 })
 export type PostProductsProductFeaturesInput = typeof PostProductsProductFeaturesInput.Type
 

@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodUsBankAccount = Schema.Struct({
@@ -8,8 +9,22 @@ export const PaymentMethodUsBankAccount = Schema.Struct({
   financial_connections_account: Schema.NullOr(Schema.String),
   fingerprint: Schema.NullOr(Schema.String),
   last4: Schema.NullOr(Schema.String),
-  networks: Schema.NullOr(Schema.suspend((): typeof Models.UsBankAccountNetworks => Models.UsBankAccountNetworks)),
+  networks: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.UsBankAccountNetworks, any, any> =>
+        Models.UsBankAccountNetworks as Schema.Schema<Models.UsBankAccountNetworks, any, any>
+    )
+  ),
   routing_number: Schema.NullOr(Schema.String),
-  status_details: Schema.NullOr(Schema.suspend((): typeof Models.PaymentMethodUsBankAccountStatusDetails => Models.PaymentMethodUsBankAccountStatusDetails)),
+  status_details: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.PaymentMethodUsBankAccountStatusDetails, any, any> =>
+        Models.PaymentMethodUsBankAccountStatusDetails as Schema.Schema<
+          Models.PaymentMethodUsBankAccountStatusDetails,
+          any,
+          any
+        >
+    )
+  )
 })
 export type PaymentMethodUsBankAccount = typeof PaymentMethodUsBankAccount.Type

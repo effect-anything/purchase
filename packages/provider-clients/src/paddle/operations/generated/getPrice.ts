@@ -2,18 +2,18 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetPriceInput = Schema.Struct({
   include: Schema.optional(Schema.Array(Models.PriceIncludeEnum)),
-  price_id: Schema.String,
+  price_id: Schema.String
 })
 export type GetPriceInput = typeof GetPriceInput.Type
 
 export const GetPriceOutput = Schema.Struct({
   data: Models.PriceIncludes,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type GetPriceOutput = typeof GetPriceOutput.Type
 

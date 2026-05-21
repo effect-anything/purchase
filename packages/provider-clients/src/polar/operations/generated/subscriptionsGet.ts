@@ -2,11 +2,11 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const SubscriptionsGetInput = Schema.Struct({
-  id: Schema.String,
+  id: Schema.String
 })
 export type SubscriptionsGetInput = typeof SubscriptionsGetInput.Type
 

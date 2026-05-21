@@ -2,14 +2,14 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { LemonClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListPricesInput = Schema.Struct({
   "page[number]": Schema.optional(Schema.Number),
   "page[size]": Schema.optional(Schema.Number),
   "filter[variant_id]": Schema.optional(Schema.String),
-  include: Schema.optional(Schema.String),
+  include: Schema.optional(Schema.String)
 })
 export type ListPricesInput = typeof ListPricesInput.Type
 

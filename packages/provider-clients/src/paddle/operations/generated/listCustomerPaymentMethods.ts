@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListCustomerPaymentMethodsInput = Schema.Struct({
   customer_id: Schema.String,
@@ -11,13 +11,13 @@ export const ListCustomerPaymentMethodsInput = Schema.Struct({
   per_page: Schema.optional(Schema.Number),
   address_id: Schema.optional(Schema.Array(Schema.String)),
   order_by: Schema.optional(Schema.String),
-  supports_checkout: Schema.optional(Schema.Boolean),
+  supports_checkout: Schema.optional(Schema.Boolean)
 })
 export type ListCustomerPaymentMethodsInput = typeof ListCustomerPaymentMethodsInput.Type
 
 export const ListCustomerPaymentMethodsOutput = Schema.Struct({
   data: Schema.Array(Models.CustomerPaymentMethod),
-  meta: Models.PaginatedMeta,
+  meta: Models.PaginatedMeta
 })
 export type ListCustomerPaymentMethodsOutput = typeof ListCustomerPaymentMethodsOutput.Type
 

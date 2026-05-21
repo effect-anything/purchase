@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateCustomerInput = Schema.Struct({
   id: Schema.optional(Models.CustomerId),
@@ -12,13 +12,13 @@ export const CreateCustomerInput = Schema.Struct({
   marketing_consent: Schema.optional(Schema.Boolean),
   custom_data: Schema.optional(Schema.NullOr(Models.CustomData)),
   locale: Schema.optional(Schema.String),
-  import_meta: Schema.optional(Schema.NullOr(Models.ImportMeta)),
+  import_meta: Schema.optional(Schema.NullOr(Models.ImportMeta))
 })
 export type CreateCustomerInput = typeof CreateCustomerInput.Type
 
 export const CreateCustomerOutput = Schema.Struct({
   data: Models.Customer,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type CreateCustomerOutput = typeof CreateCustomerOutput.Type
 

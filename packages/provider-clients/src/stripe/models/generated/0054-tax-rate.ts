@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const TaxRate = Schema.Struct({
@@ -8,7 +9,12 @@ export const TaxRate = Schema.Struct({
   description: Schema.NullOr(Schema.String),
   display_name: Schema.String,
   effective_percentage: Schema.NullOr(Schema.Number),
-  flat_amount: Schema.NullOr(Schema.suspend((): typeof Models.TaxRateFlatAmount => Models.TaxRateFlatAmount)),
+  flat_amount: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.TaxRateFlatAmount, any, any> =>
+        Models.TaxRateFlatAmount as Schema.Schema<Models.TaxRateFlatAmount, any, any>
+    )
+  ),
   id: Schema.String,
   inclusive: Schema.Boolean,
   jurisdiction: Schema.NullOr(Schema.String),
@@ -19,6 +25,23 @@ export const TaxRate = Schema.Struct({
   percentage: Schema.Number,
   rate_type: Schema.NullOr(Schema.Literal("flat_amount", "percentage")),
   state: Schema.NullOr(Schema.String),
-  tax_type: Schema.NullOr(Schema.Literal("amusement_tax", "communications_tax", "gst", "hst", "igst", "jct", "lease_tax", "pst", "qst", "retail_delivery_fee", "rst", "sales_tax", "service_tax", "vat")),
+  tax_type: Schema.NullOr(
+    Schema.Literal(
+      "amusement_tax",
+      "communications_tax",
+      "gst",
+      "hst",
+      "igst",
+      "jct",
+      "lease_tax",
+      "pst",
+      "qst",
+      "retail_delivery_fee",
+      "rst",
+      "sales_tax",
+      "service_tax",
+      "vat"
+    )
+  )
 })
 export type TaxRate = typeof TaxRate.Type

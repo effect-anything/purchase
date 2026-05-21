@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SourceTypeAchDebit = Schema.Struct({
@@ -7,6 +8,6 @@ export const SourceTypeAchDebit = Schema.Struct({
   fingerprint: Schema.optional(Schema.NullOr(Schema.String)),
   last4: Schema.optional(Schema.NullOr(Schema.String)),
   routing_number: Schema.optional(Schema.NullOr(Schema.String)),
-  type: Schema.optional(Schema.NullOr(Schema.String)),
+  type: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type SourceTypeAchDebit = typeof SourceTypeAchDebit.Type

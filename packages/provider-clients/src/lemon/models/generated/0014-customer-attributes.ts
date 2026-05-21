@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const CustomerAttributes = Schema.Struct({
@@ -11,6 +12,6 @@ export const CustomerAttributes = Schema.Struct({
   country: Schema.optional(Schema.NullOr(Schema.String)),
   created_at: Schema.String,
   updated_at: Schema.String,
-  test_mode: Schema.Boolean,
+  test_mode: Schema.Boolean
 })
 export type CustomerAttributes = typeof CustomerAttributes.Type

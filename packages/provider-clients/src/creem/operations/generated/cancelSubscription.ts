@@ -2,13 +2,13 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CancelSubscriptionInput = Schema.Struct({
   id: Schema.String,
   mode: Schema.optional(Schema.Literal("immediate", "scheduled")),
-  onExecute: Schema.optional(Schema.Literal("cancel", "pause")),
+  onExecute: Schema.optional(Schema.Literal("cancel", "pause"))
 })
 export type CancelSubscriptionInput = typeof CancelSubscriptionInput.Type
 

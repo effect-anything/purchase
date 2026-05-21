@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const FeatureFileEntity = Schema.Struct({
@@ -6,6 +7,6 @@ export const FeatureFileEntity = Schema.Struct({
   file_name: Schema.String,
   url: Schema.String,
   type: Schema.String,
-  size: Schema.Number,
+  size: Schema.Number
 })
 export type FeatureFileEntity = typeof FeatureFileEntity.Type

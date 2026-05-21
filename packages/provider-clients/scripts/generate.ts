@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process"
 import * as fs from "node:fs/promises"
 import * as path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -319,9 +320,38 @@ async function generateProvider(config: ProviderConfig) {
   }
 
   await fs.writeFile(path.join(config.outputDir, "../generated.ts"), `${operationExports.sort().join("\n")}\n`)
+  await formatGenerated(config)
   console.log(
     `Generated ${operationExports.length} ${config.name} operations, ${usedRefs.size} shared models, ${modelGraph.circular.size} circular models`
   )
+}
+
+async function formatGenerated(config: ProviderConfig) {
+  const generatedModelsDir = path.join(path.dirname(config.modelFile), "models/generated")
+  await runOxfmt([
+    config.modelFile,
+    generatedModelsDir,
+    path.join(config.outputDir, "../generated.ts"),
+    config.outputDir
+  ])
+}
+
+async function runOxfmt(paths: ReadonlyArray<string>) {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn("oxfmt", [...paths], {
+      cwd: rootDir,
+      env: process.env,
+      stdio: "inherit"
+    })
+    child.on("error", reject)
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve()
+      } else {
+        reject(new Error(`oxfmt failed with exit code ${code ?? "unknown"}`))
+      }
+    })
+  })
 }
 
 async function generateModels(
@@ -347,8 +377,14 @@ async function generateModels(
     })
     const fileName = `${String(index).padStart(4, "0")}-${toKebabCase(modelName)}.ts`
     const lines = [`import * as Schema from "effect/Schema"`, `import * as Models from "../../models.ts"`, ""]
+    if (modelGraph.circular.has(refName)) {
+      lines.push(`export type ${modelName} = ${renderType(schema, spec, { modelNames })}`)
+      lines.push("")
+    }
     lines.push(`export const ${modelName} = ${rendered}`)
-    lines.push(`export type ${modelName} = typeof ${modelName}.Type`)
+    if (!modelGraph.circular.has(refName)) {
+      lines.push(`export type ${modelName} = typeof ${modelName}.Type`)
+    }
     await fs.writeFile(path.join(generatedDir, fileName), `${lines.join("\n").trimEnd()}\n`)
     exports.push(`export * from "./models/generated/${fileName}"`)
   }
@@ -514,8 +550,11 @@ function renderSchema(
     const refName = refSchemaName(schema.$ref)
     const modelName = refName ? options.modelNames.get(refName) : undefined
     if (options.useModelRefs && modelName) {
-      if (options.modelMode === "models-namespace") return `Schema.suspend((): typeof Models.${modelName} => Models.${modelName})`
-      return options.modelMode === "same-file" ? `Schema.suspend((): typeof ${modelName} => ${modelName})` : `Models.${modelName}`
+      if (options.modelMode === "models-namespace")
+        return `Schema.suspend((): Schema.Schema<Models.${modelName}, any, any> => Models.${modelName} as Schema.Schema<Models.${modelName}, any, any>)`
+      return options.modelMode === "same-file"
+        ? `Schema.suspend((): Schema.Schema<${modelName}> => ${modelName})`
+        : `Models.${modelName}`
     }
     const ref = resolveRef(spec, schema.$ref)
     if (!ref || seen.has(schema.$ref)) return "Schema.Unknown"
@@ -617,6 +656,96 @@ function renderUnion(
       ? renderSchema(filtered[0], spec, options, seen)
       : `Schema.Union(${filtered.map((schema) => renderSchema(schema, spec, options, seen)).join(", ")})`
   return nullable || filtered.length !== schemas.length ? `Schema.NullOr(${rendered})` : rendered
+}
+
+function renderType(
+  schema: SchemaObject | undefined,
+  spec: OpenApiSpec,
+  options: Pick<RenderOptions, "modelNames">,
+  seen = new Set<string>()
+): string {
+  if (!schema) return "unknown"
+  if (schema.$ref) {
+    const refName = refSchemaName(schema.$ref)
+    const modelName = refName ? options.modelNames.get(refName) : undefined
+    return modelName ? `Models.${modelName}` : "unknown"
+  }
+  if (schema.allOf?.length) {
+    const rendered = schema.allOf
+      .map((item) => renderType(item, spec, options, seen))
+      .filter((type) => type !== "unknown")
+    return rendered.length === 0 ? "unknown" : rendered.join(" & ")
+  }
+  if (schema.oneOf?.length) return renderTypeUnion(schema.oneOf, spec, options, seen, schema.nullable)
+  if (schema.anyOf?.length) return renderTypeUnion(schema.anyOf, spec, options, seen, schema.nullable)
+  if (schema.enum?.length) {
+    const values = schema.enum
+      .filter((value) => value !== null)
+      .map((value) => JSON.stringify(value))
+      .join(" | ")
+    const rendered = values.length > 0 ? values : "unknown"
+    return schema.enum.includes(null) || schema.nullable ? `${rendered} | null` : rendered
+  }
+
+  const nullable = schema.nullable || (Array.isArray(schema.type) && schema.type.includes("null"))
+  const type = Array.isArray(schema.type) ? schema.type.find((value) => value !== "null") : schema.type
+  let rendered: string
+  switch (type) {
+    case "array":
+      rendered = `ReadonlyArray<${renderType(schema.items, spec, options, seen)}>`
+      break
+    case "boolean":
+      rendered = "boolean"
+      break
+    case "integer":
+    case "number":
+      rendered = "number"
+      break
+    case "object":
+      rendered = renderObjectType(schema, spec, options, seen)
+      break
+    case "string":
+      rendered = "string"
+      break
+    default:
+      rendered = schema.properties ? renderObjectType({ ...schema, type: "object" }, spec, options, seen) : "unknown"
+      break
+  }
+  return nullable ? `${rendered} | null` : rendered
+}
+
+function renderTypeUnion(
+  schemas: ReadonlyArray<SchemaObject>,
+  spec: OpenApiSpec,
+  options: Pick<RenderOptions, "modelNames">,
+  seen: Set<string>,
+  nullable?: boolean
+) {
+  const filtered = schemas.filter((schema) => schema.type !== "null")
+  const rendered = filtered.map((schema) => renderType(schema, spec, options, seen)).join(" | ") || "unknown"
+  return nullable || filtered.length !== schemas.length ? `${rendered} | null` : rendered
+}
+
+function renderObjectType(
+  schema: SchemaObject,
+  spec: OpenApiSpec,
+  options: Pick<RenderOptions, "modelNames">,
+  seen: Set<string>
+) {
+  if (schema.properties) {
+    const required = new Set(schema.required ?? [])
+    const fields = Object.entries(schema.properties).map(([key, value]) => {
+      const optional = required.has(key) ? "" : "?"
+      return `  readonly ${quoteKey(key)}${optional}: ${renderType(value, spec, options, seen)}`
+    })
+    return `{
+${fields.join("\n")}
+}`
+  }
+  if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
+    return `Readonly<Record<string, ${renderType(schema.additionalProperties, spec, options, seen)}>>`
+  }
+  return "Readonly<Record<string, unknown>>"
 }
 
 function collectUsedRefs(spec: OpenApiSpec, operations: ReadonlyArray<OperationEntry>) {

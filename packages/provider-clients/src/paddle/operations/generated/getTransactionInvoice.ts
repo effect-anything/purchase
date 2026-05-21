@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetTransactionInvoiceInput = Schema.Struct({
   transaction_id: Schema.String,
-  disposition: Schema.optional(Models.Disposition),
+  disposition: Schema.optional(Models.Disposition)
 })
 export type GetTransactionInvoiceInput = typeof GetTransactionInvoiceInput.Type
 

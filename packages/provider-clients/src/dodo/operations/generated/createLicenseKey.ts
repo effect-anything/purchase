@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateLicenseKeyInput = Schema.Struct({
   customer_id: Schema.String,
   key: Schema.String,
   product_id: Schema.String,
   activations_limit: Schema.optional(Schema.NullOr(Schema.Number)),
-  expires_at: Schema.optional(Schema.NullOr(Schema.String)),
+  expires_at: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type CreateLicenseKeyInput = typeof CreateLicenseKeyInput.Type
 

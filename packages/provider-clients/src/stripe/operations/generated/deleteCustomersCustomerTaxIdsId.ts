@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const DeleteCustomersCustomerTaxIdsIdInput = Schema.Struct({
   customer: Schema.String,
-  id: Schema.String,
+  id: Schema.String
 })
 export type DeleteCustomersCustomerTaxIdsIdInput = typeof DeleteCustomersCustomerTaxIdsIdInput.Type
 

@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const BenefitGrant = Schema.Struct({
@@ -14,10 +15,60 @@ export const BenefitGrant = Schema.Struct({
   customer_id: Schema.String,
   member_id: Schema.optional(Schema.NullOr(Schema.String)),
   benefit_id: Schema.String,
-  error: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.BenefitGrantError => Models.BenefitGrantError))),
-  customer: Schema.suspend((): typeof Models.Customer => Models.Customer),
-  member: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.Member => Models.Member))),
-  benefit: Schema.suspend((): typeof Models.Benefit => Models.Benefit),
-  properties: Schema.Union(Schema.suspend((): typeof Models.BenefitGrantDiscordProperties => Models.BenefitGrantDiscordProperties), Schema.suspend((): typeof Models.BenefitGrantGitHubRepositoryProperties => Models.BenefitGrantGitHubRepositoryProperties), Schema.suspend((): typeof Models.BenefitGrantDownloadablesProperties => Models.BenefitGrantDownloadablesProperties), Schema.suspend((): typeof Models.BenefitGrantLicenseKeysProperties => Models.BenefitGrantLicenseKeysProperties), Schema.suspend((): typeof Models.BenefitGrantCustomProperties => Models.BenefitGrantCustomProperties), Schema.suspend((): typeof Models.BenefitGrantFeatureFlagProperties => Models.BenefitGrantFeatureFlagProperties)),
+  error: Schema.optional(
+    Schema.NullOr(
+      Schema.suspend(
+        (): Schema.Schema<Models.BenefitGrantError, any, any> =>
+          Models.BenefitGrantError as Schema.Schema<Models.BenefitGrantError, any, any>
+      )
+    )
+  ),
+  customer: Schema.suspend(
+    (): Schema.Schema<Models.Customer, any, any> => Models.Customer as Schema.Schema<Models.Customer, any, any>
+  ),
+  member: Schema.optional(
+    Schema.NullOr(
+      Schema.suspend(
+        (): Schema.Schema<Models.Member, any, any> => Models.Member as Schema.Schema<Models.Member, any, any>
+      )
+    )
+  ),
+  benefit: Schema.suspend(
+    (): Schema.Schema<Models.Benefit, any, any> => Models.Benefit as Schema.Schema<Models.Benefit, any, any>
+  ),
+  properties: Schema.Union(
+    Schema.suspend(
+      (): Schema.Schema<Models.BenefitGrantDiscordProperties, any, any> =>
+        Models.BenefitGrantDiscordProperties as Schema.Schema<Models.BenefitGrantDiscordProperties, any, any>
+    ),
+    Schema.suspend(
+      (): Schema.Schema<Models.BenefitGrantGitHubRepositoryProperties, any, any> =>
+        Models.BenefitGrantGitHubRepositoryProperties as Schema.Schema<
+          Models.BenefitGrantGitHubRepositoryProperties,
+          any,
+          any
+        >
+    ),
+    Schema.suspend(
+      (): Schema.Schema<Models.BenefitGrantDownloadablesProperties, any, any> =>
+        Models.BenefitGrantDownloadablesProperties as Schema.Schema<
+          Models.BenefitGrantDownloadablesProperties,
+          any,
+          any
+        >
+    ),
+    Schema.suspend(
+      (): Schema.Schema<Models.BenefitGrantLicenseKeysProperties, any, any> =>
+        Models.BenefitGrantLicenseKeysProperties as Schema.Schema<Models.BenefitGrantLicenseKeysProperties, any, any>
+    ),
+    Schema.suspend(
+      (): Schema.Schema<Models.BenefitGrantCustomProperties, any, any> =>
+        Models.BenefitGrantCustomProperties as Schema.Schema<Models.BenefitGrantCustomProperties, any, any>
+    ),
+    Schema.suspend(
+      (): Schema.Schema<Models.BenefitGrantFeatureFlagProperties, any, any> =>
+        Models.BenefitGrantFeatureFlagProperties as Schema.Schema<Models.BenefitGrantFeatureFlagProperties, any, any>
+    )
+  )
 })
 export type BenefitGrant = typeof BenefitGrant.Type

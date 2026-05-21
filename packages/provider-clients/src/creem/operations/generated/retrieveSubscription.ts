@@ -2,11 +2,11 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const RetrieveSubscriptionInput = Schema.Struct({
-  subscription_id: Schema.String,
+  subscription_id: Schema.String
 })
 export type RetrieveSubscriptionInput = typeof RetrieveSubscriptionInput.Type
 

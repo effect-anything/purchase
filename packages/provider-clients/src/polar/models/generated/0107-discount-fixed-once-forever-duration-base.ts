@@ -1,22 +1,32 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const DiscountFixedOnceForeverDurationBase = Schema.Struct({
-  duration: Schema.suspend((): typeof Models.DiscountDuration => Models.DiscountDuration),
-  type: Schema.suspend((): typeof Models.DiscountType => Models.DiscountType),
+  duration: Schema.suspend(
+    (): Schema.Schema<Models.DiscountDuration, any, any> =>
+      Models.DiscountDuration as Schema.Schema<Models.DiscountDuration, any, any>
+  ),
+  type: Schema.suspend(
+    (): Schema.Schema<Models.DiscountType, any, any> =>
+      Models.DiscountType as Schema.Schema<Models.DiscountType, any, any>
+  ),
   amount: Schema.Number,
   currency: Schema.String,
   amounts: Schema.Record({ key: Schema.String, value: Schema.Number }),
   created_at: Schema.String,
   modified_at: Schema.NullOr(Schema.String),
   id: Schema.String,
-  metadata: Schema.suspend((): typeof Models.MetadataOutputType => Models.MetadataOutputType),
+  metadata: Schema.suspend(
+    (): Schema.Schema<Models.MetadataOutputType, any, any> =>
+      Models.MetadataOutputType as Schema.Schema<Models.MetadataOutputType, any, any>
+  ),
   name: Schema.String,
   code: Schema.NullOr(Schema.String),
   starts_at: Schema.NullOr(Schema.String),
   ends_at: Schema.NullOr(Schema.String),
   max_redemptions: Schema.NullOr(Schema.Number),
   redemptions_count: Schema.Number,
-  organization_id: Schema.String,
+  organization_id: Schema.String
 })
 export type DiscountFixedOnceForeverDurationBase = typeof DiscountFixedOnceForeverDurationBase.Type

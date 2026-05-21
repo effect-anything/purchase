@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodDetailsInteracPresent = Schema.Struct({
@@ -19,8 +20,25 @@ export const PaymentMethodDetailsInteracPresent = Schema.Struct({
   network: Schema.NullOr(Schema.String),
   network_transaction_id: Schema.NullOr(Schema.String),
   preferred_locales: Schema.NullOr(Schema.Array(Schema.String)),
-  read_method: Schema.NullOr(Schema.Literal("contact_emv", "contactless_emv", "contactless_magstripe_mode", "magnetic_stripe_fallback", "magnetic_stripe_track2")),
+  read_method: Schema.NullOr(
+    Schema.Literal(
+      "contact_emv",
+      "contactless_emv",
+      "contactless_magstripe_mode",
+      "magnetic_stripe_fallback",
+      "magnetic_stripe_track2"
+    )
+  ),
   reader: Schema.optional(Schema.String),
-  receipt: Schema.NullOr(Schema.suspend((): typeof Models.PaymentMethodDetailsInteracPresentReceipt => Models.PaymentMethodDetailsInteracPresentReceipt)),
+  receipt: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.PaymentMethodDetailsInteracPresentReceipt, any, any> =>
+        Models.PaymentMethodDetailsInteracPresentReceipt as Schema.Schema<
+          Models.PaymentMethodDetailsInteracPresentReceipt,
+          any,
+          any
+        >
+    )
+  )
 })
 export type PaymentMethodDetailsInteracPresent = typeof PaymentMethodDetailsInteracPresent.Type

@@ -1,9 +1,20 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
+
+export type SchedulesPhaseAutomaticTax = {
+  readonly disabled_reason: "requires_location_inputs" | null
+  readonly enabled: boolean
+  readonly liability: Models.ConnectAccountReference | null
+}
 
 export const SchedulesPhaseAutomaticTax = Schema.Struct({
   disabled_reason: Schema.NullOr(Schema.Literal("requires_location_inputs")),
   enabled: Schema.Boolean,
-  liability: Schema.NullOr(Schema.suspend((): typeof Models.ConnectAccountReference => Models.ConnectAccountReference)),
+  liability: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.ConnectAccountReference, any, any> =>
+        Models.ConnectAccountReference as Schema.Schema<Models.ConnectAccountReference, any, any>
+    )
+  )
 })
-export type SchedulesPhaseAutomaticTax = typeof SchedulesPhaseAutomaticTax.Type

@@ -1,8 +1,9 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentListResponse = Schema.Struct({
-  items: Schema.Array(Schema.suspend(() => Models.Payment)),
-  total: Schema.optional(Schema.Number),
+  items: Schema.Array(Schema.suspend((): Schema.Schema<Models.Payment> => Models.Payment)),
+  total: Schema.optional(Schema.Number)
 })
 export type PaymentListResponse = typeof PaymentListResponse.Type

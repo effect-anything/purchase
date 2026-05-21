@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const DeactivateLicenseInput = Schema.Struct({
   license_key: Schema.String,
-  license_key_instance_id: Schema.String,
+  license_key_instance_id: Schema.String
 })
 export type DeactivateLicenseInput = typeof DeactivateLicenseInput.Type
 

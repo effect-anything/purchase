@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const SearchTransactionsInput = Schema.Struct({
   customer_id: Schema.optional(Schema.String),
   order_id: Schema.optional(Schema.String),
   product_id: Schema.optional(Schema.String),
   page_number: Schema.optional(Schema.Number),
-  page_size: Schema.optional(Schema.Number),
+  page_size: Schema.optional(Schema.Number)
 })
 export type SearchTransactionsInput = typeof SearchTransactionsInput.Type
 

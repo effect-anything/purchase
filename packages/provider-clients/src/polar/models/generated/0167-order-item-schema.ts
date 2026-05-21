@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const OrderItemSchema = Schema.Struct({
@@ -9,6 +10,6 @@ export const OrderItemSchema = Schema.Struct({
   amount: Schema.Number,
   tax_amount: Schema.Number,
   proration: Schema.Boolean,
-  product_price_id: Schema.NullOr(Schema.String),
+  product_price_id: Schema.NullOr(Schema.String)
 })
 export type OrderItemSchema = typeof OrderItemSchema.Type

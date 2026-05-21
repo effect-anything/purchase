@@ -2,22 +2,27 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetCustomersCustomerBalanceTransactionsInput = Schema.Struct({
-  created: Schema.optional(Schema.Union(Schema.Struct({
-  gt: Schema.optional(Schema.Number),
-  gte: Schema.optional(Schema.Number),
-  lt: Schema.optional(Schema.Number),
-  lte: Schema.optional(Schema.Number),
-}), Schema.Number)),
+  created: Schema.optional(
+    Schema.Union(
+      Schema.Struct({
+        gt: Schema.optional(Schema.Number),
+        gte: Schema.optional(Schema.Number),
+        lt: Schema.optional(Schema.Number),
+        lte: Schema.optional(Schema.Number)
+      }),
+      Schema.Number
+    )
+  ),
   customer: Schema.String,
   ending_before: Schema.optional(Schema.String),
   expand: Schema.optional(Schema.Array(Schema.String)),
   invoice: Schema.optional(Schema.String),
   limit: Schema.optional(Schema.Number),
-  starting_after: Schema.optional(Schema.String),
+  starting_after: Schema.optional(Schema.String)
 })
 export type GetCustomersCustomerBalanceTransactionsInput = typeof GetCustomersCustomerBalanceTransactionsInput.Type
 
@@ -25,7 +30,7 @@ export const GetCustomersCustomerBalanceTransactionsOutput = Schema.Struct({
   data: Schema.Array(Models.CustomerBalanceTransaction),
   has_more: Schema.Boolean,
   object: Schema.Literal("list"),
-  url: Schema.String,
+  url: Schema.String
 })
 export type GetCustomersCustomerBalanceTransactionsOutput = typeof GetCustomersCustomerBalanceTransactionsOutput.Type
 

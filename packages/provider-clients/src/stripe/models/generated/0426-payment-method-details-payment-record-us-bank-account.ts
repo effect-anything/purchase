@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentMethodDetailsPaymentRecordUsBankAccount = Schema.Struct({
@@ -8,8 +9,15 @@ export const PaymentMethodDetailsPaymentRecordUsBankAccount = Schema.Struct({
   expected_debit_date: Schema.optional(Schema.String),
   fingerprint: Schema.NullOr(Schema.String),
   last4: Schema.NullOr(Schema.String),
-  mandate: Schema.optional(Schema.Union(Schema.String, Schema.suspend((): typeof Models.Mandate => Models.Mandate))),
+  mandate: Schema.optional(
+    Schema.Union(
+      Schema.String,
+      Schema.suspend(
+        (): Schema.Schema<Models.Mandate, any, any> => Models.Mandate as Schema.Schema<Models.Mandate, any, any>
+      )
+    )
+  ),
   payment_reference: Schema.NullOr(Schema.String),
-  routing_number: Schema.NullOr(Schema.String),
+  routing_number: Schema.NullOr(Schema.String)
 })
 export type PaymentMethodDetailsPaymentRecordUsBankAccount = typeof PaymentMethodDetailsPaymentRecordUsBankAccount.Type

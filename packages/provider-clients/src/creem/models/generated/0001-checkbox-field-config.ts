@@ -1,7 +1,8 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const CheckboxFieldConfig = Schema.Struct({
-  label: Schema.optional(Schema.String),
+  label: Schema.optional(Schema.String)
 })
 export type CheckboxFieldConfig = typeof CheckboxFieldConfig.Type

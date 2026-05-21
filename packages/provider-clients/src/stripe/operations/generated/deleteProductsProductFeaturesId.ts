@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const DeleteProductsProductFeaturesIdInput = Schema.Struct({
   id: Schema.String,
-  product: Schema.String,
+  product: Schema.String
 })
 export type DeleteProductsProductFeaturesIdInput = typeof DeleteProductsProductFeaturesIdInput.Type
 

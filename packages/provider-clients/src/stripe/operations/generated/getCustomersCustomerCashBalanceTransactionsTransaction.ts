@@ -2,18 +2,20 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetCustomersCustomerCashBalanceTransactionsTransactionInput = Schema.Struct({
   customer: Schema.String,
   expand: Schema.optional(Schema.Array(Schema.String)),
-  transaction: Schema.String,
+  transaction: Schema.String
 })
-export type GetCustomersCustomerCashBalanceTransactionsTransactionInput = typeof GetCustomersCustomerCashBalanceTransactionsTransactionInput.Type
+export type GetCustomersCustomerCashBalanceTransactionsTransactionInput =
+  typeof GetCustomersCustomerCashBalanceTransactionsTransactionInput.Type
 
 export const GetCustomersCustomerCashBalanceTransactionsTransactionOutput = Models.CustomerCashBalanceTransaction
-export type GetCustomersCustomerCashBalanceTransactionsTransactionOutput = typeof GetCustomersCustomerCashBalanceTransactionsTransactionOutput.Type
+export type GetCustomersCustomerCashBalanceTransactionsTransactionOutput =
+  typeof GetCustomersCustomerCashBalanceTransactionsTransactionOutput.Type
 
 export const getCustomersCustomerCashBalanceTransactionsTransactionOperation = defineOperation({
   id: "stripe.GetCustomersCustomerCashBalanceTransactionsTransaction",
@@ -30,5 +32,9 @@ export const getCustomersCustomerCashBalanceTransactionsTransactionOperation = d
 /**
  * Retrieve a cash balance transaction
  */
-export const getCustomersCustomerCashBalanceTransactionsTransaction = (input: GetCustomersCustomerCashBalanceTransactionsTransactionInput) =>
-  StripeClient.pipe(Effect.flatMap((client) => client.request(getCustomersCustomerCashBalanceTransactionsTransactionOperation, input)))
+export const getCustomersCustomerCashBalanceTransactionsTransaction = (
+  input: GetCustomersCustomerCashBalanceTransactionsTransactionInput
+) =>
+  StripeClient.pipe(
+    Effect.flatMap((client) => client.request(getCustomersCustomerCashBalanceTransactionsTransactionOperation, input))
+  )

@@ -2,11 +2,11 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetUsageEventInput = Schema.Struct({
-  event_id: Schema.String,
+  event_id: Schema.String
 })
 export type GetUsageEventInput = typeof GetUsageEventInput.Type
 

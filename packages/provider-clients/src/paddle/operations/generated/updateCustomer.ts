@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdateCustomerInput = Schema.Struct({
   customer_id: Schema.String,
@@ -13,13 +13,13 @@ export const UpdateCustomerInput = Schema.Struct({
   status: Schema.optional(Models.Status),
   custom_data: Schema.optional(Schema.NullOr(Models.CustomData)),
   locale: Schema.optional(Schema.String),
-  import_meta: Schema.optional(Schema.NullOr(Models.ImportMeta)),
+  import_meta: Schema.optional(Schema.NullOr(Models.ImportMeta))
 })
 export type UpdateCustomerInput = typeof UpdateCustomerInput.Type
 
 export const UpdateCustomerOutput = Schema.Struct({
   data: Models.Customer,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type UpdateCustomerOutput = typeof UpdateCustomerOutput.Type
 

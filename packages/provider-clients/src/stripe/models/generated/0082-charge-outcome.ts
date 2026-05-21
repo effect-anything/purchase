@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const ChargeOutcome = Schema.Struct({
@@ -9,8 +10,13 @@ export const ChargeOutcome = Schema.Struct({
   reason: Schema.NullOr(Schema.String),
   risk_level: Schema.optional(Schema.String),
   risk_score: Schema.optional(Schema.Number),
-  rule: Schema.optional(Schema.Union(Schema.String, Schema.suspend((): typeof Models.Rule => Models.Rule))),
+  rule: Schema.optional(
+    Schema.Union(
+      Schema.String,
+      Schema.suspend((): Schema.Schema<Models.Rule, any, any> => Models.Rule as Schema.Schema<Models.Rule, any, any>)
+    )
+  ),
   seller_message: Schema.NullOr(Schema.String),
-  type: Schema.String,
+  type: Schema.String
 })
 export type ChargeOutcome = typeof ChargeOutcome.Type

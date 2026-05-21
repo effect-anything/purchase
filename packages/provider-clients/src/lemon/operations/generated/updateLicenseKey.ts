@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { LemonClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdateLicenseKeyInput = Schema.Struct({
   id: Schema.String,
-  data: Models.LicenseKeyUpdateData,
+  data: Models.LicenseKeyUpdateData
 })
 export type UpdateLicenseKeyInput = typeof UpdateLicenseKeyInput.Type
 

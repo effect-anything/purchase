@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SetupIntentPaymentMethodOptionsMandateOptionsAcssDebit = Schema.Struct({
@@ -6,6 +7,7 @@ export const SetupIntentPaymentMethodOptionsMandateOptionsAcssDebit = Schema.Str
   default_for: Schema.optional(Schema.Array(Schema.Literal("invoice", "subscription"))),
   interval_description: Schema.NullOr(Schema.String),
   payment_schedule: Schema.NullOr(Schema.Literal("combined", "interval", "sporadic")),
-  transaction_type: Schema.NullOr(Schema.Literal("business", "personal")),
+  transaction_type: Schema.NullOr(Schema.Literal("business", "personal"))
 })
-export type SetupIntentPaymentMethodOptionsMandateOptionsAcssDebit = typeof SetupIntentPaymentMethodOptionsMandateOptionsAcssDebit.Type
+export type SetupIntentPaymentMethodOptionsMandateOptionsAcssDebit =
+  typeof SetupIntentPaymentMethodOptionsMandateOptionsAcssDebit.Type

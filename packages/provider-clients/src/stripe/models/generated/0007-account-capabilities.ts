@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const AccountCapabilities = Schema.Struct({
@@ -65,6 +66,6 @@ export const AccountCapabilities = Schema.Struct({
   upi_payments: Schema.optional(Schema.Literal("active", "inactive", "pending")),
   us_bank_account_ach_payments: Schema.optional(Schema.Literal("active", "inactive", "pending")),
   us_bank_transfer_payments: Schema.optional(Schema.Literal("active", "inactive", "pending")),
-  zip_payments: Schema.optional(Schema.Literal("active", "inactive", "pending")),
+  zip_payments: Schema.optional(Schema.Literal("active", "inactive", "pending"))
 })
 export type AccountCapabilities = typeof AccountCapabilities.Type

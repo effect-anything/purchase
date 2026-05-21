@@ -1,8 +1,9 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SubscriptionListEntity = Schema.Struct({
-  items: Schema.Array(Schema.suspend(() => Models.SubscriptionEntity)),
-  pagination: Schema.suspend(() => Models.PaginationEntity),
+  items: Schema.Array(Schema.suspend((): Schema.Schema<Models.SubscriptionEntity> => Models.SubscriptionEntity)),
+  pagination: Schema.suspend((): Schema.Schema<Models.PaginationEntity> => Models.PaginationEntity)
 })
 export type SubscriptionListEntity = typeof SubscriptionListEntity.Type

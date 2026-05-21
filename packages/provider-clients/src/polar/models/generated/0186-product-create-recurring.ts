@@ -1,18 +1,69 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const ProductCreateRecurring = Schema.Struct({
-  metadata: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean) })),
+  metadata: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: Schema.Union(Schema.String, Schema.Number, Schema.Number, Schema.Boolean)
+    })
+  ),
   name: Schema.String,
   description: Schema.optional(Schema.NullOr(Schema.String)),
-  visibility: Schema.optional(Schema.suspend((): typeof Models.ProductVisibility => Models.ProductVisibility)),
-  prices: Schema.Array(Schema.Union(Schema.suspend((): typeof Models.ProductPriceFixedCreate => Models.ProductPriceFixedCreate), Schema.suspend((): typeof Models.ProductPriceCustomCreate => Models.ProductPriceCustomCreate), Schema.suspend((): typeof Models.ProductPriceFreeCreate => Models.ProductPriceFreeCreate), Schema.suspend((): typeof Models.ProductPriceSeatBasedCreate => Models.ProductPriceSeatBasedCreate), Schema.suspend((): typeof Models.ProductPriceMeteredUnitCreate => Models.ProductPriceMeteredUnitCreate))),
+  visibility: Schema.optional(
+    Schema.suspend(
+      (): Schema.Schema<Models.ProductVisibility, any, any> =>
+        Models.ProductVisibility as Schema.Schema<Models.ProductVisibility, any, any>
+    )
+  ),
+  prices: Schema.Array(
+    Schema.Union(
+      Schema.suspend(
+        (): Schema.Schema<Models.ProductPriceFixedCreate, any, any> =>
+          Models.ProductPriceFixedCreate as Schema.Schema<Models.ProductPriceFixedCreate, any, any>
+      ),
+      Schema.suspend(
+        (): Schema.Schema<Models.ProductPriceCustomCreate, any, any> =>
+          Models.ProductPriceCustomCreate as Schema.Schema<Models.ProductPriceCustomCreate, any, any>
+      ),
+      Schema.suspend(
+        (): Schema.Schema<Models.ProductPriceFreeCreate, any, any> =>
+          Models.ProductPriceFreeCreate as Schema.Schema<Models.ProductPriceFreeCreate, any, any>
+      ),
+      Schema.suspend(
+        (): Schema.Schema<Models.ProductPriceSeatBasedCreate, any, any> =>
+          Models.ProductPriceSeatBasedCreate as Schema.Schema<Models.ProductPriceSeatBasedCreate, any, any>
+      ),
+      Schema.suspend(
+        (): Schema.Schema<Models.ProductPriceMeteredUnitCreate, any, any> =>
+          Models.ProductPriceMeteredUnitCreate as Schema.Schema<Models.ProductPriceMeteredUnitCreate, any, any>
+      )
+    )
+  ),
   medias: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
-  attached_custom_fields: Schema.optional(Schema.Array(Schema.suspend((): typeof Models.AttachedCustomFieldCreate => Models.AttachedCustomFieldCreate))),
+  attached_custom_fields: Schema.optional(
+    Schema.Array(
+      Schema.suspend(
+        (): Schema.Schema<Models.AttachedCustomFieldCreate, any, any> =>
+          Models.AttachedCustomFieldCreate as Schema.Schema<Models.AttachedCustomFieldCreate, any, any>
+      )
+    )
+  ),
   organization_id: Schema.optional(Schema.NullOr(Schema.String)),
-  trial_interval: Schema.optional(Schema.NullOr(Schema.suspend((): typeof Models.TrialInterval => Models.TrialInterval))),
+  trial_interval: Schema.optional(
+    Schema.NullOr(
+      Schema.suspend(
+        (): Schema.Schema<Models.TrialInterval, any, any> =>
+          Models.TrialInterval as Schema.Schema<Models.TrialInterval, any, any>
+      )
+    )
+  ),
   trial_interval_count: Schema.optional(Schema.NullOr(Schema.Number)),
-  recurring_interval: Schema.suspend((): typeof Models.SubscriptionRecurringInterval => Models.SubscriptionRecurringInterval),
-  recurring_interval_count: Schema.optional(Schema.Number),
+  recurring_interval: Schema.suspend(
+    (): Schema.Schema<Models.SubscriptionRecurringInterval, any, any> =>
+      Models.SubscriptionRecurringInterval as Schema.Schema<Models.SubscriptionRecurringInterval, any, any>
+  ),
+  recurring_interval_count: Schema.optional(Schema.Number)
 })
 export type ProductCreateRecurring = typeof ProductCreateRecurring.Type

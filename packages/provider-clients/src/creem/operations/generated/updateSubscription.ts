@@ -2,13 +2,13 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const UpdateSubscriptionInput = Schema.Struct({
   id: Schema.String,
   items: Schema.optional(Schema.Array(Models.UpsertSubscriptionItemEntity)),
-  update_behavior: Schema.optional(Schema.Literal("proration-charge-immediately", "proration-charge", "proration-none")),
+  update_behavior: Schema.optional(Schema.Literal("proration-charge-immediately", "proration-charge", "proration-none"))
 })
 export type UpdateSubscriptionInput = typeof UpdateSubscriptionInput.Type
 

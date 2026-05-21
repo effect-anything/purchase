@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PersonRelationship = Schema.Struct({
@@ -9,6 +10,6 @@ export const PersonRelationship = Schema.Struct({
   owner: Schema.NullOr(Schema.Boolean),
   percent_ownership: Schema.NullOr(Schema.Number),
   representative: Schema.NullOr(Schema.Boolean),
-  title: Schema.NullOr(Schema.String),
+  title: Schema.NullOr(Schema.String)
 })
 export type PersonRelationship = typeof PersonRelationship.Type

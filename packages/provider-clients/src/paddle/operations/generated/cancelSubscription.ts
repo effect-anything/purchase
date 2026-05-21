@@ -2,18 +2,18 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CancelSubscriptionInput = Schema.Struct({
   subscription_id: Schema.String,
-  effective_from: Schema.optional(Schema.NullOr(Models.EffectiveFrom)),
+  effective_from: Schema.optional(Schema.NullOr(Models.EffectiveFrom))
 })
 export type CancelSubscriptionInput = typeof CancelSubscriptionInput.Type
 
 export const CancelSubscriptionOutput = Schema.Struct({
   data: Models.Subscription,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type CancelSubscriptionOutput = typeof CancelSubscriptionOutput.Type
 

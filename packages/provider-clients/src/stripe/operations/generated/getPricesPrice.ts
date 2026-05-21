@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetPricesPriceInput = Schema.Struct({
   expand: Schema.optional(Schema.Array(Schema.String)),
-  price: Schema.String,
+  price: Schema.String
 })
 export type GetPricesPriceInput = typeof GetPricesPriceInput.Type
 

@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const LicenseKey = Schema.Struct({
@@ -10,10 +11,10 @@ export const LicenseKey = Schema.Struct({
   key: Schema.String,
   product_id: Schema.String,
   source: Schema.Literal("auto", "import"),
-  status: Schema.suspend(() => Models.LicenseKeyStatus),
+  status: Schema.suspend((): Schema.Schema<Models.LicenseKeyStatus> => Models.LicenseKeyStatus),
   activations_limit: Schema.optional(Schema.NullOr(Schema.Number)),
   expires_at: Schema.optional(Schema.NullOr(Schema.String)),
   payment_id: Schema.optional(Schema.NullOr(Schema.String)),
-  subscription_id: Schema.optional(Schema.NullOr(Schema.String)),
+  subscription_id: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type LicenseKey = typeof LicenseKey.Type

@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListDiscountsInput = Schema.Struct({
   page_number: Schema.optional(Schema.Number),
@@ -11,7 +11,7 @@ export const ListDiscountsInput = Schema.Struct({
   active: Schema.optional(Schema.Boolean),
   code: Schema.optional(Schema.String),
   discount_type: Schema.optional(Models.DiscountType),
-  product_id: Schema.optional(Schema.String),
+  product_id: Schema.optional(Schema.String)
 })
 export type ListDiscountsInput = typeof ListDiscountsInput.Type
 

@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const ListCreditLedgerInput = Schema.Struct({
   credit_entitlement_id: Schema.String,
@@ -12,7 +12,7 @@ export const ListCreditLedgerInput = Schema.Struct({
   page_size: Schema.optional(Schema.Number),
   transaction_type: Schema.optional(Schema.String),
   start_date: Schema.optional(Schema.String),
-  end_date: Schema.optional(Schema.String),
+  end_date: Schema.optional(Schema.String)
 })
 export type ListCreditLedgerInput = typeof ListCreditLedgerInput.Type
 

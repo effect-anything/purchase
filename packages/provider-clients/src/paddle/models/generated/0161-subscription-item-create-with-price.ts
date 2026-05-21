@@ -1,8 +1,11 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SubscriptionItemCreateWithPrice = Schema.Struct({
   quantity: Schema.Number,
-  price: Schema.suspend(() => Models.TransactionPriceCreateWithProductId),
+  price: Schema.suspend(
+    (): Schema.Schema<Models.TransactionPriceCreateWithProductId> => Models.TransactionPriceCreateWithProductId
+  )
 })
 export type SubscriptionItemCreateWithPrice = typeof SubscriptionItemCreateWithPrice.Type

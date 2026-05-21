@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const BenefitFeatureFlag = Schema.Struct({
@@ -11,7 +12,13 @@ export const BenefitFeatureFlag = Schema.Struct({
   deletable: Schema.Boolean,
   is_deleted: Schema.Boolean,
   organization_id: Schema.String,
-  metadata: Schema.suspend((): typeof Models.MetadataOutputType => Models.MetadataOutputType),
-  properties: Schema.suspend((): typeof Models.BenefitFeatureFlagProperties => Models.BenefitFeatureFlagProperties),
+  metadata: Schema.suspend(
+    (): Schema.Schema<Models.MetadataOutputType, any, any> =>
+      Models.MetadataOutputType as Schema.Schema<Models.MetadataOutputType, any, any>
+  ),
+  properties: Schema.suspend(
+    (): Schema.Schema<Models.BenefitFeatureFlagProperties, any, any> =>
+      Models.BenefitFeatureFlagProperties as Schema.Schema<Models.BenefitFeatureFlagProperties, any, any>
+  )
 })
 export type BenefitFeatureFlag = typeof BenefitFeatureFlag.Type

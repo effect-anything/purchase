@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const PaymentIntentNextActionWechatPayRedirectToAndroidApp = Schema.Struct({
@@ -8,6 +9,7 @@ export const PaymentIntentNextActionWechatPayRedirectToAndroidApp = Schema.Struc
   partner_id: Schema.String,
   prepay_id: Schema.String,
   sign: Schema.String,
-  timestamp: Schema.String,
+  timestamp: Schema.String
 })
-export type PaymentIntentNextActionWechatPayRedirectToAndroidApp = typeof PaymentIntentNextActionWechatPayRedirectToAndroidApp.Type
+export type PaymentIntentNextActionWechatPayRedirectToAndroidApp =
+  typeof PaymentIntentNextActionWechatPayRedirectToAndroidApp.Type

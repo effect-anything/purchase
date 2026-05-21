@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const SubscriptionUpdateAttributes = Schema.Struct({
@@ -8,6 +9,6 @@ export const SubscriptionUpdateAttributes = Schema.Struct({
   invoice_immediately: Schema.optional(Schema.Boolean),
   disable_prorations: Schema.optional(Schema.Boolean),
   pause: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Unknown })),
-  trial_ends_at: Schema.optional(Schema.NullOr(Schema.String)),
+  trial_ends_at: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type SubscriptionUpdateAttributes = typeof SubscriptionUpdateAttributes.Type

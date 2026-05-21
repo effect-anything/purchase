@@ -2,15 +2,15 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CheckoutLinksListInput = Schema.Struct({
   organization_id: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.Array(Schema.String)))),
   product_id: Schema.optional(Schema.NullOr(Schema.Union(Schema.String, Schema.Array(Schema.String)))),
   page: Schema.optional(Schema.Number),
   limit: Schema.optional(Schema.Number),
-  sorting: Schema.optional(Schema.NullOr(Schema.Array(Models.CheckoutLinkSortProperty))),
+  sorting: Schema.optional(Schema.NullOr(Schema.Array(Models.CheckoutLinkSortProperty)))
 })
 export type CheckoutLinksListInput = typeof CheckoutLinksListInput.Type
 

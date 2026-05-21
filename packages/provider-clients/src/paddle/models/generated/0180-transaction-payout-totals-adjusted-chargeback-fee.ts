@@ -1,8 +1,14 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const TransactionPayoutTotalsAdjustedChargebackFee = Schema.Struct({
   amount: Schema.String,
-  original: Schema.NullOr(Schema.suspend(() => Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal)),
+  original: Schema.NullOr(
+    Schema.suspend(
+      (): Schema.Schema<Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal> =>
+        Models.TransactionPayoutTotalsAdjustedChargebackFeeOriginal
+    )
+  )
 })
 export type TransactionPayoutTotalsAdjustedChargebackFee = typeof TransactionPayoutTotalsAdjustedChargebackFee.Type

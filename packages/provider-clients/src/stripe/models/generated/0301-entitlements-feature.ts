@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const EntitlementsFeature = Schema.Struct({
@@ -8,6 +9,6 @@ export const EntitlementsFeature = Schema.Struct({
   lookup_key: Schema.String,
   metadata: Schema.Record({ key: Schema.String, value: Schema.String }),
   name: Schema.String,
-  object: Schema.Literal("entitlements.feature"),
+  object: Schema.Literal("entitlements.feature")
 })
 export type EntitlementsFeature = typeof EntitlementsFeature.Type

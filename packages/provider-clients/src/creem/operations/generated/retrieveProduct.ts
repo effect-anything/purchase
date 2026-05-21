@@ -2,11 +2,11 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const RetrieveProductInput = Schema.Struct({
-  product_id: Schema.String,
+  product_id: Schema.String
 })
 export type RetrieveProductInput = typeof RetrieveProductInput.Type
 

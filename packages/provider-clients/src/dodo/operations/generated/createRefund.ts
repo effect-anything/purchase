@@ -2,14 +2,14 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { DodoClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateRefundInput = Schema.Struct({
   payment_id: Schema.String,
   items: Schema.optional(Schema.NullOr(Schema.Array(Models.RefundItem))),
   metadata: Schema.optional(Models.Metadata),
-  reason: Schema.optional(Schema.NullOr(Schema.String)),
+  reason: Schema.optional(Schema.NullOr(Schema.String))
 })
 export type CreateRefundInput = typeof CreateRefundInput.Type
 

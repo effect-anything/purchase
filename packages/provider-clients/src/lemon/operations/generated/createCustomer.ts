@@ -2,11 +2,11 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { LemonClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateCustomerInput = Schema.Struct({
-  data: Models.CustomerCreateData,
+  data: Models.CustomerCreateData
 })
 export type CreateCustomerInput = typeof CreateCustomerInput.Type
 

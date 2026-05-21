@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema"
+
 import * as Models from "../../models.ts"
 
 export const ProductAttributes = Schema.Struct({
@@ -6,7 +7,7 @@ export const ProductAttributes = Schema.Struct({
   name: Schema.String,
   slug: Schema.String,
   description: Schema.optional(Schema.String),
-  status: Schema.suspend(() => Models.ProductStatus),
+  status: Schema.suspend((): Schema.Schema<Models.ProductStatus> => Models.ProductStatus),
   status_formatted: Schema.optional(Schema.String),
   thumb_url: Schema.optional(Schema.NullOr(Schema.String)),
   large_thumb_url: Schema.optional(Schema.NullOr(Schema.String)),
@@ -20,6 +21,6 @@ export const ProductAttributes = Schema.Struct({
   buy_now_url: Schema.String,
   created_at: Schema.String,
   updated_at: Schema.String,
-  test_mode: Schema.Boolean,
+  test_mode: Schema.Boolean
 })
 export type ProductAttributes = typeof ProductAttributes.Type

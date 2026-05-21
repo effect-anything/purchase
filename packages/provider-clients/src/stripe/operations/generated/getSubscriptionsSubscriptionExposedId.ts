@@ -2,12 +2,12 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { StripeClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const GetSubscriptionsSubscriptionExposedIdInput = Schema.Struct({
   expand: Schema.optional(Schema.Array(Schema.String)),
-  subscription_exposed_id: Schema.String,
+  subscription_exposed_id: Schema.String
 })
 export type GetSubscriptionsSubscriptionExposedIdInput = typeof GetSubscriptionsSubscriptionExposedIdInput.Type
 

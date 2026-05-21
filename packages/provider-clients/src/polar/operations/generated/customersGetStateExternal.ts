@@ -2,11 +2,11 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PolarClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CustomersGetStateExternalInput = Schema.Struct({
-  external_id: Schema.String,
+  external_id: Schema.String
 })
 export type CustomersGetStateExternalInput = typeof CustomersGetStateExternalInput.Type
 

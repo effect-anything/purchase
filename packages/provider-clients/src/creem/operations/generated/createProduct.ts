@@ -2,8 +2,8 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { CreemClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateProductInput = Schema.Struct({
   name: Schema.String,
@@ -18,7 +18,7 @@ export const CreateProductInput = Schema.Struct({
   default_success_url: Schema.optional(Schema.String),
   custom_fields: Schema.optional(Schema.Array(Models.CustomFieldRequestEntity)),
   custom_field: Schema.optional(Schema.Array(Models.CustomFieldRequestEntity)),
-  abandoned_cart_recovery_enabled: Schema.optional(Schema.Boolean),
+  abandoned_cart_recovery_enabled: Schema.optional(Schema.Boolean)
 })
 export type CreateProductInput = typeof CreateProductInput.Type
 
@@ -33,7 +33,21 @@ export const createProductOperation = defineOperation({
   outputSchema: CreateProductOutput,
   status: [200],
   contentType: "json",
-  bodyParams: ["name", "description", "image_url", "price", "currency", "billing_type", "billing_period", "tax_mode", "tax_category", "default_success_url", "custom_fields", "custom_field", "abandoned_cart_recovery_enabled"]
+  bodyParams: [
+    "name",
+    "description",
+    "image_url",
+    "price",
+    "currency",
+    "billing_type",
+    "billing_period",
+    "tax_mode",
+    "tax_category",
+    "default_success_url",
+    "custom_fields",
+    "custom_field",
+    "abandoned_cart_recovery_enabled"
+  ]
 })
 
 /**

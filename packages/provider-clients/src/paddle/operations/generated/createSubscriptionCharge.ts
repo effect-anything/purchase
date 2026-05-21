@@ -2,20 +2,20 @@ import * as Effect from "effect/Effect"
 import * as Schema from "effect/Schema"
 
 import { defineOperation } from "../../../core/operation.ts"
-import * as Models from "../../models.ts"
 import { PaddleClient } from "../../client.ts"
+import * as Models from "../../models.ts"
 
 export const CreateSubscriptionChargeInput = Schema.Struct({
   subscription_id: Schema.String,
   effective_from: Models.EffectiveFrom,
   items: Schema.Array(Models.SubscriptionChargeItems),
-  on_payment_failure: Schema.optional(Models.SubscriptionOnPaymentFailure),
+  on_payment_failure: Schema.optional(Models.SubscriptionOnPaymentFailure)
 })
 export type CreateSubscriptionChargeInput = typeof CreateSubscriptionChargeInput.Type
 
 export const CreateSubscriptionChargeOutput = Schema.Struct({
   data: Models.Subscription,
-  meta: Models.Meta,
+  meta: Models.Meta
 })
 export type CreateSubscriptionChargeOutput = typeof CreateSubscriptionChargeOutput.Type
 
