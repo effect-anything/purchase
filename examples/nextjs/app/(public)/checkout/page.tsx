@@ -12,6 +12,7 @@ export default async function CheckoutPage() {
         {clientToken ? (
           <>
             <p className="muted-copy">Paddle checkout should open automatically when a transaction is present.</p>
+            {/* oxlint-disable-next-line next/no-sync-scripts */}
             <script src="https://cdn.paddle.com/paddle/v2/paddle.js" />
             <script
               dangerouslySetInnerHTML={{

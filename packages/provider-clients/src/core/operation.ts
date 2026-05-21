@@ -1,7 +1,7 @@
 import type * as HttpClientError from "@effect/platform/HttpClientError"
 
-import * as Effect from "effect/Effect"
-import * as Schema from "effect/Schema"
+import type * as Effect from "effect/Effect"
+import type * as Schema from "effect/Schema"
 
 import type { ProviderClientParseError, ProviderClientUnknownError } from "./errors.ts"
 

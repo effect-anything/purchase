@@ -1,5 +1,5 @@
 import * as HttpClientError from "@effect/platform/HttpClientError"
-import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
+import type * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Schema from "effect/Schema"
 
 export class ProviderClientParseError extends Schema.TaggedError<ProviderClientParseError>()(

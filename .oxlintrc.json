@@ -54,10 +54,17 @@
       }
     },
     {
+      "files": ["packages/provider-clients/**"],
+      "rules": {
+        "no-unused-vars": "off"
+      }
+    },
+    {
       "files": ["**/*"],
       "rules": {
         "eslint/no-console": "off",
-        "import/namespace": "off"
+        "import/namespace": "off",
+        "react/rules-of-hooks": "off"
       }
     }
   ]

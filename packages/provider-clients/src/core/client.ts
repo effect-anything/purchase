@@ -6,12 +6,12 @@ import { pipe } from "effect/Function"
 import * as Schema from "effect/Schema"
 
 import { formatUnknownBodyMessage, ProviderClientParseError, ProviderClientUnknownError } from "./errors.ts"
-import {
-  type AnyOperation,
-  type OperationContext,
-  type OperationError,
-  type OperationInput,
-  type OperationOutput
+import type {
+  AnyOperation,
+  OperationContext,
+  OperationError,
+  OperationInput,
+  OperationOutput
 } from "./operation.ts"
 import { makeBody, splitRequestParts } from "./request.ts"
 

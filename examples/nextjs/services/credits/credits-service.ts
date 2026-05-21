@@ -1,4 +1,4 @@
-import { CommercialWorkflowConflict, CustomerId, type CreditWalletResult } from "@effect-x/purchase/schema"
+import { type CommercialWorkflowConflict, CustomerId, type CreditWalletResult } from "@effect-x/purchase/schema"
 import { Context, Effect, Layer } from "effect"
 
 import type { AuthenticatedUser } from "../authenticated-user.ts"
