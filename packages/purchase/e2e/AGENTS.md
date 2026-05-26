@@ -2,6 +2,20 @@
 
 这份文档是 `@effect-x/purchase` 后续端到端测试、场景覆盖和产品级可靠性建设的正式来源。新增测试、调整测试架构、扩展供应商、扩展数据库或平台支持时，都应该先更新这里，再落到代码。
 
+## 目录语义
+
+本目录是完整真实集成测试目录，不是单元测试目录。
+
+`scenario` 只是业务场景分组方式，不代表另一种测试层级。`e2e/scenario/*` 中的测试必须使用真实 provider、真实 HTTP app、真实浏览器 checkout、真实 provider webhook 和真实 durable-state 验证。
+
+禁止在本目录使用 provider simulator、fixture replay、fake provider client 或 mock webhook 作为替代实现。依赖这些手段的测试应放在 `packages/purchase/test`。
+
+每个有意义的 e2e 至少同时验证：
+
+- provider 侧状态或 provider API 结果。
+- app 数据库里的 durable local state。
+- app 暴露的 public read model。
+
 ## 产品目标
 
 `@effect-x/purchase` 的目标不是做一个薄的 Stripe/Paddle wrapper，而是成为 TypeScript 生态里的开源商业化运行时。
@@ -122,9 +136,9 @@ const wallet = yield * Pay.credits.getWallet({ customerId, creditKey: "ai_tokens
 
 - `test/core/*`：catalog、workflow、projection、state-store、schema 等核心模型测试。
 - `test/provider/*`：provider adapter、webhook fixture、webhook replay 等边界测试。
-- `test/scenario/*`：本地模拟 provider 的业务工作流测试。
+- `test/scenario/*`：按业务场景分类的非 e2e 本地测试。
 - `test/internal/*`：HTTP retry、Cloudflare D1 client 等内部基础设施测试。
-- `e2e/scenario/*`：真实 provider / 真实 HTTP app / 真实浏览器 / 真实 webhook 的端到端测试。
+- `e2e/scenario/*`：按业务场景分类的真实 provider / 真实 HTTP app / 真实浏览器 / 真实 webhook 集成测试。
 
 后续我们将测试分成三类目标：
 
@@ -573,6 +587,24 @@ describe("subscription e2e", () => {
 
 场景测试应该保持业务语义清晰，不应该内联 provider/browser/webhook 的底层细节。
 
+## Todo 质量门槛
+
+真实 e2e 的 `it.todo(...)` 不是“还没写完的代码”，而是“已经冻结的 live 规格”。
+
+它至少要同时说明：
+
+1. 真实第三方交互的业务目标。
+2. 真实 app HTTP API / browser / webhook / database 的闭环。
+3. 成功后必须观察的 provider、app-visible、durable state 事实。
+
+这里不允许使用 mock provider、fixture replay、provider simulator 或 fake webhook 作为替代实现。那类手段只属于 `test/*`。
+
+当前审查结论：
+
+- `e2e/scenario/*` 里的现有 `todo` 大体都符合 live-only 规格的写法。
+- `subscription-acquisition` 目前是第一条必须落地的 live golden path，但它还不能被写成“已覆盖”。
+- 其余 e2e 场景更适合作为后续扩展目标，不应该提前标成完成。
+
 ## 覆盖矩阵
 
 ### 已有覆盖
@@ -588,7 +620,7 @@ describe("subscription e2e", () => {
 | Credit workflow                   | `test/scenario/credit/*`                                     | local scenario    | 已覆盖 |
 | Refund workflow                   | `test/scenario/refund/*`                                     | local scenario    | 已覆盖 |
 | Subscription projection           | `test/scenario/subscription/*`                               | local scenario    | 已覆盖 |
-| Paddle real subscription checkout | `e2e/scenario/subscription/subscription-acquisition.test.ts` | real provider e2e | 已覆盖 |
+| Paddle real subscription checkout | `e2e/scenario/subscription/subscription-acquisition.test.ts` | real provider e2e | 待实现 |
 
 ### 必测场景
 
@@ -608,6 +640,8 @@ describe("subscription e2e", () => {
 当前覆盖：
 
 - `e2e/scenario/subscription/subscription-acquisition.test.ts`
+
+状态：规格已冻结，仍待实现。
 
 #### 一次性购买
 

@@ -111,6 +111,8 @@ catalog
 - provider reconciliation e2e
 - webhook delivery e2e
 
+这些 e2e 场景的规格已经足够明确，但当前还应被视为待实现，而不是已覆盖。
+
 这些地方目前更重要的是把业务承诺说清楚，而不是马上追求能完整跑通。
 
 ## 当前最需要继续审查的结构问题

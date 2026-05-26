@@ -2,6 +2,22 @@
 
 这份说明不是实现文档，而是 `test/scenario/*` 和 `e2e/scenario/*` 后续落测试时的约束。
 
+这里的 `scenario` 只是目录分组，不是单独的测试层级。`test/scenario/*` 仍然属于非 e2e 的本地测试，`e2e/scenario/*` 才是完整的真实集成测试。
+
+## 本地场景测试边界
+
+本目录属于 `packages/purchase/test`，因此仍然是非 e2e 测试。它按业务场景组织本地测试，用来验证 SDK public workflow 语义，而不是验证真实第三方连通性。
+
+允许使用 fake `PaymentClient`、fixture replay、provider simulator 和 SQLite harness，只要它们服务于稳定地验证业务不变量。
+
+禁止在本目录使用真实 hosted checkout、真实 provider credentials、Cloudflare tunnel 或 live provider webhook delivery。这些属于 `packages/purchase/e2e`。
+
+每个有意义的本地场景测试应优先覆盖：
+
+- provider-facing behavior：fake provider call、provider ref、capability branch 或 replayed provider fact。
+- durable local state：checkout intent、webhook receipt、commercial event、subscription、invoice、ledger、entitlement 或 provider ref。
+- public read model：`customer.getSnapshot`、`customer.getEntitlements`、`credits.getWallet` 或 workflow receipt/conflict。
+
 目标不是证明“某个 provider API 调通了”，而是证明 SDK 能把外部支付事实收敛成应用可依赖的商业状态。
 
 配套推进路线见：
@@ -77,6 +93,24 @@ catalog
 ## 测试中心
 
 场景测试的中心不应该是 provider event 名称，而应该是不变量。
+
+## Todo 质量门槛
+
+一个 `it.todo(...)` 只有在同时说清楚下面三件事时，才算是合格的测试规格：
+
+1. 这条业务承诺是什么。
+2. 这条测试落在哪一层。
+3. 成功后要观察哪些 provider / durable / public read model 事实。
+
+本目录里的 `todo` 允许使用 fake provider、fixture replay、SQLite harness 和本地 workflow 组合，因为这里的目标是锁住 SDK 语义，不是验证真实第三方连通性。
+
+如果某个场景依赖真实 checkout、真实 webhook、真实浏览器或真实 provider dashboard 配置，它就不应该停留在 `test/scenario/*`，而应该进入 `packages/purchase/e2e`。
+
+当前审查结论：
+
+- `test/scenario/*` 里的现有 `todo` 大体已经满足这条质量门槛。
+- 少数更偏 provider ref 或恢复修复性质的场景，后续可能会下沉到更窄的 provider / store 级测试。
+- 真实 provider 闭环相关的承诺，应该由 `e2e/scenario/*` 最终兜住。
 
 ## 三向校验
 

@@ -64,8 +64,8 @@ const waitForStripeEvent = (server: LocalWebhookServer, eventType: string, maxAt
       }
     }
 
-    return yield* Effect.fail(
-      new Error(`Stripe CLI did not emit expected event "${eventType}" within ${maxAttempts} attempts`)
+    return yield* Effect.dieMessage(
+      `Stripe CLI did not emit expected event "${eventType}" within ${maxAttempts} attempts`
     )
   })
 

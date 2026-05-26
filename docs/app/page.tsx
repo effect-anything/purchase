@@ -135,6 +135,7 @@ export default async function HomePage() {
         lang: "ts",
         themes: { light: "github-light", dark: "github-light" },
         components: {
+          // oxlint-disable-next-line react/no-unstable-nested-components
           pre: ({ children, ...rest }) => <pre {...rest}>{children}</pre>
         }
       })

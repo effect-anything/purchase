@@ -62,7 +62,7 @@ Shared provider-live utilities live under [test/support/provider-live-harness.ts
 - `waitForProjectionSettled(...)`
 
 The product-grade real provider end-to-end flow is documented in Chinese at
-[e2e/README.md](./e2e/README.md). It defines the global provider setup, webhook
+[e2e/AGENTS.md](./e2e/AGENTS.md). It defines the global provider setup, webhook
 broker, scenario boundaries, and the required coverage for subscription,
 one-time purchase, credits, lifecycle, refund, and portal workflows.
 

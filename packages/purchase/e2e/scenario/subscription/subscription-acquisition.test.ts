@@ -17,6 +17,14 @@ describe("subscription acquisition scenarios", () => {
   it.effect(
     "completes a provider sandbox subscription checkout and returns an active subscription in the account snapshot",
     Effect.fn(function* () {
+      // const session = yield* Harness.signUp()
+      // yield* Harness.registerWebhookTarget()
+
+      // const result = yield* Harness.purchaseSubscription({
+      //   session,
+      //   offerId: "notes:notes_pro_monthly"
+      // })
+
       console.log("?")
     })
   )

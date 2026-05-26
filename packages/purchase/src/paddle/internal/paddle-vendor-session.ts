@@ -63,8 +63,8 @@ export const capturePaddleVendorSession = (input: {
     const xsrfToken = readCookieValue(cookies, "XSRF-TOKEN")
 
     if (!cookieHeader) {
-      return yield* Effect.fail(
-        new Error("Paddle vendor login completed but no cookies were available to build a session header.")
+      return yield* Effect.dieMessage(
+        "Paddle vendor login completed but no cookies were available to build a session header."
       )
     }
     if (!xsrfToken) {

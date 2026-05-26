@@ -362,10 +362,8 @@ export const capturePaddleScenarioWebhook = (options: {
     const event = simulation.events.find((candidate) => candidate.event_type === options.targetEventType)
 
     if (!event) {
-      return yield* Effect.fail(
-        new Error(
-          `Paddle scenario ${options.scenarioType} did not emit ${options.targetEventType}; emitted ${simulation.events.map((candidate) => candidate.event_type).join(", ")}`
-        )
+      return yield* Effect.dieMessage(
+        `Paddle scenario ${options.scenarioType} did not emit ${options.targetEventType}; emitted ${simulation.events.map((candidate) => candidate.event_type).join(", ")}`
       )
     }
 

@@ -92,9 +92,7 @@ export const createLiveTestHarness = (options: ProviderLiveHarnessOptions) =>
           const fixture = loadGeneratedWebhookFixture(options.provider, eventType)
 
           if (!fixture) {
-            return yield* Effect.fail(
-              new Error(`Missing generated ${options.provider} fixture for event "${eventType}"`)
-            )
+            return yield* Effect.dieMessage(`Missing generated ${options.provider} fixture for event "${eventType}"`)
           }
 
           const result = yield* sdk.webhooks.handle({

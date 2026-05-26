@@ -272,7 +272,7 @@ P0 的目标不是“功能变多”，而是先让当前最危险的错位被�
 
 落点：
 
-- `e2e/README.md`
+- `e2e/AGENTS.md`
 - `test/scenario/COVERAGE-MATRIX.md`
 - 对应的 runtime/database test plan
 
