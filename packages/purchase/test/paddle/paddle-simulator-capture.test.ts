@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
 import { Paddle } from "../../src/paddle.ts"
@@ -24,7 +25,8 @@ describe.runIf(() => process.env.PADDLE_LIVE_TESTS === "1" && paddleSimulatorEna
                 PaddleConfigFromRecord({
                   apiToken: Redacted.make(process.env.PADDLE_API_TOKEN ?? "pdl_fixture_token"),
                   webhookToken: Redacted.make(captured.webhookSecret),
-                  environment: "sandbox"
+                  environment: "sandbox",
+                  checkoutUrl: Option.none()
                 })
               )
             )

@@ -114,9 +114,11 @@ export class BrokerServer extends Context.Tag("BrokerServer")<
 
       const localBaseURL = `http://${address.hostname}:${address.port}`
       const tunnels = yield* CloudflareTunnel
+
       const publicBaseURL = yield* tunnels.resolveBrokerEndpoint({ localBaseURL }).pipe(
         Effect.map(({ publicBaseURL }) => publicBaseURL),
-        Effect.mapError((cause) => new WebhookBrokerError({ message: cause.message, cause }))
+        Effect.tapErrorCause(Effect.logError),
+        Effect.orDie
       )
 
       return { localBaseURL, publicBaseURL }
@@ -176,12 +178,7 @@ export class BrokerProvider extends Context.Tag("BrokerProvider")<
 
       const prepareCache = yield* Effect.cachedFunction(
         prepare,
-        Equivalence.make(
-          (self, that) =>
-            self.environment === that.environment &&
-            self.checkoutUrl === that.checkoutUrl &&
-            self.webhookUrl === that.webhookUrl
-        )
+        Equivalence.make((self, that) => self.environment === that.environment && self.webhookUrl === that.webhookUrl)
       )
 
       return {

@@ -1,5 +1,4 @@
 import type * as HttpClientError from "@effect/platform/HttpClientError"
-
 import type * as Effect from "effect/Effect"
 import type * as Schema from "effect/Schema"
 

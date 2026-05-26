@@ -2,7 +2,12 @@
 import type { Readable } from "node:stream"
 
 import { Config, Context, Data, Effect, Layer, Option, Redacted } from "effect"
-import { spawn, type ChildProcessByStdio } from "node:child_process"
+import { execFileSync, execSync, spawn, type ChildProcessByStdio } from "node:child_process"
+import { createWriteStream, existsSync, mkdirSync, readdirSync } from "node:fs"
+import { chmod } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { dirname, join } from "node:path"
+import { pipeline } from "node:stream/promises"
 
 interface CloudflareTunnelSummary {
   readonly id: string
@@ -57,6 +62,9 @@ export class CloudflareTunnel extends Context.Tag("CloudflareTunnel")<Cloudflare
     Effect.acquireRelease(
       Effect.gen(function* () {
         const config = yield* CloudflareTunnelConfig
+
+        // Ensure cloudflared is available before spawning wrangler tunnels
+        yield* ensureCloudflared
 
         const state: CloudflareTunnelState = {
           config,
@@ -539,11 +547,118 @@ const toWranglerTunnelTarget = (localBaseURL: string) => {
   return url.toString().replace(/\/+$/, "")
 }
 
+// --- cloudflared availability ---
+
+let resolvedCloudflaredDir: string | undefined
+
+const cloudflaredBinaryName = globalThis.process.platform === "win32" ? "cloudflared.exe" : "cloudflared"
+
+const findCloudflaredInPath = (): string | undefined => {
+  try {
+    const result = execFileSync(globalThis.process.platform === "win32" ? "where" : "which", [cloudflaredBinaryName], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim()
+    return result || undefined
+  } catch {
+    return undefined
+  }
+}
+
+const findCloudflaredInWranglerCache = (): string | undefined => {
+  const cacheBase = join(
+    globalThis.process.env.HOME ?? globalThis.process.env.USERPROFILE ?? tmpdir(),
+    ".config",
+    ".wrangler",
+    "cloudflared"
+  )
+  if (!existsSync(cacheBase)) return undefined
+  try {
+    const versions = readdirSync(cacheBase).sort().reverse()
+    for (const version of versions) {
+      const binPath = join(cacheBase, version, cloudflaredBinaryName)
+      if (existsSync(binPath)) {
+        return binPath
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return undefined
+}
+
+const downloadCloudflaredUrl = (): string => {
+  const platform = globalThis.process.platform
+  const arch = globalThis.process.arch
+  if (platform === "darwin") {
+    const suffix = arch === "arm64" ? "darwin-arm64.tgz" : "darwin-amd64.tgz"
+    return `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-${suffix}`
+  }
+  if (platform === "linux") {
+    const suffix = arch === "arm64" ? "linux-arm64" : "linux-amd64"
+    return `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-${suffix}`
+  }
+  return `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe`
+}
+
+const ensureCloudflared = Effect.gen(function* () {
+  // 1. Already in PATH?
+  const inPath = findCloudflaredInPath()
+  if (inPath) {
+    yield* Effect.logDebug(`cloudflared found in PATH: ${inPath}`)
+    return
+  }
+
+  // 2. In wrangler cache?
+  const inCache = findCloudflaredInWranglerCache()
+  if (inCache) {
+    resolvedCloudflaredDir = dirname(inCache)
+    yield* Effect.logDebug(`cloudflared found in wrangler cache: ${inCache}`)
+    return
+  }
+
+  // 3. Download from GitHub releases
+  yield* Effect.logInfo("cloudflared not found; downloading from GitHub releases...")
+  const url = downloadCloudflaredUrl()
+  const destDir = join(tmpdir(), "cloudflared-download")
+  mkdirSync(destDir, { recursive: true })
+
+  yield* Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(url, { redirect: "follow" })
+      if (!response.ok || !response.body) {
+        throw new Error(`Failed to download cloudflared: ${response.status} ${response.statusText}`)
+      }
+
+      if (url.endsWith(".tgz")) {
+        const tarPath = join(destDir, "cloudflared.tgz")
+        const fileStream = createWriteStream(tarPath)
+        await pipeline(response.body, fileStream)
+        execSync(`tar -xzf ${tarPath} -C ${destDir}`, { stdio: "ignore" })
+      } else {
+        const binPath = join(destDir, cloudflaredBinaryName)
+        const fileStream = createWriteStream(binPath)
+        await pipeline(response.body, fileStream)
+        await chmod(binPath, 0o755)
+      }
+    },
+    catch: (cause) => new CloudflareTunnelError({ message: "Failed to download cloudflared", cause })
+  })
+
+  resolvedCloudflaredDir = destDir
+  yield* Effect.logInfo(`cloudflared downloaded to ${destDir}`)
+})
+
 const toWranglerEnv = (config: {
   readonly accountId?: string | undefined
   readonly apiToken?: Redacted.Redacted<string> | undefined
 }): NodeJS.ProcessEnv => ({
   ...globalThis.process.env,
+  // Force non-interactive mode so wrangler auto-downloads cloudflared
+  // without prompting (which would hang since stdin is closed).
+  CI: "1",
+  // Prepend cloudflared to PATH so wrangler finds it without downloading.
+  ...(resolvedCloudflaredDir ? { PATH: `${resolvedCloudflaredDir}:${globalThis.process.env.PATH ?? ""}` } : {}),
   ...(config.accountId ? { CLOUDFLARE_ACCOUNT_ID: config.accountId } : {}),
   ...(config.apiToken ? { CLOUDFLARE_API_TOKEN: Redacted.value(config.apiToken) } : {})
 })

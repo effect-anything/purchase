@@ -734,7 +734,8 @@ export const makePaddleProvider = Effect.gen(function* () {
           PaddleConfigFromRecord({
             apiToken: Redacted.make("pdl_fixture_token"),
             webhookToken: Redacted.make(paddleWebhookSecret),
-            environment: "sandbox"
+            environment: "sandbox",
+            checkoutUrl: Option.none()
           })
         )
       )

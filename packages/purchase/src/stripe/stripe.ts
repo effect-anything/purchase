@@ -835,7 +835,7 @@ const resolveProduct = (price: StripePrice | null | undefined) => {
   return price.product
 }
 
-const formatSubscriptionStatus = (status: StripeSubscription["status"]): (typeof Subscription.Type)["status"] => {
+const formatSubscriptionStatus = (status: StripeSubscription["status"]): Subscription["status"] => {
   switch (status) {
     case "active":
     case "canceled":
@@ -850,7 +850,7 @@ const formatSubscriptionStatus = (status: StripeSubscription["status"]): (typeof
   }
 }
 
-const formatTransactionStatus = (status: StripeInvoice["status"]): (typeof Transaction.Type)["status"] => {
+const formatTransactionStatus = (status: StripeInvoice["status"]): Transaction["status"] => {
   switch (status) {
     case "open":
       return "billed"

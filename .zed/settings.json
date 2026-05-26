@@ -155,10 +155,6 @@
       }
     },
     "tsgo": {
-      "binary": {
-        "path": "/Users/kee/Workspace/effect/tsgo/result/bin/tsgo",
-        "arguments": ["--lsp", "--stdio"]
-      },
       "settings": {
         "typescript": {
           "preferences": {

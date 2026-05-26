@@ -532,9 +532,9 @@ const walletBenefitUnit = (input: { readonly catalog: CommercialCatalog; readonl
 }
 
 const aggregateCatalogBenefits = (benefits: ReadonlyArray<CommercialBenefit>) => {
-  const featureFlags = new Map<string, typeof FeatureFlagBenefit.Type>()
-  const licenseGrants = new Map<string, typeof LicenseGrantBenefit.Type>()
-  const quotaLimits = new Map<string, typeof QuotaLimitBenefit.Type>()
+  const featureFlags = new Map<string, FeatureFlagBenefit>()
+  const licenseGrants = new Map<string, LicenseGrantBenefit>()
+  const quotaLimits = new Map<string, QuotaLimitBenefit>()
 
   for (const benefit of benefits) {
     switch (benefit.type) {
@@ -590,7 +590,7 @@ const walletBenefits = (input: {
 
 export const buildCustomerCommercialSnapshot = (input: {
   readonly catalog: CommercialCatalog
-  readonly customerId: typeof CustomerId.Type
+  readonly customerId: CustomerId
   readonly subscriptions: ReadonlyArray<SubscriptionAgreementState>
   readonly purchases: ReadonlyArray<PurchaseGrantState>
   readonly wallets: ReadonlyArray<CreditsWalletState>

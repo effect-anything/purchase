@@ -1407,8 +1407,10 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       })
     }
     return yield* Effect.try({
-      // @effect-diagnostics-next-line preferSchemaOverJson:off
-      try: () => JSON.parse(payload),
+      try: () => {
+        // @effect-diagnostics-next-line preferSchemaOverJson:off
+        return JSON.parse(payload)
+      },
       catch: (cause) =>
         new WebhookUnmarshalError({
           error: "Invalid Stripe webhook payload",

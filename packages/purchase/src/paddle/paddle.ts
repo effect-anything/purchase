@@ -920,13 +920,11 @@ const normalizePaddleWebhook = (event: unknown): PaymentWebhookNormalization => 
   }
 }
 
-const formatTransactionStatus = (status: typeof PaddleTransaction.Type.status): (typeof Transaction.Type)["status"] => {
+const formatTransactionStatus = (status: PaddleTransaction["status"]): Transaction["status"] => {
   return status
 }
 
-const formatSubscriptionStatus = (
-  status: typeof PaddleSubscription.Type.status
-): (typeof Subscription.Type)["status"] => {
+const formatSubscriptionStatus = (status: typeof PaddleSubscription.Type.status): Subscription["status"] => {
   return status
 }
 

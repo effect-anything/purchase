@@ -73,7 +73,7 @@ const removeStaleLock = (file: string) =>
     }
 
     await rm(file, { force: true })
-  }).pipe(Effect.catchAll(() => Effect.void))
+  }).pipe(Effect.catchAllDefect(() => Effect.void))
 
 const isProcessAlive = (pid: number) => {
   try {

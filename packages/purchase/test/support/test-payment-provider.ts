@@ -192,8 +192,10 @@ export const makeTestPaymentLayer = (options?: {
     _tag: provider,
     webhooksUnmarshal: ({ payload }) =>
       Effect.try({
-        // @effect-diagnostics-next-line preferSchemaOverJson:off
-        try: () => JSON.parse(payload) as any,
+        try: () => {
+          // @effect-diagnostics-next-line preferSchemaOverJson:off
+          return JSON.parse(payload) as any
+        },
         catch: (cause) => new WebhookUnmarshalError({ error: "Invalid JSON webhook payload", cause })
       }),
     webhooksNormalize: (event) => {

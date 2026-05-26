@@ -460,7 +460,7 @@ provider id 只是内部 ref。
 
 ### Global Setup
 
-`e2e/setup/provider-e2e.ts` 负责 provider 级别的全局准备工作。
+`e2e/utils/provider-e2e.ts` 负责 provider 级别的全局准备工作。
 
 它只应该做共享外部资源相关的事情：
 

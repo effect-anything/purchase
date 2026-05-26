@@ -89,7 +89,7 @@ const mapOffer = (input: { readonly offer: NormalizedOffer; readonly plan: Norma
 
 const mapProduct = (input: {
   readonly product: NormalizedProduct
-  readonly offers: ReadonlyArray<typeof CommercialOffer.Type>
+  readonly offers: ReadonlyArray<CommercialOffer>
 }) =>
   CommercialProduct.make({
     id: input.product.id as never,

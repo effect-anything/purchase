@@ -189,7 +189,7 @@ const readString = (record: Record<string, unknown>, keys: ReadonlyArray<string>
 const asStringRecord = (record: Record<string, unknown>): Record<string, string> =>
   Object.fromEntries(Object.entries(record).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
 
-const buildTrigger = (input: { readonly event: typeof CommercialEvent.Type }) => {
+const buildTrigger = (input: { readonly event: CommercialEvent }) => {
   switch (input.event.kind) {
     case "checkout_completed":
     case "subscription_updated":

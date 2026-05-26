@@ -32,7 +32,7 @@ export const AuthenticatedUser = Schema.Struct({
 })
 export type AuthenticatedUser = typeof AuthenticatedUser.Type
 
-export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, typeof AuthenticatedUser.Type>() {}
+export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, AuthenticatedUser>() {}
 
 export const AccountApiResponse = Schema.Struct({
   environment: PaymentEnvironmentTag,

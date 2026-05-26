@@ -42,6 +42,7 @@ const PurchaseLive = PurchaseConfigLayer({
 
 export const Live = BrokerLive.pipe(
   Layer.provideMerge(PurchaseLive),
+  // Layer.provide(Logger.logFmt),
   Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
   Layer.orDie
 )
