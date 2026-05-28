@@ -2,6 +2,8 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "@effect/platform"
 
 import {
   AccountApiResponse,
+  AuthSignUpApiResponse,
+  AuthSignUpPayload,
   AuthenticationRequired,
   CatalogApiResponse,
   CheckoutStartApiResponse,
@@ -13,7 +15,14 @@ import {
   ProviderNotConfigured
 } from "./domain.ts"
 
-export const AppApi = HttpApi.make("purchase-nextjs")
+export const AppApi = HttpApi.make("purchase-e2e")
+  .add(
+    HttpApiGroup.make("auth").add(
+      HttpApiEndpoint.post("signUpEmail", "/auth/sign-up/email")
+        .setPayload(AuthSignUpPayload)
+        .addSuccess(AuthSignUpApiResponse)
+    )
+  )
   .add(HttpApiGroup.make("catalog").add(HttpApiEndpoint.get("get", "/catalog").addSuccess(CatalogApiResponse)))
   .add(
     HttpApiGroup.make("account").add(

@@ -1,11 +1,11 @@
 import { describe, it } from "@effect/vitest"
 
+import { notesProMonthlySubscription } from "../../utils/business-fixtures.ts"
+
 // Provider reconciliation scenarios verify recovery from retries, restarts, and delayed delivery.
 describe("provider reconciliation scenarios", () => {
   // Stored receipts should be enough to rebuild state after an app restart.
-  it.todo(
-    "rebuilds account state from persisted webhook receipts after the app restarts between provider delivery attempts"
-  )
+  it.todo(`rebuilds ${notesProMonthlySubscription.offerId} account state from persisted webhook receipts after restart`)
   // Provider retries should be harmless once a webhook has already been applied.
   it.todo("replays provider events idempotently when the same sandbox webhook is retried through the broker")
   // Delayed delivery should still converge through explicit reconciliation paths.

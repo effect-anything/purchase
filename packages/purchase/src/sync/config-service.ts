@@ -9,6 +9,10 @@ import type { ProductsModule, PurchasePlansModule } from "../dsl.ts"
 
 import { buildCommercialCatalog, CatalogState } from "../core/catalog-builder.ts"
 import { PurchaseStorageAdapter, type PurchaseStorageOverrides } from "../db.ts"
+import {
+  PaddleVendorPrepareService,
+  PaddleVendorPrepareServiceLayer
+} from "../paddle/internal/paddle-vendor-prepare.ts"
 import { PaymentClient } from "../provider/client.ts"
 import {
   CommercialCatalogSyncService,
@@ -16,7 +20,6 @@ import {
   type CommercialCatalogSyncInput,
   type CommercialCatalogSyncResult
 } from "./catalog-sync-service.ts"
-import { PaddleProviderPrepareService, PaddleProviderPrepareServiceLayer } from "./paddle-provider-prepare.ts"
 import {
   buildUnsupportedPrepareResult,
   type ProviderPrepareInput,
@@ -49,7 +52,7 @@ export class PurchaseConfigService extends Context.Tag("@pay/core/PurchaseConfig
     readonly syncCatalog: (
       input?: CommercialCatalogSyncInput | undefined
     ) => Effect.Effect<CommercialCatalogSyncResult, unknown>
-    readonly prepareProvider: (
+    readonly prepare: (
       input?: ProviderPrepareInput | undefined
     ) => Effect.Effect<ProviderPrepareResult, HttpClientError.HttpClientError>
   }
@@ -60,16 +63,18 @@ export const PurchaseConfigServiceLayer = Layer.effect(
   Effect.gen(function* () {
     const catalogSync = yield* CommercialCatalogSyncService
     const provider = yield* PaymentClient
-    const paddleProviderPrepare = yield* Effect.serviceOption(PaddleProviderPrepareService)
 
     const syncCatalog = (input?: CommercialCatalogSyncInput | undefined) => catalogSync.sync(input)
 
-    const prepareProvider = (input: ProviderPrepareInput = { environment: "sandbox" }) =>
-      provider._tag === "paddle" && paddleProviderPrepare._tag === "Some"
+    const prepare = Effect.fn(function* (input: ProviderPrepareInput = { environment: "sandbox" }) {
+      const paddleProviderPrepare = yield* Effect.serviceOption(PaddleVendorPrepareService)
+
+      return yield* provider._tag === "paddle" && paddleProviderPrepare._tag === "Some"
         ? paddleProviderPrepare.value.prepare(input)
         : Effect.succeed(buildUnsupportedPrepareResult(provider._tag, input))
+    })
 
-    return PurchaseConfigService.of({ syncCatalog, prepareProvider })
+    return PurchaseConfigService.of({ syncCatalog, prepare })
   })
 )
 
@@ -93,7 +98,7 @@ export const PurchaseConfigLayer = (input: {
 
   return PurchaseConfigServiceLayer.pipe(
     Layer.provide(catalogSyncLive),
-    Layer.provideMerge(PaddleProviderPrepareServiceLayer),
+    Layer.provideMerge(PaddleVendorPrepareServiceLayer),
     Layer.provide(FetchHttpClient.layer)
   )
 }
@@ -101,5 +106,5 @@ export const PurchaseConfigLayer = (input: {
 export const syncCatalog = (input?: CommercialCatalogSyncInput | undefined) =>
   Effect.flatMap(PurchaseConfigService, (service) => service.syncCatalog(input))
 
-export const prepareProvider = (input?: ProviderPrepareInput | undefined) =>
-  Effect.flatMap(PurchaseConfigService, (service) => service.prepareProvider(input))
+export const prepare = (input?: ProviderPrepareInput | undefined) =>
+  Effect.flatMap(PurchaseConfigService, (service) => service.prepare(input))

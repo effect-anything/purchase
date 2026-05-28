@@ -43,6 +43,10 @@ describe("core checkout workflow", () => {
         expect(result.customerId).toBe("customer_123")
         expect(result.offerId).toBe(testOfferIds.proMonthly)
         expect(result.session.id).toBe(TEST_CHECKOUT_SESSION_ID)
+        expect(result.session.mode).toBe("redirect")
+        if (result.session.mode !== "redirect" && result.session.mode !== "bootstrap-redirect") {
+          throw new Error(`Expected redirect checkout session, received ${result.session.mode}`)
+        }
         expect(result.session.url).toBe(TEST_CHECKOUT_URL)
         expect(result.intentId.length).toBeGreaterThan(0)
         expect(result.metadata.workspaceId).toBe("workspace_123")

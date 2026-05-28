@@ -1,4 +1,5 @@
 import * as Chunk from "effect/Chunk"
+import * as Config from "effect/Config"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"

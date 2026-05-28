@@ -1,3 +1,4 @@
+import { Paddle } from "@effect-x/purchase/paddle"
 /**
  * Standalone broker runner for manual testing outside vitest.
  *
@@ -7,10 +8,12 @@
  */
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
-import { Layer } from "effect"
+import { Layer, Effect } from "effect"
 import * as path from "node:path"
 
+import { makeHttpApiTesting } from "./utils/api.ts"
 import { Live } from "./utils/runtime.ts"
+import { BrokerServer } from "./utils/webhook-broker.ts"
 
 const repoRoot = new URL("../../..", import.meta.url).pathname
 
@@ -24,4 +27,22 @@ const EnvFileLayer = Layer.mergeAll(
   )
 )
 
-NodeRuntime.runMain(Layer.launch(Live.pipe(Layer.provide(EnvFileLayer))))
+const TestLayer = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    const broker = yield* BrokerServer
+
+    const ctx = yield* Layer.build(
+      makeHttpApiTesting({
+        broker: {
+          localBaseURL: broker.localBaseURL,
+          publicBaseURL: broker.publicBaseURL
+        },
+        paymentClient: Paddle
+      })
+    )
+
+    // console.log(ctx)
+  })
+)
+
+NodeRuntime.runMain(Layer.launch(TestLayer.pipe(Layer.provideMerge(Live), Layer.provide(EnvFileLayer))))

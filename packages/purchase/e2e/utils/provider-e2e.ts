@@ -34,9 +34,9 @@ export default async function setup(project: {
   readonly provide: <K extends keyof ProvidedContext>(key: K, value: ProvidedContext[K]) => void
 }) {
   const program = Effect.gen(function* () {
-    const p = yield* BrokerServer
+    const broker = yield* BrokerServer
 
-    return p
+    return broker
   })
 
   const runtime = ManagedRuntime.make(Live.pipe(Layer.provide(EnvFileLayer)))

@@ -7,6 +7,8 @@ export default definePurchaseProject({
     include: ["e2e/**/!(*.browser).test.{ts,tsx}"],
     exclude: ["test/**"],
     fileParallelism: false,
-    globalSetup: ["e2e/utils/provider-e2e.ts"]
+    globalSetup: ["e2e/utils/provider-e2e.ts"],
+    hookTimeout: 60_000,
+    testTimeout: 60_000
   }
 })

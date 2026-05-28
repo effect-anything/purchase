@@ -1408,7 +1408,6 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
     }
     return yield* Effect.try({
       try: () => {
-        // @effect-diagnostics-next-line preferSchemaOverJson:off
         return JSON.parse(payload)
       },
       catch: (cause) =>

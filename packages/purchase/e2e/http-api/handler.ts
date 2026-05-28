@@ -60,35 +60,37 @@ const writeCustomer = (input: { readonly id: string; readonly email: string; rea
     ).withoutTransform
   })
 
-const AuthRoutes = HttpLayerRouter.add("POST", "/api/auth/sign-up/email", (request) =>
-  Effect.gen(function* () {
-    const payload = (yield* request.json) as {
-      readonly email?: unknown
-      readonly password?: unknown
-      readonly name?: unknown
-    }
-    const email = typeof payload.email === "string" ? payload.email : `e2e-${Date.now()}@example.com`
-    const name = typeof payload.name === "string" ? payload.name : "Purchase SDK E2E User"
-    const user = {
-      id: `customer_${crypto.randomUUID()}`,
-      email,
-      name,
-      workspaceSlug: email.split("@")[0] ?? "workspace",
-      creditsUsed: 0
-    }
+const AuthHttpLive = HttpApiBuilder.group(AppApi, "auth", (handlers) =>
+  handlers.handleRaw("signUpEmail", ({ request }) =>
+    Effect.gen(function* () {
+      const payload = (yield* request.json) as {
+        readonly email?: unknown
+        readonly password?: unknown
+        readonly name?: unknown
+      }
+      const email = typeof payload.email === "string" ? payload.email : `e2e-${Date.now()}@example.com`
+      const name = typeof payload.name === "string" ? payload.name : "Purchase SDK E2E User"
+      const user = {
+        id: `customer_${crypto.randomUUID()}`,
+        email,
+        name,
+        workspaceSlug: email.split("@")[0] ?? "workspace",
+        creditsUsed: 0
+      }
 
-    yield* writeCustomer(user)
+      yield* writeCustomer(user)
 
-    const sessions = yield* SessionStore
-    const sessionId = yield* sessions.create(user)
-    const response = yield* HttpServerResponse.json({ user })
+      const sessions = yield* SessionStore
+      const sessionId = yield* sessions.create(user)
+      const response = yield* HttpServerResponse.json({ user })
 
-    return yield* HttpServerResponse.setCookie(response, sessions.cookieName, sessionId, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax"
-    })
-  })
+      return yield* HttpServerResponse.setCookie(response, sessions.cookieName, sessionId, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax"
+      })
+    }).pipe(Effect.orDie)
+  )
 )
 
 const CatalogHttpLive = HttpApiBuilder.group(AppApi, "catalog", (handlers) =>
@@ -112,7 +114,7 @@ const AccountHttpApiLive = HttpApiBuilder.group(AppApi, "account", (handlers) =>
       const purchase = yield* CommercialPay
       const sql = yield* SqlClient.SqlClient
 
-      const [snapshot, entitlements, checkoutIntents, events] = yield* Effect.all([
+      const [snapshot, entitlements, checkoutIntents, events, creditLedger] = yield* Effect.all([
         purchase.customer.getSnapshot({ customerId: user.id as never }).pipe(Effect.orDie),
         purchase.customer.getEntitlements({ customerId: user.id as never }).pipe(Effect.orDie),
         sql
@@ -143,6 +145,27 @@ const AccountHttpApiLive = HttpApiBuilder.group(AppApi, "account", (handlers) =>
           ORDER BY occurred_at DESC`,
             [user.id]
           )
+          .withoutTransform.pipe(Effect.orDie),
+        sql
+          .unsafe<{
+            readonly id: string
+            readonly productId: string
+            readonly amount: number
+            readonly direction: string
+            readonly reason: string | null
+            readonly createdAt: string
+          }>(
+            `SELECT id,
+                    product_id AS productId,
+                    amount,
+                    direction,
+                    reason,
+                    created_at AS createdAt
+               FROM paykit_credit_ledger
+              WHERE customer_id = ?
+              ORDER BY created_at DESC`,
+            [user.id]
+          )
           .withoutTransform.pipe(Effect.orDie)
       ])
 
@@ -156,6 +179,19 @@ const AccountHttpApiLive = HttpApiBuilder.group(AppApi, "account", (handlers) =>
             id: subscription.id,
             status: subscription.status,
             offerId: subscription.offerId
+          })),
+          purchases: snapshot.purchases.map((purchase) => ({
+            id: purchase.id,
+            status: purchase.status,
+            offerId: purchase.offerId
+          })),
+          wallets: snapshot.wallets.map((wallet) => ({
+            id: wallet.id,
+            productId: wallet.productId,
+            available: wallet.available,
+            acquired: wallet.acquired,
+            consumed: wallet.consumed,
+            refunded: wallet.refunded
           }))
         },
         entitlements: {
@@ -179,6 +215,14 @@ const AccountHttpApiLive = HttpApiBuilder.group(AppApi, "account", (handlers) =>
             kind: event.kind,
             offerId: event.offerId,
             occurredAt: new Date(event.occurredAt).toISOString()
+          })),
+          creditLedger: creditLedger.map((entry) => ({
+            id: entry.id,
+            productId: entry.productId,
+            amount: entry.amount,
+            direction: entry.direction,
+            reason: entry.reason,
+            createdAt: new Date(entry.createdAt).toISOString()
           }))
         }
       }
@@ -317,68 +361,10 @@ const WebhookRoute = HttpLayerRouter.add("POST", "/api/webhooks/paddle", (reques
   )
 )
 
-const CheckoutPageRoute = HttpLayerRouter.add("GET", "/checkout", () =>
-  Effect.gen(function* () {
-    const token = process.env.PADDLE_CLIENT_TOKEN ?? process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
-    const environment = process.env.PADDLE_ENVIRONMENT ?? "sandbox"
-
-    if (!token) {
-      return yield* HttpServerResponse.html("<!doctype html><p>Missing PADDLE_CLIENT_TOKEN.</p>").pipe(
-        Effect.map(HttpServerResponse.setStatus(500))
-      )
-    }
-
-    return HttpServerResponse.html(`<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Purchase SDK Paddle Checkout</title>
-    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
-  </head>
-  <body>
-    <main id="checkout">Loading checkout...</main>
-    <script>
-      const params = new URLSearchParams(window.location.search);
-      const transactionId = params.get("_ptxn") || params.get("transaction_id") || params.get("txn");
-      const email = params.get("email");
-      const country = params.get("country") || "US";
-      const postal = params.get("postal") || "10001";
-      Paddle.Environment.set(${JSON.stringify(environment)});
-      Paddle.Initialize({ token: ${JSON.stringify(token)} });
-      if (transactionId) {
-        Paddle.Checkout.open({
-          transactionId,
-          settings: {
-            displayMode: "overlay",
-            variant: "one-page"
-          },
-          customer: {
-            email,
-            address: {
-              countryCode: country,
-              postalCode: postal
-            }
-          },
-          address: {
-            countryCode: country,
-            postalCode: postal
-          }
-        });
-      } else {
-        document.getElementById("checkout").textContent = "Missing Paddle transaction id.";
-      }
-    </script>
-  </body>
-</html>`)
-  })
-)
-
-const ApiLayers = Layer.mergeAll(AccountHttpApiLive, CatalogHttpLive, CheckoutHttpLive, CreditsHttpLive)
-
 const PublicApiRoutes = HttpLayerRouter.addHttpApi(AppApi, { openapiPath: "/api/docs/openapi.json" }).pipe(
-  Layer.provide(ApiLayers)
+  Layer.provide(Layer.mergeAll(AccountHttpApiLive, AuthHttpLive, CatalogHttpLive, CheckoutHttpLive, CreditsHttpLive))
 )
 
-const AllRoutes = Layer.mergeAll(PublicApiRoutes, AuthRoutes, WebhookRoute, CheckoutPageRoute)
+const AllRoutes = Layer.mergeAll(PublicApiRoutes, WebhookRoute)
 
 export const HttpRouterLive = HttpLayerRouter.serve(AllRoutes)

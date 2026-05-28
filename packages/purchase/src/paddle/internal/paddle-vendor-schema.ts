@@ -6,6 +6,29 @@ import type {
   PurchaseCheckoutStyles
 } from "../../core/config.ts"
 
+export class PaddleVendorSessionState extends Schema.Class<PaddleVendorSessionState>("PaddleVendorSessionState")({
+  environment: Schema.Literal("sandbox", "production"),
+  vendorUrl: Schema.String,
+  cookieHeader: Schema.String,
+  xsrfToken: Schema.String,
+  capturedAt: Schema.Date,
+  cookies: Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+      value: Schema.String,
+      domain: Schema.String,
+      path: Schema.String,
+      expires: Schema.Number,
+      httpOnly: Schema.Boolean,
+      secure: Schema.Boolean,
+      sameSite: Schema.String
+    })
+  )
+}) {
+  static decode = Schema.decodeUnknown(PaddleVendorSessionState)
+  static decodeSync = Schema.decodeUnknownSync(PaddleVendorSessionState)
+}
+
 const NullableString = Schema.NullOr(Schema.String)
 
 const CheckoutFieldLabelPosition = Schema.Literal("left", "right", "top", "bottom")

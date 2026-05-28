@@ -14,12 +14,12 @@ function resolveRepoPath(file: string) {
   return new URL(`../../../../${file}`, import.meta.url).pathname
 }
 
-const PaddleLive = Paddle.layer.pipe(
-  Layer.provide(PlatformConfigProvider.layerDotEnvAdd(resolveRepoPath(".env.local"))),
-  Layer.provide(PlatformConfigProvider.layerDotEnvAdd(resolveRepoPath(".env"))),
-  Layer.provide(NodeContext.layer),
-  Layer.orDie
+export const EnvLayer = Layer.mergeAll(
+  PlatformConfigProvider.layerDotEnv(resolveRepoPath(".env")),
+  PlatformConfigProvider.layerDotEnvAdd(resolveRepoPath(".env.local"))
 )
+
+const PaddleLive = Paddle.layer.pipe(Layer.provide(EnvLayer), Layer.provide(NodeContext.layer), Layer.orDie)
 
 const SqliteLive = SQLite.layer({
   filename: ":memory:",
@@ -42,7 +42,7 @@ const PurchaseLive = PurchaseConfigLayer({
 
 export const Live = BrokerLive.pipe(
   Layer.provideMerge(PurchaseLive),
-  // Layer.provide(Logger.logFmt),
+  Layer.provide(Logger.pretty),
   Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
   Layer.orDie
 )

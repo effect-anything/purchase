@@ -34,6 +34,16 @@ export type AuthenticatedUser = typeof AuthenticatedUser.Type
 
 export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, AuthenticatedUser>() {}
 
+export const AuthSignUpPayload = Schema.Struct({
+  email: Schema.optional(Schema.String),
+  password: Schema.optional(Schema.String),
+  name: Schema.optional(Schema.String)
+})
+
+export const AuthSignUpApiResponse = Schema.Struct({
+  user: AuthenticatedUser
+})
+
 export const AccountApiResponse = Schema.Struct({
   environment: PaymentEnvironmentTag,
   provider: PaymentProviderTag,
@@ -45,6 +55,23 @@ export const AccountApiResponse = Schema.Struct({
         id: Schema.String,
         status: Schema.String,
         offerId: Schema.String
+      })
+    ),
+    purchases: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        status: Schema.String,
+        offerId: Schema.String
+      })
+    ),
+    wallets: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        productId: Schema.String,
+        available: Schema.Number,
+        acquired: Schema.Number,
+        consumed: Schema.Number,
+        refunded: Schema.Number
       })
     )
   }),
@@ -74,6 +101,16 @@ export const AccountApiResponse = Schema.Struct({
         kind: Schema.String,
         offerId: Schema.NullOr(Schema.String),
         occurredAt: Schema.String
+      })
+    ),
+    creditLedger: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        productId: Schema.String,
+        amount: Schema.Number,
+        direction: Schema.String,
+        reason: Schema.NullOr(Schema.String),
+        createdAt: Schema.String
       })
     )
   })

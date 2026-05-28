@@ -5,7 +5,7 @@ import * as Layer from "effect/Layer"
 import type { PaymentProviderTag } from "../provider/types.ts"
 
 import { PaymentClient } from "../provider/client.ts"
-import { makePaddleTestDriver } from "./provider-drivers/paddle-driver.ts"
+import { makePaddleTestDriver } from "./paddle/paddle-driver.ts"
 import {
   type CompleteProviderCheckoutInput,
   type PaymentTestBrowserOptions,
@@ -54,12 +54,12 @@ export class PaymentHarness extends Context.Tag("PaymentHarness")<
     ) => Effect.Effect<ProviderSubscriptionSnapshot, PaymentTestError>
   }
 >() {
-  static make = (input: { readonly browser?: PaymentTestBrowserOptions | undefined }) =>
+  static make = (input: { readonly browser?: PaymentTestBrowserOptions | undefined } = {}) =>
     Layer.effect(
       PaymentHarness,
       Effect.gen(function* () {
         const defaultBrowserOptions: Required<PaymentTestBrowserOptions> = {
-          headless: true,
+          headless: false,
           userAgent: undefined
         }
         const browser = { ...defaultBrowserOptions, ...input.browser }

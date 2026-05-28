@@ -5,34 +5,38 @@ import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Config from "effect/Config"
 import * as Context from "effect/Context"
+import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
+import * as Option from "effect/Option"
+import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
 import fs from "node:fs"
 import path from "node:path"
 
-import type { PurchaseProviderSettings } from "../core/config.ts"
-import type { PaymentEnvironmentTag } from "../provider/types.ts"
+import type { PurchaseProviderSettings } from "../../core/config.ts"
+import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
-import { failUnexpectedStatus, withProviderTransientRetry } from "../internal/provider-http-retry.ts"
-import { getPaddleUrl } from "../paddle/config.ts"
-import {
-  PaddleVendorCheckoutSettingsData,
-  PaddleVendorCheckoutStylesData,
-  PaddleVendorOverlaySettingsData,
-  PaddleVendorSaveCheckoutSettingsResponse,
-  PaddleVendorSaveOverlaySettingsResponse,
-  PaddleVendorSaveStylesResponse
-} from "../paddle/internal/paddle-vendor-schema.ts"
-import { PaddleVendorSessionState } from "../paddle/internal/paddle-vendor-session.ts"
+import { captureVendorSession } from "../../harness/paddle/session-capture.ts"
+import { failUnexpectedStatus, withProviderTransientRetry } from "../../internal/provider-http-retry.ts"
 import {
   collectPrepareChanges,
   determineUnsupportedAction,
   type ProviderPrepareInput,
   type ProviderPreparePlan,
   type ProviderPrepareResult
-} from "./provider-prepare.ts"
+} from "../../sync/provider-prepare.ts"
+import { getPaddleUrl } from "../config.ts"
+import {
+  PaddleVendorCheckoutSettingsData,
+  PaddleVendorCheckoutStylesData,
+  PaddleVendorOverlaySettingsData,
+  PaddleVendorSaveCheckoutSettingsResponse,
+  PaddleVendorSaveOverlaySettingsResponse,
+  PaddleVendorSaveStylesResponse,
+  PaddleVendorSessionState
+} from "./paddle-vendor-schema.ts"
 
 interface PaddleNotificationSettingState {
   readonly id: string
@@ -43,8 +47,14 @@ interface PaddleNotificationSettingState {
   readonly endpointSecretKey?: string | undefined
 }
 
-export class PaddleProviderPrepareService extends Context.Tag("@pay/core/PaddleProviderPrepareService")<
-  PaddleProviderPrepareService,
+interface PaddleDomainReviewState {
+  readonly id: string
+  readonly domain: string
+  readonly status: string
+}
+
+export class PaddleVendorPrepareService extends Context.Tag("@pay/core/PaddleVendorPrepareService")<
+  PaddleVendorPrepareService,
   {
     readonly prepare: (
       input: ProviderPrepareInput
@@ -52,61 +62,54 @@ export class PaddleProviderPrepareService extends Context.Tag("@pay/core/PaddleP
   }
 >() {}
 
-export const PaddleProviderPrepareServiceLayer = Layer.effect(
-  PaddleProviderPrepareService,
+export const PaddleVendorPrepareServiceLayer = Layer.effect(
+  PaddleVendorPrepareService,
   Effect.gen(function* () {
+    const environment = yield* Config.string("PADDLE_ENVIRONMENT").pipe(Config.map((_) => _ as PaymentEnvironmentTag))
+    const vendorHttpConfig = yield* readPaddleVendorHttpConfig
+
+    const sessionCaptureSemaphore = yield* Effect.makeSemaphore(1)
+
+    const hasConfiguredPaddleVendorSession = () =>
+      Option.isSome(vendorHttpConfig.cookie) || loadPaddleVendorSession(environment) !== undefined
+
+    const ensurePaddleVendorSession = sessionCaptureSemaphore.withPermits(1)(
+      Effect.gen(function* () {
+        if (hasConfiguredPaddleVendorSession()) {
+          return
+        }
+
+        const config = yield* readPaddleVendorCaptureConfig(environment)
+
+        yield* captureVendorSession({
+          environment,
+          headless: config.headless,
+          credentials: config.credentials,
+          outputPath: config.outputPath
+        }).pipe(Effect.orDie)
+      })
+    )
+
     const baseHttpClient = (yield* HttpClient.HttpClient).pipe(withProviderTransientRetry)
-
-    const apiToken = yield* Config.string("PADDLE_API_TOKEN")
-    const environment: PaymentEnvironmentTag = "sandbox" as PaymentEnvironmentTag
-
-    const unexpectedStatus = (response: HttpClientResponse.HttpClientResponse) =>
-      Effect.flatMap(
-        Effect.all([
-          Effect.orElseSucceed(response.text, () => "Unexpected status code"),
-          Effect.orElseSucceed(response.json, () => undefined)
-        ]),
-        ([description, json]) =>
-          failUnexpectedStatus(
-            response.request,
-            response,
-            typeof json === "object" && json !== null ? JSON.stringify(json) : description,
-            json
-          )
-      )
-
-    const expectJsonStatus = <A, I, R>(
-      response: HttpClientResponse.HttpClientResponse,
-      schema: Schema.Schema<A, I, R>
-    ) =>
-      HttpClientResponse.matchStatus({
-        200: (res) => HttpClientResponse.schemaBodyJson(schema)(res),
-        201: (res) => HttpClientResponse.schemaBodyJson(schema)(res),
-        orElse: unexpectedStatus
-      })(response).pipe(Effect.catchTag("ParseError", Effect.die))
-
-    const expectJsonBody = HttpClientResponse.matchStatus({
-      200: (res) => res.json,
-      201: (res) => res.json,
-      orElse: unexpectedStatus
-    })
 
     const vendorHttpClient = baseHttpClient.pipe(
       HttpClient.mapRequestEffect(
         Effect.fn(function* (request) {
           const session = loadPaddleVendorSession(environment)
-          const endpoint =
-            environment === "production"
-              ? "https://vendors.paddle.com/graphql"
-              : "https://sandbox-vendors.paddle.com/graphql"
-          const origin = process.env.PADDLE_VENDOR_ORIGIN ?? session?.vendorUrl ?? endpoint.replace(/\/graphql$/, "")
-          const referer = process.env.PADDLE_VENDOR_REFERER ?? `${origin}/checkout-settings`
-          const cookie = process.env.PADDLE_VENDOR_COOKIE ?? session?.cookieHeader
-          const xsrfToken = process.env.PADDLE_VENDOR_XSRF_TOKEN ?? session?.xsrfToken
+          const endpoint = `${session?.vendorUrl ?? paddleVendorUrl(environment)}/graphql`
+
+          const origin = Option.getOrElse(
+            vendorHttpConfig.origin,
+            () => session?.vendorUrl ?? endpoint.replace(/\/graphql$/, "")
+          )
+          const referer = Option.getOrElse(vendorHttpConfig.referer, () => `${origin}/checkout-settings`)
+          const cookie = Option.getOrElse(vendorHttpConfig.cookie, () => session?.cookieHeader)
+          const xsrfToken = Option.getOrElse(vendorHttpConfig.xsrfToken, () => session?.xsrfToken)
 
           if (!cookie) {
             return yield* Effect.dieMessage("Missing PADDLE_VENDOR_COOKIE for paddle vendor GraphQL access.")
           }
+
           const mapped = request.pipe(
             HttpClientRequest.prependUrl(endpoint),
             HttpClientRequest.setHeader("Accept", "*/*"),
@@ -116,8 +119,11 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
             HttpClientRequest.setHeader("Referer", referer),
             HttpClientRequest.setHeader(
               "User-Agent",
-              process.env.PADDLE_VENDOR_USER_AGENT ??
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+              Option.getOrElse(
+                vendorHttpConfig.userAgent,
+                () =>
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
+              )
             ),
             HttpClientRequest.setHeader("Sec-Fetch-Dest", "empty"),
             HttpClientRequest.setHeader("Sec-Fetch-Mode", "cors"),
@@ -130,12 +136,16 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
     )
 
     const restClient = baseHttpClient.pipe(
-      HttpClient.mapRequest((request) =>
-        request.pipe(
-          HttpClientRequest.prependUrl(getPaddleUrl(environment)),
-          HttpClientRequest.bearerToken(apiToken),
-          HttpClientRequest.acceptJson
-        )
+      HttpClient.mapRequestEffect(
+        Effect.fn(function* (request) {
+          const apiToken = yield* Config.string("PADDLE_API_TOKEN").pipe(Effect.orDie)
+
+          return request.pipe(
+            HttpClientRequest.prependUrl(getPaddleUrl(environment)),
+            HttpClientRequest.bearerToken(apiToken),
+            HttpClientRequest.acceptJson
+          )
+        })
       )
     )
 
@@ -212,6 +222,54 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
       )
     })
 
+    const fetchPaddleApprovedDomains = Effect.gen(function* () {
+      const response = yield* vendorRequest({
+        operationName: "GetSellerDomains",
+        variables: {},
+        query: GET_SELLER_DOMAINS_QUERY
+      })
+
+      return Array.isArray(response.data.getDomainReviews)
+        ? response.data.getDomainReviews.map(decodePaddleDomainReview)
+        : []
+    })
+
+    const submitPaddleDomainApprovalRequest = Effect.fn(function* (domain: string) {
+      const response = yield* vendorRequest({
+        operationName: "SubmitDomainApprovalRequest",
+        variables: { domain },
+        query: SUBMIT_DOMAIN_APPROVAL_REQUEST_MUTATION
+      })
+
+      return decodePaddleDomainReview(response.data.submitDomainApprovalRequest)
+    })
+
+    const ensurePaddleApprovedCheckoutDomain = Effect.fn(function* (
+      checkoutUrl: string,
+      knownDomains?: ReadonlyArray<PaddleDomainReviewState> | undefined
+    ) {
+      const domain = new URL(checkoutUrl).hostname
+      const current = knownDomains ?? (yield* fetchPaddleApprovedDomains)
+
+      if (current.some((entry: PaddleDomainReviewState) => entry.domain === domain && entry.status === "approved")) {
+        return
+      }
+
+      const submitted = yield* submitPaddleDomainApprovalRequest(domain)
+      if (submitted.status === "approved") {
+        return
+      }
+
+      yield* fetchPaddleApprovedDomains.pipe(
+        Effect.flatMap((domains) =>
+          domains.some((entry: PaddleDomainReviewState) => entry.domain === domain && entry.status === "approved")
+            ? Effect.void
+            : Effect.dieMessage(`Paddle checkout domain "${domain}" is not approved yet`)
+        ),
+        Effect.retry(Schedule.spaced(Duration.seconds(3)).pipe(Schedule.compose(Schedule.recurs(10))))
+      )
+    })
+
     const upsertPaddleNotificationSetting = Effect.fn(function* (
       environment: PaymentEnvironmentTag,
       current: PaddleNotificationSettingState | undefined,
@@ -244,33 +302,42 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
       })
     })
 
-    const fetchPaddleCurrentState = Effect.gen(function* () {
-      const [checkoutSettings, overlaySettings, checkoutStyles] = yield* Effect.all(
-        [
-          vendorRequest({
-            operationName: "GetCheckoutSettings",
-            variables: {},
-            query: GET_CHECKOUT_SETTINGS_QUERY
-          }).pipe(Effect.flatMap((_) => PaddleVendorCheckoutSettingsData.decode(_.data.getCheckoutSettings.data))),
-          vendorRequest({
-            operationName: "GetOverlaySettings",
-            variables: {},
-            query: GET_OVERLAY_SETTINGS_QUERY
-          }).pipe(
-            Effect.flatMap((_) => PaddleVendorOverlaySettingsData.decode(_.data.getOverlaySettings.data)),
-            Effect.orElseSucceed(() => undefined)
-          ),
-          vendorRequest({
-            operationName: "GetCheckoutStyles",
-            variables: {},
-            query: GET_CHECKOUT_STYLES_QUERY
-          }).pipe(
-            Effect.flatMap((_) => PaddleVendorCheckoutStylesData.decode(_.data.getCheckoutStyles.data)),
-            Effect.orElseSucceed(() => undefined)
-          )
-        ],
-        { concurrency: "unbounded" }
+    const fetchPaddleCurrentState = Effect.fn(function* (options: { readonly includeCheckoutDetails: boolean }) {
+      const checkoutSettingsResponse = yield* vendorRequest({
+        operationName: "GetCheckoutSettings",
+        variables: {},
+        query: GET_CHECKOUT_SETTINGS_QUERY
+      })
+      const checkoutSettings = yield* PaddleVendorCheckoutSettingsData.decode(
+        checkoutSettingsResponse.data.getCheckoutSettings.data
       )
+      const approvedDomains = Array.isArray(checkoutSettingsResponse.data.getDomainReviews)
+        ? checkoutSettingsResponse.data.getDomainReviews.map(decodePaddleDomainReview)
+        : []
+
+      const [overlaySettings, checkoutStyles] = options.includeCheckoutDetails
+        ? yield* Effect.all(
+            [
+              vendorRequest({
+                operationName: "GetOverlaySettings",
+                variables: {},
+                query: GET_OVERLAY_SETTINGS_QUERY
+              }).pipe(
+                Effect.flatMap((_) => PaddleVendorOverlaySettingsData.decode(_.data.getOverlaySettings.data)),
+                Effect.orElseSucceed(() => undefined)
+              ),
+              vendorRequest({
+                operationName: "GetCheckoutStyles",
+                variables: {},
+                query: GET_CHECKOUT_STYLES_QUERY
+              }).pipe(
+                Effect.flatMap((_) => PaddleVendorCheckoutStylesData.decode(_.data.getCheckoutStyles.data)),
+                Effect.orElseSucceed(() => undefined)
+              )
+            ] as const,
+            { concurrency: "unbounded" }
+          )
+        : [undefined, undefined]
 
       const notificationSetting = yield* fetchPaddleNotificationSetting
 
@@ -301,14 +368,16 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
           webhookUrl: notificationSetting?.destination,
           checkout: checkoutSnapshot.checkout
         } satisfies PurchaseProviderSettings as PurchaseProviderSettings,
-        notificationSetting
+        notificationSetting,
+        approvedDomains
       }
     })
 
     const applyPaddleProviderChanges = Effect.fn(function* (
       input: ProviderPrepareInput,
       plan: ProviderPreparePlan,
-      notificationSetting: PaddleNotificationSettingState | undefined
+      notificationSetting: PaddleNotificationSettingState | undefined,
+      approvedDomains: ReadonlyArray<PaddleDomainReviewState>
     ) {
       if (
         plan.changes.some(
@@ -318,6 +387,10 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
             change.path.startsWith("checkout.paymentMethods")
         )
       ) {
+        if (input.approvedCheckoutUrl) {
+          yield* ensurePaddleApprovedCheckoutDomain(input.approvedCheckoutUrl, approvedDomains)
+        }
+
         yield* Effect.gen(function* () {
           const response = yield* vendorRequest({
             operationName: "SaveCheckoutSettings",
@@ -330,7 +403,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
           yield* PaddleVendorSaveCheckoutSettingsResponse.decode(response.data)
         }).pipe(
           Effect.catchAll((cause) =>
-            input.checkout
+            input.approvedCheckoutUrl || input.checkout
               ? Effect.fail(cause)
               : Effect.logWarning(
                   `Paddle vendor checkout URL update failed; continuing because transactions use an explicit checkout URL. ${String(cause)}`
@@ -416,35 +489,45 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
 
     const prepare = Effect.fn(
       function* (input: ProviderPrepareInput) {
-        const currentStateResult = yield* Effect.exit(fetchPaddleCurrentState)
+        const normalizedInput = normalizePaddlePrepareInput(input)
+        const includeCheckoutDetails = normalizedInput.checkout !== undefined
+
+        yield* ensurePaddleVendorSession
+
+        const currentStateResult = yield* Effect.exit(fetchPaddleCurrentState({ includeCheckoutDetails }))
 
         const notificationSetting = yield* Exit.match(currentStateResult, {
           onFailure: () => fetchPaddleNotificationSetting,
           onSuccess: (_) => Effect.succeed(_.notificationSetting)
         })
+        const approvedDomains = Exit.match(currentStateResult, {
+          onFailure: () => [] as ReadonlyArray<PaddleDomainReviewState>,
+          onSuccess: (_) => _.approvedDomains
+        })
 
         const current =
-          input.current ??
+          normalizedInput.current ??
           Exit.match(currentStateResult, {
             onFailure: () =>
               ({
-                approvedCheckoutUrl: input.approvedCheckoutUrl,
+                approvedCheckoutUrl: normalizedInput.approvedCheckoutUrl,
                 webhookUrl: notificationSetting?.destination
               }) satisfies PurchaseProviderSettings as PurchaseProviderSettings,
             onSuccess: (_) => _.providerSettings
           })
 
-        const plan = createPaddlePreparePlan({ ...input, current }, notificationSetting)
+        const plan = createPaddlePreparePlan({ ...normalizedInput, current }, notificationSetting)
+        const hasChanges = plan.changes.some((change) => change.action !== "none")
 
-        if (input.dryRun !== true && plan.status === "ready") {
-          yield* applyPaddleProviderChanges(input, plan, notificationSetting)
+        if (hasChanges && normalizedInput.dryRun !== true && plan.status === "ready") {
+          yield* applyPaddleProviderChanges(normalizedInput, plan, notificationSetting, approvedDomains)
 
-          const verifiedState = yield* fetchPaddleCurrentState.pipe(
+          const verifiedState = yield* fetchPaddleCurrentState({ includeCheckoutDetails }).pipe(
             Effect.catchAll(() =>
               fetchPaddleNotificationSetting.pipe(
                 Effect.map((verifiedNotificationSetting) => ({
                   providerSettings: {
-                    approvedCheckoutUrl: input.approvedCheckoutUrl,
+                    approvedCheckoutUrl: normalizedInput.approvedCheckoutUrl,
                     webhookUrl: verifiedNotificationSetting?.destination
                   } satisfies PurchaseProviderSettings,
                   notificationSetting: verifiedNotificationSetting
@@ -454,7 +537,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
           )
 
           const verificationPlan = createPaddlePreparePlan(
-            { ...input, current: verifiedState.providerSettings },
+            { ...normalizedInput, current: verifiedState.providerSettings },
             verifiedState.notificationSetting
           )
 
@@ -474,7 +557,7 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
 
         return {
           provider: "paddle" as const,
-          dryRun: input.dryRun === true,
+          dryRun: normalizedInput.dryRun === true,
           secrets: formatPaddleSecrets(notificationSetting),
           plan
         } satisfies ProviderPrepareResult
@@ -482,9 +565,48 @@ export const PaddleProviderPrepareServiceLayer = Layer.effect(
       Effect.catchTag("ParseError", Effect.die)
     )
 
-    return PaddleProviderPrepareService.of({ prepare })
+    return PaddleVendorPrepareService.of({ prepare })
   })
 )
+
+const unexpectedStatus = (response: HttpClientResponse.HttpClientResponse) =>
+  Effect.flatMap(
+    Effect.all([
+      Effect.orElseSucceed(response.text, () => "Unexpected status code"),
+      Effect.orElseSucceed(response.json, () => undefined)
+    ]),
+    ([description, json]) =>
+      failUnexpectedStatus(
+        response.request,
+        response,
+        typeof json === "object" && json !== null ? JSON.stringify(json) : description,
+        json
+      )
+  )
+
+const expectJsonStatus = <A, I, R>(response: HttpClientResponse.HttpClientResponse, schema: Schema.Schema<A, I, R>) =>
+  HttpClientResponse.matchStatus({
+    200: (res) => HttpClientResponse.schemaBodyJson(schema)(res),
+    201: (res) => HttpClientResponse.schemaBodyJson(schema)(res),
+    orElse: unexpectedStatus
+  })(response).pipe(Effect.catchTag("ParseError", Effect.die))
+
+const expectJsonBody = HttpClientResponse.matchStatus({
+  200: (res) => res.json,
+  201: (res) => res.json,
+  orElse: unexpectedStatus
+})
+
+const normalizePaddlePrepareInput = (input: ProviderPrepareInput): ProviderPrepareInput => {
+  if (!input.approvedCheckoutUrl) {
+    return input
+  }
+
+  return {
+    ...input,
+    approvedCheckoutUrl: new URL(input.approvedCheckoutUrl).origin
+  }
+}
 
 const omitVendorTypename = <T extends { readonly __typename?: string | null | undefined }>(
   value: T
@@ -576,21 +698,19 @@ const PADDLE_WEBHOOK_SUBSCRIBED_EVENTS = [
   "transaction.updated"
 ] as const
 
-const loadPaddleVendorSession = (environment: PaymentEnvironmentTag) => {
-  const configuredPath = process.env.PADDLE_VENDOR_SESSION_FILE
-  const filePath = configuredPath
-    ? path.resolve(process.cwd(), configuredPath)
-    : path.resolve(process.cwd(), ".purchase", `paddle-vendor-${environment}-session.json`)
-
-  if (!fs.existsSync(filePath)) {
-    return undefined
-  }
-
-  const json = JSON.parse(fs.readFileSync(filePath, "utf8"))
-  return PaddleVendorSessionState.decodeSync(json)
-}
-
 const GET_CHECKOUT_SETTINGS_QUERY = `query GetCheckoutSettings {
+  getDomainReviews {
+    id
+    domain
+    status
+    applePayVerificationStatus
+    events {
+      type
+      time
+      __typename
+    }
+    __typename
+  }
   getCheckoutSettings {
     data {
       vendorName
@@ -834,3 +954,145 @@ const SAVE_OVERLAY_SETTINGS_MUTATION = `mutation SaveOverlaySettings($overlaySet
     __typename
   }
 }`
+
+const GET_SELLER_DOMAINS_QUERY = `query GetSellerDomains {
+  getDomainReviews {
+    id
+    domain
+    status
+    applePayVerificationStatus
+    events {
+      type
+      time
+      __typename
+    }
+    __typename
+  }
+}`
+
+const SUBMIT_DOMAIN_APPROVAL_REQUEST_MUTATION = `mutation SubmitDomainApprovalRequest($domain: String!) {
+  submitDomainApprovalRequest(domain: $domain) {
+    id
+    domain
+    status
+    applePayVerificationStatus
+    events {
+      type
+      time
+      __typename
+    }
+    __typename
+  }
+}`
+
+const decodePaddleDomainReview = (input: unknown): PaddleDomainReviewState => {
+  if (!isRecord(input)) {
+    throw new Error("Invalid Paddle domain review response")
+  }
+
+  return {
+    id: String(input.id),
+    domain: String(input.domain),
+    status: String(input.status)
+  }
+}
+
+export const paddleVendorUrl = (environment: PaymentEnvironmentTag) =>
+  environment === "production" ? "https://vendors.paddle.com" : "https://sandbox-vendors.paddle.com"
+
+const loadPaddleVendorSession = (environment: PaymentEnvironmentTag) => {
+  const configuredPath = process.env.PADDLE_VENDOR_SESSION_FILE
+  const filePath = configuredPath
+    ? path.resolve(process.cwd(), configuredPath)
+    : path.resolve(process.cwd(), ".purchase", `paddle-vendor-${environment}-session.json`)
+
+  if (!fs.existsSync(filePath)) {
+    return undefined
+  }
+
+  const json = JSON.parse(fs.readFileSync(filePath, "utf8"))
+  return PaddleVendorSessionState.decodeSync(json)
+}
+
+export interface PaddleVendorCaptureConfig {
+  readonly environment: "sandbox" | "production"
+  readonly headless: boolean
+  readonly outputPath: string
+  readonly credentials: {
+    readonly email: string
+    readonly password: string
+  }
+}
+
+const readPaddleVendorHttpConfig = Config.all({
+  cookie: Config.option(Config.string("PADDLE_VENDOR_COOKIE")),
+  xsrfToken: Config.option(Config.string("PADDLE_VENDOR_XSRF_TOKEN")),
+  origin: Config.option(Config.string("PADDLE_VENDOR_ORIGIN")),
+  referer: Config.option(Config.string("PADDLE_VENDOR_REFERER")),
+  userAgent: Config.option(Config.string("PADDLE_VENDOR_USER_AGENT"))
+}).pipe(Effect.orDie)
+
+export const readPaddleVendorCaptureConfig = (environment: PaymentEnvironmentTag) =>
+  Effect.gen(function* () {
+    const [vendorEmail, vendorPassword, fallbackEmail, fallbackEmailTypo, fallbackPassword, headless, sessionFile] =
+      yield* Config.all([
+        Config.option(Config.string("PADDLE_VENDOR_EMAIL")),
+        Config.option(Config.string("PADDLE_VENDOR_PASSWORD")),
+        Config.option(Config.string(environment === "production" ? "PADDLE_PRODUCTION_EMAIL" : "PADDLE_SANDBOX_EMAIL")),
+        Config.option(Config.string("PADDLE_SANBOX_EMAIL")),
+        Config.option(
+          Config.string(environment === "production" ? "PADDLE_PRODUCTION_PASSWORD" : "PADDLE_SANDBOX_PASSWORD")
+        ),
+        Config.string("PADDLE_VENDOR_HEADLESS").pipe(Config.withDefault("0")),
+        Config.option(Config.string("PADDLE_VENDOR_SESSION_FILE"))
+      ])
+
+    const email = Option.getOrElse(
+      Option.orElse(vendorEmail, () =>
+        environment === "production" ? fallbackEmail : Option.orElse(fallbackEmail, () => fallbackEmailTypo)
+      ),
+      () => ""
+    )
+    const password = Option.getOrElse(
+      Option.orElse(vendorPassword, () => fallbackPassword),
+      () => ""
+    )
+
+    if (!email || !password) {
+      return yield* Effect.dieMessage(
+        environment === "production"
+          ? "Missing Paddle vendor credentials. Set PADDLE_VENDOR_EMAIL/PADDLE_VENDOR_PASSWORD or PADDLE_PRODUCTION_EMAIL/PADDLE_PRODUCTION_PASSWORD."
+          : "Missing Paddle vendor credentials. Set PADDLE_SANDBOX_EMAIL/PADDLE_SANDBOX_PASSWORD in .env.local. PADDLE_SANBOX_EMAIL is also accepted for the email typo."
+      )
+    }
+
+    return {
+      environment,
+      headless: headless === "1",
+      outputPath: path.resolve(
+        process.cwd(),
+        Option.getOrElse(sessionFile, () => `.purchase/paddle-vendor-${environment}-session.json`)
+      ),
+      credentials: { email, password }
+    }
+  }).pipe(Effect.orDie)
+
+export const writePaddleVendorCaptureSession = (session: PaddleVendorSessionState, outputPath: string) => {
+  const sessionPath = outputPath
+
+  fs.mkdirSync(path.dirname(sessionPath), { recursive: true })
+  fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2))
+  console.log(
+    JSON.stringify(
+      {
+        saved: sessionPath,
+        environment: session.environment,
+        vendorUrl: session.vendorUrl,
+        capturedAt: session.capturedAt,
+        cookieNames: session.cookies.map((cookie) => cookie.name)
+      },
+      null,
+      2
+    )
+  )
+}

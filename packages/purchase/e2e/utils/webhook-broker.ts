@@ -5,16 +5,35 @@ import {
   HttpApiGroup,
   HttpLayerRouter,
   HttpServer,
-  HttpServerResponse
+  HttpServerResponse,
+  HttpServerError,
+  HttpApiError,
+  HttpApiClient,
+  HttpClient,
+  HttpClientResponse
 } from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
-import { Config, Context, Data, Effect, Equivalence, Layer, Schema } from "effect"
+import {
+  Redacted,
+  Context,
+  Console,
+  Data,
+  Effect,
+  Equivalence,
+  Layer,
+  Schema,
+  Schedule,
+  Duration,
+  Config
+} from "effect"
 import { createServer } from "node:http"
+
+import type { BrokerEndpoint } from "./types.ts"
 
 import { PaymentProviderTag } from "../../src/provider/types.ts"
 import {
   formatPrepareResult,
-  prepareProvider,
+  prepare,
   type ProviderPrepareInput,
   type ProviderPrepareResult,
   type PurchaseConfigService
@@ -34,12 +53,10 @@ const WebhookBrokerRegistration = Schema.Struct({
 })
 
 const WebhookBrokerHealthResponse = Schema.Struct({
-  ok: Schema.Boolean,
   routes: Schema.Number
 })
 
 const WebhookBrokerRegisterResponse = Schema.Struct({
-  ok: Schema.Boolean,
   provider: PaymentProviderTag,
   runId: Schema.String,
   localBaseURL: Schema.String,
@@ -61,6 +78,10 @@ const WebhookBrokerWebhookResponse = Schema.Struct({
   targetText: Schema.optional(Schema.String)
 })
 
+const CheckoutPagePath = Schema.Struct({
+  provider: Schema.Literal("paddle")
+})
+
 class WebhookBrokerApiError extends Schema.TaggedError<WebhookBrokerApiError>()("WebhookBrokerApiError", {
   message: Schema.String
 }) {}
@@ -70,7 +91,7 @@ export class WebhookBrokerError extends Data.TaggedError("WebhookBrokerError")<{
   readonly cause?: unknown
 }> {}
 
-export const WebhookBrokerApi = HttpApi.make("purchase-e2e-webhook-broker")
+export const E2EBrokerApi = HttpApi.make("purchase-e2e-broker")
   .add(
     HttpApiGroup.make("broker")
       .add(HttpApiEndpoint.get("health", "/health").addSuccess(WebhookBrokerHealthResponse))
@@ -79,6 +100,7 @@ export const WebhookBrokerApi = HttpApi.make("purchase-e2e-webhook-broker")
           .setPayload(WebhookBrokerRegistration)
           .addSuccess(WebhookBrokerRegisterResponse)
           .addError(WebhookBrokerApiError, { status: 500 })
+          .addError(HttpApiError.BadRequest)
       )
       .prefix("/__purchase-e2e")
   )
@@ -92,6 +114,33 @@ export const WebhookBrokerApi = HttpApi.make("purchase-e2e-webhook-broker")
       )
       .prefix("/api")
   )
+  .add(
+    HttpApiGroup.make("checkout").add(
+      HttpApiEndpoint.get("page", "/:provider/checkout")
+        .setPath(CheckoutPagePath)
+        .addSuccess(Schema.String)
+        .addError(WebhookBrokerApiError, { status: 500 })
+        .addError(HttpApiError.BadRequest)
+    )
+  )
+
+const WebhookBrokerApiClient_ = HttpApiClient.make(E2EBrokerApi, {
+  transformClient: (client_) => {
+    const client = HttpClient.retryTransient({
+      mode: "response-only",
+      schedule: Schedule.exponential(Duration.millis(500))
+    })(client_)
+
+    return client as typeof client_
+  }
+})
+
+export class E2EBrokerApiClient extends Context.Tag("@effect-x/purchase/e2e/utils/e2e-broker/E2EBrokerApiClient")<
+  E2EBrokerApiClient,
+  Effect.Effect.Success<typeof WebhookBrokerApiClient_>
+>() {
+  static Default = Layer.effect(E2EBrokerApiClient, WebhookBrokerApiClient_)
+}
 
 type RouteTable = Map<string, WebhookBrokerRegistration>
 
@@ -153,32 +202,36 @@ export class BrokerProvider extends Context.Tag("BrokerProvider")<
     Effect.gen(function* () {
       const ctx = yield* Effect.context<PurchaseConfigService>()
 
-      const prepare = (input: ProviderPrepareInput) =>
-        acquireProviderE2ELock(`prepare:${input.environment}:${input.webhookUrl ?? "no-webhook"}`).pipe(
-          Effect.flatMap(
-            Effect.fn(function* () {
-              const prepareResult = yield* prepareProvider(input)
+      const prepare_ = Effect.fn(
+        function* (input: ProviderPrepareInput) {
+          // yield* acquireProviderE2ELock(`prepare:${input.environment}:${input.webhookUrl ?? "no-webhook"}`)
 
-              const { string: providerPrepareChanges, secrets } = formatPrepareResult(
-                { environment: input.environment, showSecrets: false },
-                prepareResult
-              )
+          const prepareResult = yield* prepare(input)
 
-              console.log(providerPrepareChanges)
+          const { string: providerPrepareChanges, secrets } = formatPrepareResult(
+            { environment: input.environment, showSecrets: false },
+            prepareResult
+          )
 
-              yield* Effect.logInfo("Webhook secrets").pipe(Effect.annotateLogs(secrets))
+          yield* Console.log(providerPrepareChanges)
 
-              return prepareResult
-            })
-          ),
-          Effect.scoped,
-          Effect.provide(ctx),
-          Effect.orDie
-        )
+          yield* Effect.logInfo("Webhook secrets").pipe(Effect.annotateLogs(secrets))
+
+          return prepareResult
+        },
+        Effect.scoped,
+        Effect.provide(ctx),
+        Effect.orDie
+      )
 
       const prepareCache = yield* Effect.cachedFunction(
-        prepare,
-        Equivalence.make((self, that) => self.environment === that.environment && self.webhookUrl === that.webhookUrl)
+        prepare_,
+        Equivalence.make(
+          (self, that) =>
+            self.environment === that.environment &&
+            self.webhookUrl === that.webhookUrl &&
+            self.approvedCheckoutUrl === that.approvedCheckoutUrl
+        )
       )
 
       return {
@@ -188,13 +241,13 @@ export class BrokerProvider extends Context.Tag("BrokerProvider")<
   )
 }
 
-const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handlers) =>
+const BrokerHttpLive = HttpApiBuilder.group(E2EBrokerApi, "broker", (handlers) =>
   handlers
     .handle("health", () =>
       Effect.gen(function* () {
         const brokerState = yield* BrokerState
 
-        return { ok: true, routes: brokerState.routes.size }
+        return { routes: brokerState.routes.size }
       })
     )
     .handle("register", ({ payload }) =>
@@ -206,15 +259,23 @@ const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handler
         const serverInfo = yield* BrokerServer
 
         const brokerWebhookUrl = `${serverInfo.publicBaseURL}/api/webhooks/${payload.provider}`
+        const approvedCheckoutUrl = serverInfo.publicBaseURL
+
         const prepareResult = yield* brokerProvider
           .prepare({
             environment: "sandbox",
+            approvedCheckoutUrl,
             webhookUrl: brokerWebhookUrl
           })
-          .pipe(Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) })))
+          .pipe(
+            Effect.mapError((cause) => new WebhookBrokerApiError({ message: cause.message })),
+            Effect.catchAllDefect((e) => {
+              console.log(e)
+              return new HttpApiError.BadRequest()
+            })
+          )
 
         return {
-          ok: true,
           provider: payload.provider,
           runId: payload.runId,
           localBaseURL: serverInfo.localBaseURL,
@@ -227,7 +288,7 @@ const BrokerHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "broker", (handler
     )
 )
 
-const WebhookHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "webhooks", (handlers) =>
+const WebhookHttpLive = HttpApiBuilder.group(E2EBrokerApi, "webhooks", (handlers) =>
   handlers.handleRaw(
     "forward",
     Effect.fn(function* ({ path, request }) {
@@ -250,25 +311,47 @@ const WebhookHttpLive = HttpApiBuilder.group(WebhookBrokerApi, "webhooks", (hand
       const upstream = yield* forwardWebhook(registration.targetUrl, request.headers, body).pipe(
         Effect.mapError((cause) => new WebhookBrokerApiError({ message: describeCause(cause) }))
       )
+      const ok = true
 
       return HttpServerResponse.unsafeJson(
         {
-          accepted: upstream.ok,
+          accepted: ok,
           runId,
           targetStatus: upstream.status,
           targetText: upstream.text.slice(0, 500)
         },
-        { status: upstream.ok ? 200 : 502 }
+        { status: ok ? 200 : 502 }
       )
     })
   )
 )
 
-const BrokerApiLive = HttpLayerRouter.addHttpApi(WebhookBrokerApi).pipe(
-  Layer.provide(Layer.mergeAll(BrokerHttpLive, WebhookHttpLive))
+const CheckoutPageHttpLive = HttpApiBuilder.group(E2EBrokerApi, "checkout", (handlers) =>
+  handlers.handleRaw(
+    "page",
+    Effect.fn(function* ({ path }) {
+      const token = yield* Config.redacted("PADDLE_CLIENT_TOKEN").pipe(Effect.orDie)
+      const environment = process.env.PADDLE_ENVIRONMENT ?? "sandbox"
+
+      return HttpServerResponse.html(renderPaddleCheckoutPage({ environment, provider: path.provider, token }))
+    })
+  )
 )
 
-const WebhookBrokerRouter = HttpLayerRouter.serve(BrokerApiLive, {
+const CheckoutRootRoute = HttpLayerRouter.add("GET", "/", () =>
+  Effect.gen(function* () {
+    const token = yield* Config.redacted("PADDLE_CLIENT_TOKEN").pipe(Effect.orDie)
+    const environment = process.env.PADDLE_ENVIRONMENT ?? "sandbox"
+
+    return HttpServerResponse.html(renderPaddleCheckoutPage({ environment, provider: "paddle", token }))
+  })
+)
+
+const BrokerApiLive = HttpLayerRouter.addHttpApi(E2EBrokerApi).pipe(
+  Layer.provide(Layer.mergeAll(BrokerHttpLive, WebhookHttpLive, CheckoutPageHttpLive))
+)
+
+const WebhookBrokerRouter = HttpLayerRouter.serve(Layer.mergeAll(BrokerApiLive, CheckoutRootRoute), {
   disableListenLog: true
 })
 
@@ -312,13 +395,29 @@ const forwardWebhook = (targetUrl: string, requestHeaders: Record<string, string
       })
 
       return {
-        ok: response.ok,
         status: response.status,
         text: await response.text()
       }
     },
     catch: (cause) => new WebhookBrokerError({ message: "Failed to forward webhook", cause })
   })
+
+export const registerWebhookTarget = Effect.fn("registerWebhookTarget")(function* (input: {
+  readonly provider: PaymentProviderTag
+  readonly broker: BrokerEndpoint
+  readonly runId: string
+  readonly baseURL: string
+}) {
+  const brokerApi = yield* E2EBrokerApiClient
+
+  return yield* brokerApi.broker.register({
+    payload: {
+      provider: input.provider,
+      runId: input.runId,
+      targetUrl: `${input.baseURL}/api/webhooks/${input.provider}`
+    }
+  })
+})
 
 const readPaddleRunId = (body: Buffer) => {
   try {
@@ -331,6 +430,54 @@ const readPaddleRunId = (body: Buffer) => {
     return undefined
   }
 }
+
+const renderPaddleCheckoutPage = (input: {
+  readonly environment: string
+  readonly provider: "paddle"
+  readonly token: Redacted.Redacted<string>
+}) => `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Purchase SDK ${input.provider} Checkout</title>
+    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  </head>
+  <body>
+    <main id="checkout">Loading checkout...</main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const transactionId = params.get("_ptxn") || params.get("transaction_id") || params.get("txn");
+      const email = params.get("email");
+      const country = params.get("country") || "US";
+      const postal = params.get("postal") || "10001";
+      Paddle.Environment.set(${JSON.stringify(input.environment)});
+      Paddle.Initialize({ token: ${JSON.stringify(Redacted.value(input.token))} });
+      if (transactionId) {
+        Paddle.Checkout.open({
+          transactionId,
+          settings: {
+            displayMode: "overlay",
+            variant: "one-page"
+          },
+          customer: {
+            email,
+            address: {
+              countryCode: country,
+              postalCode: postal
+            }
+          },
+          address: {
+            countryCode: country,
+            postalCode: postal
+          }
+        });
+      } else {
+        document.getElementById("checkout").textContent = "Missing Paddle transaction id.";
+      }
+    </script>
+  </body>
+</html>`
+
 const describeCause = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause))
 
 const routeKey = (provider: string, runId: string) => `${provider}:${runId}`

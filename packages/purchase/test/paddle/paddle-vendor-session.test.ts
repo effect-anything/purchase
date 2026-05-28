@@ -1,7 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 
-import { parseEnvValue, readPaddleVendorCaptureConfig } from "../../src/harness/paddle/capture-paddle-vendor-session.ts"
-import { PaddleVendorSessionState } from "../../src/paddle/internal/paddle-vendor-session.ts"
+import { PaddleVendorSessionState } from "../../src/paddle/internal/paddle-vendor-schema.ts"
 
 describe("paddle vendor session", () => {
   it("decodes captured vendor session state", () => {
@@ -38,30 +37,5 @@ describe("paddle vendor session", () => {
     expect(session.environment).toBe("sandbox")
     expect(session.cookieHeader).toContain("XSRF-TOKEN=token")
     expect(session.xsrfToken).toBe("token")
-  })
-
-  it("reads sandbox capture credentials from env", () => {
-    const config = readPaddleVendorCaptureConfig(
-      {
-        PADDLE_SANDBOX_EMAIL: "seller@example.test",
-        PADDLE_SANDBOX_PASSWORD: "secret",
-        PADDLE_VENDOR_HEADLESS: "1"
-      },
-      "/repo/packages/purchase"
-    )
-
-    expect(config.environment).toBe("sandbox")
-    expect(config.headless).toBe(true)
-    expect(config.credentials).toEqual({
-      email: "seller@example.test",
-      password: "secret"
-    })
-    expect(config.outputPath).toBe("/repo/packages/purchase/.purchase/paddle-vendor-sandbox-session.json")
-  })
-
-  it("parses quoted env values", () => {
-    expect(parseEnvValue('"line\\nnext"')).toBe("line\nnext")
-    expect(parseEnvValue("'literal # value'")).toBe("literal # value")
-    expect(parseEnvValue("plain # comment")).toBe("plain")
   })
 })

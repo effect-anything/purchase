@@ -2,46 +2,26 @@ import type { Page } from "playwright-core"
 
 import { Playwright } from "effect-playwright"
 import * as Effect from "effect/Effect"
-import * as Schema from "effect/Schema"
 import { chromium } from "playwright-core"
 
 import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
-export class PaddleVendorSessionState extends Schema.Class<PaddleVendorSessionState>("PaddleVendorSessionState")({
-  environment: Schema.Literal("sandbox", "production"),
-  vendorUrl: Schema.String,
-  cookieHeader: Schema.String,
-  xsrfToken: Schema.String,
-  capturedAt: Schema.String,
-  cookies: Schema.Array(
-    Schema.Struct({
-      name: Schema.String,
-      value: Schema.String,
-      domain: Schema.String,
-      path: Schema.String,
-      expires: Schema.Number,
-      httpOnly: Schema.Boolean,
-      secure: Schema.Boolean,
-      sameSite: Schema.String
-    })
-  )
-}) {
-  static decode = Schema.decodeUnknown(PaddleVendorSessionState)
-  static decodeSync = Schema.decodeUnknownSync(PaddleVendorSessionState)
-}
+import { paddleVendorUrl, writePaddleVendorCaptureSession } from "../../paddle/internal/paddle-vendor-prepare.ts"
+import { PaddleVendorSessionState } from "../../paddle/internal/paddle-vendor-schema.ts"
 
-export const capturePaddleVendorSession = (input: {
-  readonly environment: PaymentEnvironmentTag
-  readonly headless?: boolean | undefined
-  readonly timeoutMs?: number | undefined
-  readonly credentials?:
-    | {
-        readonly email: string
-        readonly password: string
-      }
-    | undefined
-}) =>
-  Effect.gen(function* () {
+export const captureVendorSession = Effect.fn(
+  function* (input: {
+    readonly environment: PaymentEnvironmentTag
+    readonly headless?: boolean | undefined
+    readonly timeoutMs?: number | undefined
+    readonly credentials?:
+      | {
+          readonly email: string
+          readonly password: string
+        }
+      | undefined
+    readonly outputPath: string
+  }) {
     const playwright = yield* Playwright
     const browser = yield* playwright.launchScoped(chromium, { headless: input.headless ?? false })
     const context = yield* browser.newContext({
@@ -71,18 +51,20 @@ export const capturePaddleVendorSession = (input: {
       return yield* Effect.dieMessage("Paddle vendor login completed but XSRF-TOKEN cookie was not found.")
     }
 
-    return yield* PaddleVendorSessionState.decode({
+    const session = PaddleVendorSessionState.make({
       environment: input.environment,
       vendorUrl,
       cookieHeader,
       xsrfToken,
-      capturedAt: new Date().toISOString(),
+      capturedAt: new Date(),
       cookies
     })
-  }).pipe(Effect.provide(Playwright.layer), Effect.scoped)
 
-export const paddleVendorUrl = (environment: PaymentEnvironmentTag) =>
-  environment === "production" ? "https://vendors.paddle.com" : "https://sandbox-vendors.paddle.com"
+    writePaddleVendorCaptureSession(session, input.outputPath)
+  },
+  Effect.provide(Playwright.layer),
+  Effect.scoped
+)
 
 async function signInToPaddleVendor(
   page: Page,

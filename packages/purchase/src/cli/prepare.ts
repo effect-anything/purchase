@@ -13,7 +13,7 @@ import { Paddle } from "../paddle.ts"
 import { Stripe } from "../stripe.ts"
 import {
   formatPrepareResult as formatPrepareResultDetails,
-  prepareProvider,
+  prepare,
   PurchaseConfigLayer
 } from "../sync/config-service.ts"
 import { loadPurchaseConfigModule } from "./config-loader.ts"
@@ -169,7 +169,7 @@ export const prepareCommand = Command.make("prepare", prepareOptions, (config) =
     catch: (error) => error
   }).pipe(
     Effect.flatMap(({ options, purchase, providerConfig }) =>
-      prepareProvider({
+      prepare({
         dryRun: options.dryRun,
         environment: options.environment,
         approvedCheckoutUrl: options.approvedCheckoutUrl ?? providerConfig?.approvedCheckoutUrl,
