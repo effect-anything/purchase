@@ -2,7 +2,7 @@ import { Playwright } from "effect-playwright"
 import * as Effect from "effect/Effect"
 import { chromium, type Frame, type Locator, type Page } from "playwright-core"
 
-import type { PaymentClient } from "../../provider/client.ts"
+import type { PaymentProvider } from "../../provider/client.ts"
 
 import {
   type CompleteProviderCheckoutInput,
@@ -17,7 +17,7 @@ import {
 import { optionOrPaymentTestError, waitUntil } from "../utils.ts"
 
 export const makePaddleTestDriver = (input: {
-  readonly provider: PaymentClient.Methods
+  readonly provider: PaymentProvider.Methods
   readonly browser?: Required<PaymentTestBrowserOptions> | undefined
 }): PaymentTestDriver => {
   const completeCheckout = Effect.fn(
@@ -28,11 +28,7 @@ export const makePaddleTestDriver = (input: {
       const page = yield* context.newPage
 
       yield* page.use((nativePage) => gotoWithRetry(nativePage, args.checkoutUrl))
-      const iframeReady = yield* page
-        .use((nativePage) => nativePage.locator('iframe[name="paddle_frame"]').first().waitFor({ timeout: 30_000 }))
-        .pipe(Effect.either)
-
-      yield* page.waitForTimeout(5_000)
+      yield* page.use((nativePage) => waitForCheckoutSurface(nativePage)).pipe(Effect.either)
 
       const checkoutScope: Pick<typeof page, "locator" | "getByRole" | "getByLabel" | "getByText"> =
         (yield* page.locator('iframe[name="paddle_frame"]').count) > 0
@@ -118,7 +114,9 @@ export const makePaddleTestDriver = (input: {
       if ((yield* continueButton.count) > 0) {
         yield* continueButton.click({ force: true })
       }
-      yield* page.waitForTimeout(10_000)
+      yield* page
+        .use((nativePage) => waitForVisibleField(nativePage, CARD_NUMBER_SELECTORS, 20_000))
+        .pipe(Effect.either)
 
       const paymentScope: Pick<typeof page, "locator" | "getByRole" | "getByLabel" | "getByText"> =
         (yield* page.locator('iframe[name="paddle_frame"]').count) > 0
@@ -139,9 +137,11 @@ export const makePaddleTestDriver = (input: {
           message: `Paddle card fields could not be filled: ${cardResult.message}\n${text._tag === "Right" ? text.right.slice(0, 500) : ""}`
         })
       }
-      yield* page.waitForTimeout(1_000)
+
+      yield* page.use((nativePage) => waitForSubmitButton(nativePage, 10_000)).pipe(Effect.either)
+
       const submitButton = paymentScope.getByRole("button", {
-        name: /Subscribe now|Pay now|Complete purchase|Start subscription|Add payment method/i
+        name: SUBMIT_BUTTON_PATTERN
       })
       if ((yield* submitButton.count) === 0) {
         const text = yield* paymentScope.locator("body").innerText({ timeout: 5_000 })
@@ -149,35 +149,32 @@ export const makePaddleTestDriver = (input: {
       }
       yield* page
         .use(async (nativePage) => {
-          await submitPaddleCardPayment(nativePage)
-          await nativePage
-            .waitForFunction(
-              () => /success|complete|thank you|paid|processing|redirecting/i.test(document.body.innerText),
-              undefined,
-              { timeout: 20_000 }
-            )
-            .catch(() => undefined)
+          const submitted = await submitPaddleCardPayment(nativePage)
+          if (!submitted) {
+            throw new PaymentTestError({
+              message: `Paddle checkout did not enter a submitted state after clicking the submit button:\n${await paddleCheckoutDiagnostics(nativePage)}`
+            })
+          }
         })
         .pipe(
           Effect.mapError(
             (cause) => new PaymentTestError({ message: "Paddle submit button could not be clicked", cause })
           )
         )
-      const checkoutText = yield* paymentScope.locator("body").innerText({ timeout: 5_000 }).pipe(Effect.either)
-      if (
-        checkoutText._tag === "Right" &&
-        /Email address|Country|Card number|CVV|CVC|Select a country/i.test(checkoutText.right)
-      ) {
-        const diagnostics = yield* page.use((nativePage) => paddleCheckoutDiagnostics(nativePage))
-        return yield* new PaymentTestError({
-          message: `Paddle checkout remained on the payment form after submit: ${checkoutText.right.slice(0, 700)}\n${diagnostics}`
+
+      const transactionId = readPaddleTransactionId(args.checkoutUrl)
+      if (transactionId) {
+        yield* waitForTransaction({
+          transactionId,
+          timeout: "45 seconds",
+          interval: "1 second"
         })
       }
     },
     Effect.provide(Playwright.layer),
     Effect.scoped,
     Effect.mapError((cause) =>
-      cause instanceof PaymentTestError
+      cause._tag === "PaymentTestError"
         ? cause
         : new PaymentTestError({ message: "Paddle checkout automation failed", cause })
     )
@@ -196,7 +193,7 @@ export const makePaddleTestDriver = (input: {
           })
         ),
         Effect.mapError((cause) =>
-          cause instanceof PaymentTestError
+          cause._tag === "PaymentTestError"
             ? cause
             : new PaymentTestError({ message: "Failed to read Paddle transaction", cause })
         )
@@ -222,7 +219,7 @@ export const makePaddleTestDriver = (input: {
             })
           ),
           Effect.mapError((cause) =>
-            cause instanceof PaymentTestError
+            cause._tag === "PaymentTestError"
               ? cause
               : new PaymentTestError({ message: "Failed to read Paddle subscription", cause })
           )
@@ -248,6 +245,17 @@ const countryKeyboardOffset = (countryCode: string) => (countryCode === "AU" ? 1
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
+const readPaddleTransactionId = (checkoutUrl: string) => {
+  try {
+    const params = new URL(checkoutUrl).searchParams
+    const transactionId = params.get("_ptxn") || params.get("transaction_id") || params.get("txn")
+
+    return transactionId
+  } catch {
+    return undefined
+  }
+}
+
 type PaddleCardInput = {
   readonly cardNumber: string
   readonly cardholderName: string
@@ -257,21 +265,25 @@ type PaddleCardInput = {
 
 type PaddleCardFillResult = { readonly _tag: "Success" } | { readonly _tag: "Failure"; readonly message: string }
 
+const CARD_NUMBER_SELECTORS = [
+  'input[name="cardNumber"]',
+  'input[autocomplete="cc-number"]',
+  'input[aria-label*="Card number" i]',
+  'input[placeholder*="Card number" i]',
+  '[contenteditable="true"][aria-label*="Card number" i]',
+  'input[name*="number" i]'
+] as const
+
+const SUBMIT_BUTTON_PATTERN = /Subscribe now|Pay now|Complete purchase|Start subscription|Add payment method/i
+
 const fillPaddleCardForm = async (page: Page, input: PaddleCardInput): Promise<PaddleCardFillResult> => {
-  const cardNumber = await findVisibleField(page, [
-    'input[name="cardNumber"]',
-    'input[autocomplete="cc-number"]',
-    'input[aria-label*="Card number" i]',
-    'input[placeholder*="Card number" i]',
-    '[contenteditable="true"][aria-label*="Card number" i]',
-    'input[name*="number" i]'
-  ])
+  const cardNumber = await findVisibleField(page, CARD_NUMBER_SELECTORS)
   if (!cardNumber) {
     return { _tag: "Failure", message: await paddleCheckoutDiagnostics(page) }
   }
 
-  await typeIntoField(cardNumber, input.cardNumber)
-  await fillOptionalField(
+  await typeIntoField(cardNumber, input.cardNumber, { minDigits: 15 })
+  const cardholder = await fillOptionalField(
     page,
     [
       'input[name="cardHolder"]',
@@ -281,9 +293,10 @@ const fillPaddleCardForm = async (page: Page, input: PaddleCardInput): Promise<P
       'input[placeholder*="Name on card" i]',
       'input[name*="name" i]'
     ],
-    input.cardholderName
+    input.cardholderName,
+    { minLength: Math.min(input.cardholderName.length, 3) }
   )
-  await fillOptionalField(
+  const expiry = await fillOptionalField(
     page,
     [
       'input[name="expiry"]',
@@ -293,9 +306,10 @@ const fillPaddleCardForm = async (page: Page, input: PaddleCardInput): Promise<P
       'input[placeholder*="MM" i]',
       'input[name*="exp" i]'
     ],
-    input.expiry
+    input.expiry,
+    { minDigits: 4 }
   )
-  await fillOptionalField(
+  const cvv = await fillOptionalField(
     page,
     [
       'input[name="cvv"]',
@@ -308,8 +322,13 @@ const fillPaddleCardForm = async (page: Page, input: PaddleCardInput): Promise<P
       'input[placeholder*="CVC" i]',
       'input[name*="cv" i]'
     ],
-    input.cvv
+    input.cvv,
+    { minDigits: 3 }
   )
+
+  if (!cardholder || !expiry || !cvv) {
+    return { _tag: "Failure", message: await paddleCheckoutDiagnostics(page) }
+  }
 
   return { _tag: "Success" }
 }
@@ -328,45 +347,116 @@ const gotoWithRetry = async (page: Page, url: string) => {
   throw lastError
 }
 
-const fillOptionalField = async (page: Page, selectors: ReadonlyArray<string>, value: string) => {
-  const field = await findVisibleField(page, selectors)
-  if (field) {
-    await typeIntoField(field, value)
-  } else {
-    await page.keyboard.press("Tab")
-    await page.keyboard.type(value, { delay: 20 })
+const waitForCheckoutSurface = async (page: Page) => {
+  await page.locator('iframe[name="paddle_frame"]').first().waitFor({ state: "visible", timeout: 30_000 })
+  await page.frameLocator('iframe[name="paddle_frame"]').locator("body").waitFor({ state: "visible", timeout: 15_000 })
+}
+
+const waitForSubmitButton = async (page: Page, timeoutMs: number) => {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    for (const frame of page.frames()) {
+      const button = frame.locator("button").filter({ hasText: SUBMIT_BUTTON_PATTERN }).first()
+      if ((await button.count().catch(() => 0)) > 0 && (await button.isVisible().catch(() => false))) {
+        return
+      }
+    }
+
+    await page.waitForTimeout(250)
   }
 }
 
-const submitPaddleCardPayment = async (page: Page) => {
+const waitForCheckoutSubmissionResult = async (page: Page, timeoutMs: number): Promise<boolean> => {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    for (const frame of page.frames()) {
+      const text = await frame
+        .locator("body")
+        .innerText({ timeout: 500 })
+        .catch(() => "")
+      if (/contacting your bank|thank you|success|paid|redirecting/i.test(text)) {
+        return true
+      }
+    }
+
+    await page.waitForTimeout(250)
+  }
+
+  return false
+}
+
+const fillOptionalField = async (
+  page: Page,
+  selectors: ReadonlyArray<string>,
+  value: string,
+  verify: { readonly minDigits?: number | undefined; readonly minLength?: number | undefined } = {}
+) => {
+  const field = await findVisibleField(page, selectors)
+  if (field) {
+    await typeIntoField(field, value, verify)
+    return true
+  }
+
+  await page.keyboard.press("Tab")
+  await page.keyboard.type(value, { delay: 20 })
+  return false
+}
+
+const submitPaddleCardPayment = async (page: Page): Promise<boolean> => {
   const selectors = ['[data-testid="cardPaymentFormSubmitButton"]', 'button[type="submit"]', "button"]
   for (const frame of page.frames()) {
     for (const selector of selectors) {
-      const buttons = frame
-        .locator(selector)
-        .filter({ hasText: /Subscribe now|Pay now|Complete purchase|Start subscription|Add payment method/i })
+      const buttons = frame.locator(selector).filter({ hasText: SUBMIT_BUTTON_PATTERN })
       const count = await buttons.count().catch(() => 0)
       for (let index = count - 1; index >= 0; index--) {
         const button = buttons.nth(index)
         if (!(await button.isVisible().catch(() => false))) {
           continue
         }
-        await button.focus()
-        await page.keyboard.press("Enter")
-        await page.waitForTimeout(2_000)
-        return
+        await button.click({ force: true, timeout: 10_000 })
+
+        const submitted = await waitForCheckoutSubmissionResult(page, 12_000)
+        return submitted
       }
     }
   }
   throw new Error(await paddleCheckoutDiagnostics(page))
 }
 
-const typeIntoField = async (field: Locator, value: string) => {
+const typeIntoField = async (
+  field: Locator,
+  value: string,
+  verify: { readonly minDigits?: number | undefined; readonly minLength?: number | undefined } = {}
+) => {
+  await field.waitFor({ state: "visible", timeout: 10_000 })
   await field.click({ force: true, timeout: 10_000 })
-  await field.fill("", { timeout: 5_000 }).catch(() => undefined)
-  await field.pressSequentially(value, { delay: 20, timeout: 10_000 }).catch(async () => {
-    await field.page().keyboard.type(value, { delay: 20 })
-  })
+  await field.fill(value, { timeout: 10_000 })
+
+  const currentValue = await field.inputValue({ timeout: 5_000 }).catch(() => "")
+  const actualDigits = currentValue.replace(/\D/g, "").length
+  const expectedLength = currentValue.trim().length
+  if (
+    (verify.minDigits !== undefined && actualDigits < verify.minDigits) ||
+    (verify.minLength !== undefined && expectedLength < verify.minLength)
+  ) {
+    await field.press(process.platform === "darwin" ? "Meta+A" : "Control+A", { timeout: 5_000 }).catch(() => undefined)
+    await field.press("Backspace", { timeout: 5_000 }).catch(() => undefined)
+    await field.pressSequentially(value, { delay: 60, timeout: 15_000 }).catch(async () => {
+      await field.fill(value, { timeout: 10_000 })
+    })
+  }
+
+  const verifiedValue = await field.inputValue({ timeout: 5_000 }).catch(() => "")
+  const verifiedDigits = verifiedValue.replace(/\D/g, "").length
+  const verifiedLength = verifiedValue.trim().length
+  if (
+    (verify.minDigits !== undefined && verifiedDigits < verify.minDigits) ||
+    (verify.minLength !== undefined && verifiedLength < verify.minLength)
+  ) {
+    throw new Error(`Paddle field was not filled correctly: expected ${value}, got ${verifiedValue}`)
+  }
 }
 
 const findVisibleField = async (page: Page, selectors: ReadonlyArray<string>): Promise<Locator | undefined> => {
@@ -375,6 +465,23 @@ const findVisibleField = async (page: Page, selectors: ReadonlyArray<string>): P
     if (field) {
       return field
     }
+  }
+}
+
+const waitForVisibleField = async (
+  page: Page,
+  selectors: ReadonlyArray<string>,
+  timeoutMs: number
+): Promise<Locator | undefined> => {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const field = await findVisibleField(page, selectors)
+    if (field) {
+      return field
+    }
+
+    await page.waitForTimeout(250)
   }
 }
 
@@ -425,6 +532,11 @@ const paddleCheckoutDiagnostics = async (page: Page) => {
         .catch((cause) => [`button-error:${String(cause)}`])
 
       return {
+        bodyText: await frame
+          .locator("body")
+          .innerText({ timeout: 500 })
+          .then((text) => text.slice(0, 800))
+          .catch((cause) => `body-error:${String(cause)}`),
         buttons,
         index,
         inputs,

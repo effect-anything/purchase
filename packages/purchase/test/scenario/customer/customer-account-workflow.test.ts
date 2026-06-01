@@ -5,7 +5,7 @@ describe("customer account workflow scenarios", () => {
   // The same customer should keep a stable provider identity across multiple workflows.
   // Implementation note:
   // - call checkout.start / portal.createSession / purchases.refund on the same customer
-  // - verify provider-side customer identity through PaymentClient
+  // - verify provider-side customer identity through PaymentProvider
   // - verify local provider refs through SqlClient
   // - assert provider refs are reused instead of duplicated
   // - snapshot reads should remain stable across the whole flow

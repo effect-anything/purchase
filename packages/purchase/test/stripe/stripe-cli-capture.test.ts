@@ -34,7 +34,10 @@ describe.runIf(() => process.env.STRIPE_LIVE_TESTS === "1" && stripeCliAvailable
 
           const event = yield* provider.webhooksUnmarshal({
             payload: captured.payload,
-            signature: captured.signature
+            headers: {
+              "stripe-signature": captured.signature,
+              "paddle-signature": captured.signature
+            }
           })
 
           expect(event.type).toBe("checkout.session.completed")

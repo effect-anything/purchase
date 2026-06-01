@@ -17,13 +17,13 @@ import type {
 } from "./internal/stripe-schema.ts"
 
 import { CommercialOfferId } from "../core/commercial-schema.ts"
-import { CheckoutNotSupported, InvoiceNotFound } from "../errors.ts"
+import { CheckoutNotSupported, InvoiceNotFound, WebhookUnmarshalError } from "../errors.ts"
 import {
-  PaymentClient,
+  PaymentProvider,
   type PaymentWebhookKind,
   type PaymentWebhookNormalization,
   type StripeImpl,
-  makePaymentClient
+  makePaymentProvider
 } from "../provider/client.ts"
 import {
   BillingPortalSession,
@@ -46,7 +46,7 @@ import { StripeClient, StripeConfig, makeStripeClient } from "./internal/stripe-
 /**
  * Stripe payment client service.
  */
-export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeImpl>() {
+export class Stripe extends Context.Tag("@xstack/purchase/provider/Stripe")<Stripe, StripeImpl>() {
   static readonly _tag: PaymentProviderTag = "stripe"
 
   static make = Effect.gen(function* () {
@@ -55,15 +55,21 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     const stripeHi: StripeImpl["stripeHi"] = Effect.succeed("hi")
 
-    const webhooksUnmarshal: PaymentClient.Methods["webhooksUnmarshal"] = ({ signature, payload }) =>
-      stripe.webhooksUnmarshal(payload, signature)
+    const webhooksUnmarshal: PaymentProvider.Methods["webhooksUnmarshal"] = ({ headers, payload }) => {
+      const signature = headers["stripe-signature"]
+      if (!signature) {
+        return Effect.fail(new WebhookUnmarshalError({ error: "Missing stripe-signature header" }))
+      }
 
-    const webhooksNormalize: PaymentClient.Methods["webhooksNormalize"] = (event) =>
+      return stripe.webhooksUnmarshal(payload, signature)
+    }
+
+    const webhooksNormalize: PaymentProvider.Methods["webhooksNormalize"] = (event) =>
       Effect.succeed(normalizeStripeWebhook(event))
 
     // ----------------------------------------------------------------------------------------
 
-    const pricesList: PaymentClient.Methods["prices"]["list"] = Effect.fn(function* (args) {
+    const pricesList: PaymentProvider.Methods["prices"]["list"] = Effect.fn(function* (args) {
       const prices = yield* stripe.prices
         .list({
           productId: args.productId,
@@ -75,7 +81,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       return yield* Price.decodeMany(prices.map(formatPrice)).pipe(Effect.orDie)
     })
 
-    const pricesGet: PaymentClient.Methods["prices"]["get"] = Effect.fn(function* (args) {
+    const pricesGet: PaymentProvider.Methods["prices"]["get"] = Effect.fn(function* (args) {
       const stripePrice = yield* stripe.prices.get({ priceId: args.priceId }).pipe(Effect.orDie)
 
       return yield* Option.match(stripePrice, {
@@ -84,19 +90,19 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       })
     })
 
-    const pricesCreate: PaymentClient.Methods["prices"]["create"] = Effect.fn(function* (args) {
+    const pricesCreate: PaymentProvider.Methods["prices"]["create"] = Effect.fn(function* (args) {
       const stripePrice = yield* stripe.prices.create(args)
 
       return yield* Price.decode(formatPrice(stripePrice)).pipe(Effect.orDie)
     })
 
-    const pricesUpdate: PaymentClient.Methods["prices"]["update"] = Effect.fn(function* (args) {
+    const pricesUpdate: PaymentProvider.Methods["prices"]["update"] = Effect.fn(function* (args) {
       const stripePrice = yield* stripe.prices.update(args)
 
       return yield* Price.decode(formatPrice(stripePrice)).pipe(Effect.orDie)
     })
 
-    const pricesArchive: PaymentClient.Methods["prices"]["archive"] = Effect.fn(function* (args) {
+    const pricesArchive: PaymentProvider.Methods["prices"]["archive"] = Effect.fn(function* (args) {
       const stripePrice = yield* stripe.prices.update({
         priceId: args.priceId,
         active: false
@@ -125,7 +131,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       ).pipe(Effect.orDie)
     })
 
-    const productsStream: PaymentClient.Methods["products"]["stream"] = (args = {}) =>
+    const productsStream: PaymentProvider.Methods["products"]["stream"] = (args = {}) =>
       Stream.unwrap(
         Effect.gen(function* () {
           const states = productStatusToActive(args.status)
@@ -137,7 +143,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
         })
       )
 
-    const productsList: PaymentClient.Methods["products"]["list"] = Effect.fn(function* (args) {
+    const productsList: PaymentProvider.Methods["products"]["list"] = Effect.fn(function* (args) {
       return yield* productsStream({ after: args.after, perPage: args.perPage, status: ["active"] }).pipe(
         Stream.take(args.perPage ?? 10),
         Stream.runCollect,
@@ -145,7 +151,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       )
     })
 
-    const productsGet: PaymentClient.Methods["products"]["get"] = Effect.fn(function* (args) {
+    const productsGet: PaymentProvider.Methods["products"]["get"] = Effect.fn(function* (args) {
       const [stripeProduct, productPrices] = yield* Effect.all(
         [stripe.products.get({ productId: args.productId }), stripe.prices.listAll({ productId: args.productId })],
         { concurrency: "unbounded" }
@@ -158,21 +164,21 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       })
     })
 
-    const productsCreate: PaymentClient.Methods["products"]["create"] = Effect.fn(function* (args) {
+    const productsCreate: PaymentProvider.Methods["products"]["create"] = Effect.fn(function* (args) {
       const stripeProduct = yield* stripe.products.create(args)
       const productPrices = yield* stripe.prices.listAll({ productId: stripeProduct.id }).pipe(Effect.orDie)
 
       return yield* Product.decode(formatProduct(stripeProduct, productPrices)).pipe(Effect.orDie)
     })
 
-    const productsUpdate: PaymentClient.Methods["products"]["update"] = Effect.fn(function* (args) {
+    const productsUpdate: PaymentProvider.Methods["products"]["update"] = Effect.fn(function* (args) {
       const stripeProduct = yield* stripe.products.update(args)
       const productPrices = yield* stripe.prices.listAll({ productId: stripeProduct.id }).pipe(Effect.orDie)
 
       return yield* Product.decode(formatProduct(stripeProduct, productPrices)).pipe(Effect.orDie)
     })
 
-    const productsArchive: PaymentClient.Methods["products"]["archive"] = Effect.fn(function* (args) {
+    const productsArchive: PaymentProvider.Methods["products"]["archive"] = Effect.fn(function* (args) {
       const stripeProduct = yield* stripe.products.update({
         productId: args.productId,
         active: false
@@ -184,7 +190,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     // ----------------------------------------------------------------------------------------
 
-    const customersFind: PaymentClient.Methods["customers"]["find"] = Effect.fn(function* (args) {
+    const customersFind: PaymentProvider.Methods["customers"]["find"] = Effect.fn(function* (args) {
       const customers = yield* stripe.customers
         .find({
           id: args.customerProviderId ? [args.customerProviderId] : undefined,
@@ -201,7 +207,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       return yield* Customer.decode(formatCustomer(customer)).pipe(Effect.map(Option.some), Effect.orDie)
     })
 
-    const customersGet: PaymentClient.Methods["customers"]["get"] = Effect.fn(function* (args) {
+    const customersGet: PaymentProvider.Methods["customers"]["get"] = Effect.fn(function* (args) {
       const stripeCustomer = yield* stripe.customers.get({ customerId: args.customerProviderId }).pipe(Effect.orDie)
 
       return yield* Option.match(stripeCustomer, {
@@ -210,13 +216,13 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       })
     })
 
-    const customersCreate: PaymentClient.Methods["customers"]["create"] = Effect.fn(function* (args) {
+    const customersCreate: PaymentProvider.Methods["customers"]["create"] = Effect.fn(function* (args) {
       const stripeCustomer = yield* stripe.customers.create(args)
 
       return yield* Customer.decode(formatCustomer(stripeCustomer)).pipe(Effect.orDie)
     })
 
-    const customersUpdate: PaymentClient.Methods["customers"]["update"] = Effect.fn(function* (args) {
+    const customersUpdate: PaymentProvider.Methods["customers"]["update"] = Effect.fn(function* (args) {
       const stripeCustomer = yield* stripe.customers.update({
         customerId: args.customerProviderId,
         email: args.email,
@@ -229,7 +235,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     // ----------------------------------------------------------------------------------------
 
-    const subscriptionStream: PaymentClient.Methods["subscriptions"]["stream"] = (args) =>
+    const subscriptionStream: PaymentProvider.Methods["subscriptions"]["stream"] = (args) =>
       paginateByLastId(args.after, (cursor) =>
         stripe.subscriptions
           .list({
@@ -244,7 +250,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
           )
       )
 
-    const subscriptionsList: PaymentClient.Methods["subscriptions"]["list"] = Effect.fn(function* (args) {
+    const subscriptionsList: PaymentProvider.Methods["subscriptions"]["list"] = Effect.fn(function* (args) {
       return yield* subscriptionStream({
         customerProviderId: args.customerProviderId,
         after: args.after,
@@ -252,7 +258,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }).pipe(Stream.take(args.perPage ?? 10), Stream.runCollect, Effect.map(Chunk.toReadonlyArray))
     })
 
-    const subscriptionsGet: PaymentClient.Methods["subscriptions"]["get"] = Effect.fn(function* (args) {
+    const subscriptionsGet: PaymentProvider.Methods["subscriptions"]["get"] = Effect.fn(function* (args) {
       const stripeSubscription = yield* stripe.subscriptions
         .get({ subscriptionId: args.subscriptionId })
         .pipe(Effect.orDie)
@@ -264,14 +270,14 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       })
     })
 
-    const subscriptionsLatest: PaymentClient.Methods["subscriptions"]["latest"] = Effect.fn(function* (args) {
+    const subscriptionsLatest: PaymentProvider.Methods["subscriptions"]["latest"] = Effect.fn(function* (args) {
       return yield* subscriptionStream({ customerProviderId: args.customerProviderId, perPage: 10 }).pipe(
         Stream.take(1),
         Stream.runHead
       )
     })
 
-    const subscriptionsCancel: PaymentClient.Methods["subscriptions"]["cancel"] = Effect.fn(function* (args) {
+    const subscriptionsCancel: PaymentProvider.Methods["subscriptions"]["cancel"] = Effect.fn(function* (args) {
       yield* stripe.subscriptions
         .cancel({
           subscriptionId: args.subscriptionId,
@@ -280,7 +286,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
         .pipe(Effect.orDie)
     })
 
-    const subscriptionsChange: PaymentClient.Methods["subscriptions"]["change"] = Effect.fn(function* (args) {
+    const subscriptionsChange: PaymentProvider.Methods["subscriptions"]["change"] = Effect.fn(function* (args) {
       const subscription = yield* stripe.subscriptions
         .change({
           subscriptionId: args.subscriptionId,
@@ -293,7 +299,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       return yield* Subscription.decode(formatSubscription(subscription)).pipe(Effect.orDie)
     })
 
-    const subscriptionsPreviewChange: PaymentClient.Methods["subscriptions"]["previewChange"] = Effect.fn(
+    const subscriptionsPreviewChange: PaymentProvider.Methods["subscriptions"]["previewChange"] = Effect.fn(
       function* (args) {
         const preview = yield* stripe.subscriptions
           .previewChange({
@@ -320,7 +326,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }
     )
 
-    const subscriptionsCharge: PaymentClient.Methods["subscriptions"]["charge"] = Effect.fn(function* (args) {
+    const subscriptionsCharge: PaymentProvider.Methods["subscriptions"]["charge"] = Effect.fn(function* (args) {
       const nextEffectiveFrom = args.effectiveFrom ?? "immediately"
 
       const preview = yield* stripe.subscriptions
@@ -354,7 +360,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }).pipe(Effect.orDie)
     })
 
-    const subscriptionsPreviewCharge: PaymentClient.Methods["subscriptions"]["previewCharge"] = Effect.fn(
+    const subscriptionsPreviewCharge: PaymentProvider.Methods["subscriptions"]["previewCharge"] = Effect.fn(
       function* (args) {
         const nextEffectiveFrom = args.effectiveFrom ?? "immediately"
 
@@ -376,17 +382,17 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }
     )
 
-    const subscriptionsPause: PaymentClient.Methods["subscriptions"]["pause"] = Effect.fn(function* (args) {
+    const subscriptionsPause: PaymentProvider.Methods["subscriptions"]["pause"] = Effect.fn(function* (args) {
       return yield* stripe.subscriptions.pause(args)
     })
 
-    const subscriptionsResume: PaymentClient.Methods["subscriptions"]["resume"] = Effect.fn(function* (args) {
+    const subscriptionsResume: PaymentProvider.Methods["subscriptions"]["resume"] = Effect.fn(function* (args) {
       return yield* stripe.subscriptions.resume(args)
     })
 
     // ----------------------------------------------------------------------------------------
 
-    const transactionStream: PaymentClient.Methods["transactions"]["stream"] = (args) =>
+    const transactionStream: PaymentProvider.Methods["transactions"]["stream"] = (args) =>
       paginateByLastId(args.after, (cursor) =>
         stripe.transactions
           .list({
@@ -401,7 +407,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
           )
       )
 
-    const transactionsList: PaymentClient.Methods["transactions"]["list"] = Effect.fn(function* (args) {
+    const transactionsList: PaymentProvider.Methods["transactions"]["list"] = Effect.fn(function* (args) {
       return yield* transactionStream({
         customerProviderId: args.customerProviderId,
         after: args.after,
@@ -409,7 +415,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }).pipe(Stream.take(args.perPage ?? 10), Stream.runCollect, Effect.map(Chunk.toReadonlyArray))
     })
 
-    const transactionsGet: PaymentClient.Methods["transactions"]["get"] = Effect.fn(function* (args) {
+    const transactionsGet: PaymentProvider.Methods["transactions"]["get"] = Effect.fn(function* (args) {
       const stripeTransaction = yield* stripe.transactions.get({ transactionId: args.transactionId }).pipe(Effect.orDie)
 
       return yield* Option.match(stripeTransaction, {
@@ -419,14 +425,14 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       })
     })
 
-    const transactionsLatest: PaymentClient.Methods["transactions"]["latest"] = Effect.fn(function* (args) {
+    const transactionsLatest: PaymentProvider.Methods["transactions"]["latest"] = Effect.fn(function* (args) {
       return yield* transactionStream({ customerProviderId: args.customerProviderId, perPage: 10 }).pipe(
         Stream.take(1),
         Stream.runHead
       )
     })
 
-    const transactionsGenerateInvoicePDF: PaymentClient.Methods["transactions"]["generateInvoicePDF"] = Effect.fn(
+    const transactionsGenerateInvoicePDF: PaymentProvider.Methods["transactions"]["generateInvoicePDF"] = Effect.fn(
       function* (args) {
         return yield* stripe.transactions
           .generateInvoicePDF({ transactionId: args.transactionId })
@@ -434,7 +440,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }
     )
 
-    const transactionsPreview: PaymentClient.Methods["transactions"]["preview"] = Effect.fn(function* (args) {
+    const transactionsPreview: PaymentProvider.Methods["transactions"]["preview"] = Effect.fn(function* (args) {
       const preview = yield* stripe.transactions
         .preview({
           customerId: args.providerCustomerId,
@@ -453,7 +459,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }).pipe(Effect.orDie)
     })
 
-    const transactionsCreate: PaymentClient.Methods["transactions"]["create"] = Effect.fn(function* (args) {
+    const transactionsCreate: PaymentProvider.Methods["transactions"]["create"] = Effect.fn(function* (args) {
       const invoice = yield* stripe.transactions
         .create({
           customerId: args.providerCustomerId,
@@ -469,7 +475,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     // ----------------------------------------------------------------------------------------
 
-    const refundsList: PaymentClient.Methods["refunds"]["list"] = Effect.fn(function* (args) {
+    const refundsList: PaymentProvider.Methods["refunds"]["list"] = Effect.fn(function* (args) {
       return yield* stripe.refunds
         .list({
           transactionId: args.transactionId,
@@ -484,7 +490,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
         )
     })
 
-    const refundsGet: PaymentClient.Methods["refunds"]["get"] = Effect.fn(function* (args) {
+    const refundsGet: PaymentProvider.Methods["refunds"]["get"] = Effect.fn(function* (args) {
       return yield* stripe.refunds.get({ refundId: args.refundId }).pipe(
         Effect.flatMap(
           Option.match({
@@ -495,7 +501,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       )
     })
 
-    const refundsCreate: PaymentClient.Methods["refunds"]["create"] = Effect.fn(function* (args) {
+    const refundsCreate: PaymentProvider.Methods["refunds"]["create"] = Effect.fn(function* (args) {
       return yield* stripe.transactions
         .refund({ transactionId: args.transactionId, amount: args.amount })
         .pipe(Effect.flatMap(RefundResult.decode), Effect.orDie)
@@ -503,7 +509,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     // ----------------------------------------------------------------------------------------
 
-    const checkoutPrepare: PaymentClient.Methods["checkout"]["prepare"] = Effect.fn(function* (args) {
+    const checkoutPrepare: PaymentProvider.Methods["checkout"]["prepare"] = Effect.fn(function* (args) {
       const metadata = {
         projectId: args.projectId,
         offerId: args.offerId,
@@ -558,7 +564,7 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
 
     // ----------------------------------------------------------------------------------------
 
-    const billingPortalCreateSession: PaymentClient.Methods["billingPortal"]["createSession"] = Effect.fn(
+    const billingPortalCreateSession: PaymentProvider.Methods["billingPortal"]["createSession"] = Effect.fn(
       function* (args) {
         const session = yield* stripe.billingPortal
           .createSession({
@@ -643,13 +649,13 @@ export class Stripe extends Context.Tag("@pay:provider-stripe")<Stripe, StripeIm
       }
     } satisfies Omit<StripeImpl, "onDialect" | "onDialectOrElse">
 
-    return makePaymentClient<StripeImpl>(Stripe._tag, methods)
+    return makePaymentProvider<StripeImpl>(Stripe._tag, methods)
   })
 
   static layerConfig = (config: StripeConfig) =>
-    Layer.effect(PaymentClient, Stripe.make).pipe(Layer.provide(Layer.effect(StripeClient, makeStripeClient(config))))
+    Layer.effect(PaymentProvider, Stripe.make).pipe(Layer.provide(Layer.effect(StripeClient, makeStripeClient(config))))
 
-  static layer = Layer.effect(PaymentClient, Stripe.make).pipe(
+  static layer = Layer.effect(PaymentProvider, Stripe.make).pipe(
     Layer.provide(
       Layer.unwrapEffect(
         Effect.gen(function* () {

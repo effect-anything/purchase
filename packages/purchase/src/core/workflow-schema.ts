@@ -302,9 +302,10 @@ export class ReceiveWebhookInput extends Schema.Class<ReceiveWebhookInput>("@pay
    */
   body: Schema.String,
   /**
-   * Provider-specific verification signature header value.
+   * Raw webhook request headers. The active payment provider is responsible for
+   * selecting and verifying its own signature header.
    */
-  signature: Schema.String
+  headers: Schema.Record({ key: Schema.String, value: Schema.String })
 }) {}
 
 export class ReceiveWebhookResult extends Schema.Class<ReceiveWebhookResult>("@pay/core/ReceiveWebhookResult")({

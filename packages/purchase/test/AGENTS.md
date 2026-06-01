@@ -15,7 +15,7 @@ The purpose of these tests is to make payment semantics fast, deterministic, and
 
 ## Allowed Test Doubles
 
-- Fake `PaymentClient` implementations are allowed when the test is validating SDK workflow semantics.
+- Fake `PaymentProvider` implementations are allowed when the test is validating SDK workflow semantics.
 - Provider simulators are allowed when validating local provider contract assumptions.
 - Recorded fixtures and replay are allowed only when the test states which provider payload contract is being locked.
 - Database harnesses such as the SQLite pay harness are allowed for durable-state assertions.

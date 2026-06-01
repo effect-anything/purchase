@@ -18,11 +18,17 @@ import type {
 } from "./internal/paddle-schema.ts"
 
 import { CommercialOfferId } from "../core/commercial-schema.ts"
-import { CheckoutNotSupported, InvoiceNotFound, PriceNotFound, ProviderOperationNotSupported } from "../errors.ts"
 import {
-  makePaymentClient,
+  CheckoutNotSupported,
+  InvoiceNotFound,
+  PriceNotFound,
+  ProviderOperationNotSupported,
+  WebhookUnmarshalError
+} from "../errors.ts"
+import {
+  makePaymentProvider,
   type PaddleImpl,
-  PaymentClient,
+  PaymentProvider,
   type PaymentWebhookKind,
   type PaymentWebhookNormalization
 } from "../provider/client.ts"
@@ -48,7 +54,7 @@ import { makePaddleClient, PaddleClient, PaddleConfig } from "./internal/paddle-
 /**
  * Paddle payment client service.
  */
-export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleImpl>() {
+export class Paddle extends Context.Tag("@xstack/purchase/provider/Paddle")<Paddle, PaddleImpl>() {
   static readonly _tag: PaymentProviderTag = "paddle"
 
   static make = Effect.gen(function* () {
@@ -57,15 +63,21 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     const paddleHi: PaddleImpl["paddleHi"] = Effect.succeed("hi")
 
-    const webhooksUnmarshal: PaymentClient.Methods["webhooksUnmarshal"] = ({ signature, payload }) =>
-      paddle.webhooksUnmarshal(payload, Redacted.value(config.webhookToken), signature)
+    const webhooksUnmarshal: PaymentProvider.Methods["webhooksUnmarshal"] = ({ headers, payload }) => {
+      const signature = headers["paddle-signature"]
+      if (!signature) {
+        return Effect.fail(new WebhookUnmarshalError({ error: "Missing paddle-signature header" }))
+      }
 
-    const webhooksNormalize: PaymentClient.Methods["webhooksNormalize"] = (event) =>
+      return paddle.webhooksUnmarshal(payload, Redacted.value(config.webhookToken), signature)
+    }
+
+    const webhooksNormalize: PaymentProvider.Methods["webhooksNormalize"] = (event) =>
       Effect.succeed(normalizePaddleWebhook(event))
 
     // ----------------------------------------------------------------------------------------
 
-    const priceList: PaymentClient.Methods["prices"]["list"] = Effect.fn(function* (args) {
+    const priceList: PaymentProvider.Methods["prices"]["list"] = Effect.fn(function* (args) {
       const prices = yield* paddle.prices
         .list({
           productId: args.productId ? [args.productId] : undefined,
@@ -77,7 +89,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       return yield* Price.decodeMany(prices.map(formatPrices)).pipe(Effect.orDie)
     })
 
-    const priceGet: PaymentClient.Methods["prices"]["get"] = Effect.fn(function* (args) {
+    const priceGet: PaymentProvider.Methods["prices"]["get"] = Effect.fn(function* (args) {
       const paddlePrice = yield* paddle.prices.get({ priceId: args.priceId }).pipe(Effect.orDie)
 
       return yield* Option.match(paddlePrice, {
@@ -86,19 +98,19 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       })
     })
 
-    const priceCreate: PaymentClient.Methods["prices"]["create"] = Effect.fn(function* (args) {
+    const priceCreate: PaymentProvider.Methods["prices"]["create"] = Effect.fn(function* (args) {
       const paddlePrice = yield* paddle.prices.create(args)
 
       return yield* Price.decode(formatPrices(paddlePrice)).pipe(Effect.orDie)
     })
 
-    const priceUpdate: PaymentClient.Methods["prices"]["update"] = Effect.fn(function* (args) {
+    const priceUpdate: PaymentProvider.Methods["prices"]["update"] = Effect.fn(function* (args) {
       const paddlePrice = yield* paddle.prices.update(args)
 
       return yield* Price.decode(formatPrices(paddlePrice)).pipe(Effect.orDie)
     })
 
-    const priceArchive: PaymentClient.Methods["prices"]["archive"] = Effect.fn(function* (args) {
+    const priceArchive: PaymentProvider.Methods["prices"]["archive"] = Effect.fn(function* (args) {
       const paddlePrice = yield* paddle.prices.update({
         priceId: args.priceId,
         active: false
@@ -109,7 +121,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     // ----------------------------------------------------------------------------------------
 
-    const productStream: PaymentClient.Methods["products"]["stream"] = (args = {}) =>
+    const productStream: PaymentProvider.Methods["products"]["stream"] = (args = {}) =>
       Stream.unwrap(
         Effect.gen(function* () {
           const findStatus = args.status ?? ["active", "archived"]
@@ -143,7 +155,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         })
       )
 
-    const productList: PaymentClient.Methods["products"]["list"] = Effect.fn(function* (args) {
+    const productList: PaymentProvider.Methods["products"]["list"] = Effect.fn(function* (args) {
       return yield* productStream({ after: args.after, status: ["active"], perPage: args.perPage }).pipe(
         Stream.take(args.perPage ?? 10),
         Stream.runCollect,
@@ -151,7 +163,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       )
     })
 
-    const productGet: PaymentClient.Methods["products"]["get"] = Effect.fn(function* (args) {
+    const productGet: PaymentProvider.Methods["products"]["get"] = Effect.fn(function* (args) {
       const [paddleProduct, productPrices] = yield* Effect.all(
         [paddle.products.get({ productId: args.productId }), paddle.prices.list({ productId: [args.productId] })],
         { concurrency: "unbounded" }
@@ -164,21 +176,21 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       })
     })
 
-    const productCreate: PaymentClient.Methods["products"]["create"] = Effect.fn(function* (args) {
+    const productCreate: PaymentProvider.Methods["products"]["create"] = Effect.fn(function* (args) {
       const paddleProduct = yield* paddle.products.create(args)
       const productPrices = yield* paddle.prices.list({ productId: [paddleProduct.id] }).pipe(Effect.orDie)
 
       return yield* Product.decode(formatProduct(paddleProduct, productPrices)).pipe(Effect.orDie)
     })
 
-    const productUpdate: PaymentClient.Methods["products"]["update"] = Effect.fn(function* (args) {
+    const productUpdate: PaymentProvider.Methods["products"]["update"] = Effect.fn(function* (args) {
       const paddleProduct = yield* paddle.products.update(args)
       const productPrices = yield* paddle.prices.list({ productId: [paddleProduct.id] }).pipe(Effect.orDie)
 
       return yield* Product.decode(formatProduct(paddleProduct, productPrices)).pipe(Effect.orDie)
     })
 
-    const productArchive: PaymentClient.Methods["products"]["archive"] = Effect.fn(function* (args) {
+    const productArchive: PaymentProvider.Methods["products"]["archive"] = Effect.fn(function* (args) {
       const paddleProduct = yield* paddle.products.update({
         productId: args.productId,
         active: false
@@ -190,7 +202,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     // ----------------------------------------------------------------------------------------
 
-    const customerFind: PaymentClient.Methods["customers"]["find"] = Effect.fn(function* (args) {
+    const customerFind: PaymentProvider.Methods["customers"]["find"] = Effect.fn(function* (args) {
       const customers = yield* paddle.customers
         .find({
           id: args.customerProviderId ? [args.customerProviderId] : undefined,
@@ -207,7 +219,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       return yield* Customer.decode(formatCustomer(customer)).pipe(Effect.map(Option.some), Effect.orDie)
     })
 
-    const customerGet: PaymentClient.Methods["customers"]["get"] = Effect.fn(function* (args) {
+    const customerGet: PaymentProvider.Methods["customers"]["get"] = Effect.fn(function* (args) {
       const paddleCustomer = yield* paddle.customers
         .get({ customerId: args.customerProviderId })
         .pipe(Effect.map(Option.map(formatCustomer)), Effect.orDie)
@@ -218,7 +230,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       })
     })
 
-    const customerCreate: PaymentClient.Methods["customers"]["create"] = Effect.fn(function* (args) {
+    const customerCreate: PaymentProvider.Methods["customers"]["create"] = Effect.fn(function* (args) {
       const paddleCustomer = yield* paddle.customers.create(args).pipe(Effect.orDie)
 
       const customerEncoded = formatCustomer(paddleCustomer)
@@ -226,7 +238,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       return yield* Customer.decode(customerEncoded).pipe(Effect.orDie)
     })
 
-    const customerUpdate: PaymentClient.Methods["customers"]["update"] = Effect.fn(function* (args) {
+    const customerUpdate: PaymentProvider.Methods["customers"]["update"] = Effect.fn(function* (args) {
       const paddleCustomer = yield* paddle.customers
         .update({
           customerId: args.customerProviderId,
@@ -243,7 +255,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     // ----------------------------------------------------------------------------------------
 
-    const subscriptionStream: PaymentClient.Methods["subscriptions"]["stream"] = (args) =>
+    const subscriptionStream: PaymentProvider.Methods["subscriptions"]["stream"] = (args) =>
       Stream.unwrap(
         Effect.gen(function* () {
           const get = (after: string | undefined) =>
@@ -269,7 +281,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         })
       )
 
-    const subscriptionList: PaymentClient.Methods["subscriptions"]["list"] = Effect.fn(function* (args) {
+    const subscriptionList: PaymentProvider.Methods["subscriptions"]["list"] = Effect.fn(function* (args) {
       return yield* subscriptionStream({
         customerProviderId: args.customerProviderId,
         after: args.after,
@@ -278,7 +290,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }).pipe(Stream.take(args.perPage ?? 10), Stream.runCollect, Effect.map(Chunk.toReadonlyArray))
     })
 
-    const subscriptionGet: PaymentClient.Methods["subscriptions"]["get"] = Effect.fn(function* (args) {
+    const subscriptionGet: PaymentProvider.Methods["subscriptions"]["get"] = Effect.fn(function* (args) {
       const paddleSubscription = yield* paddle.subscriptions
         .get({ subscriptionId: args.subscriptionId })
         .pipe(Effect.map(Option.map(formatSubscription)), Effect.orDie)
@@ -292,14 +304,14 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       return subscription
     })
 
-    const subscriptionLatest: PaymentClient.Methods["subscriptions"]["latest"] = Effect.fn(function* (args) {
+    const subscriptionLatest: PaymentProvider.Methods["subscriptions"]["latest"] = Effect.fn(function* (args) {
       return yield* subscriptionStream({ customerProviderId: args.customerProviderId }).pipe(
         Stream.take(1),
         Stream.runHead
       )
     })
 
-    const subscriptionChange: PaymentClient.Methods["subscriptions"]["change"] = Effect.fn(function* (args) {
+    const subscriptionChange: PaymentProvider.Methods["subscriptions"]["change"] = Effect.fn(function* (args) {
       const subscription = yield* paddle.subscriptions
         .change({
           subscriptionId: args.subscriptionId,
@@ -312,7 +324,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       return yield* Subscription.decode(formatSubscription(subscription)).pipe(Effect.orDie)
     })
 
-    const subscriptionPreviewChange: PaymentClient.Methods["subscriptions"]["previewChange"] = Effect.fn(
+    const subscriptionPreviewChange: PaymentProvider.Methods["subscriptions"]["previewChange"] = Effect.fn(
       function* (args) {
         const preview = yield* paddle.subscriptions
           .previewChange({
@@ -327,7 +339,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }
     )
 
-    const subscriptionCharge: PaymentClient.Methods["subscriptions"]["charge"] = Effect.fn(function* (args) {
+    const subscriptionCharge: PaymentProvider.Methods["subscriptions"]["charge"] = Effect.fn(function* (args) {
       const nextEffectiveFrom = args.effectiveFrom ?? "immediately"
 
       const preview = yield* paddle.subscriptions
@@ -393,7 +405,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }).pipe(Effect.orDie)
     })
 
-    const subscriptionPreviewCharge: PaymentClient.Methods["subscriptions"]["previewCharge"] = Effect.fn(
+    const subscriptionPreviewCharge: PaymentProvider.Methods["subscriptions"]["previewCharge"] = Effect.fn(
       function* (args) {
         const nextEffectiveFrom = args.effectiveFrom ?? "immediately"
         const preview = yield* paddle.subscriptions
@@ -428,23 +440,23 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }
     )
 
-    const subscriptionCancel: PaymentClient.Methods["subscriptions"]["cancel"] = Effect.fn(function* (args) {
+    const subscriptionCancel: PaymentProvider.Methods["subscriptions"]["cancel"] = Effect.fn(function* (args) {
       return yield* paddle.subscriptions
         .cancel({ subscriptionId: args.subscriptionId, immediate: args.effectiveFrom === "immediately" })
         .pipe(Effect.orDie)
     })
 
-    const subscriptionPause: PaymentClient.Methods["subscriptions"]["pause"] = Effect.fn(function* (args) {
+    const subscriptionPause: PaymentProvider.Methods["subscriptions"]["pause"] = Effect.fn(function* (args) {
       return yield* paddle.subscriptions.pause(args)
     })
 
-    const subscriptionResume: PaymentClient.Methods["subscriptions"]["resume"] = Effect.fn(function* (args) {
+    const subscriptionResume: PaymentProvider.Methods["subscriptions"]["resume"] = Effect.fn(function* (args) {
       return yield* paddle.subscriptions.resume(args)
     })
 
     // ----------------------------------------------------------------------------------------
 
-    const transactionStream: PaymentClient.Methods["transactions"]["stream"] = (args) =>
+    const transactionStream: PaymentProvider.Methods["transactions"]["stream"] = (args) =>
       Stream.unwrap(
         Effect.gen(function* () {
           const get = (after: string | undefined) =>
@@ -470,7 +482,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         })
       )
 
-    const transactionList: PaymentClient.Methods["transactions"]["list"] = Effect.fn(function* (args) {
+    const transactionList: PaymentProvider.Methods["transactions"]["list"] = Effect.fn(function* (args) {
       return yield* transactionStream({
         customerProviderId: args.customerProviderId,
         after: args.after,
@@ -478,7 +490,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }).pipe(Stream.take(args.perPage ?? 10), Stream.runCollect, Effect.map(Chunk.toReadonlyArray))
     })
 
-    const transactionLatest: PaymentClient.Methods["transactions"]["latest"] = Effect.fn(function* (args) {
+    const transactionLatest: PaymentProvider.Methods["transactions"]["latest"] = Effect.fn(function* (args) {
       return yield* transactionStream({
         status: ["paid", "completed"],
         customerProviderId: args.customerProviderId,
@@ -486,7 +498,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }).pipe(Stream.take(1), Stream.runHead)
     })
 
-    const transactionGet: PaymentClient.Methods["transactions"]["get"] = Effect.fn(function* (args) {
+    const transactionGet: PaymentProvider.Methods["transactions"]["get"] = Effect.fn(function* (args) {
       const paddleTransaction = yield* paddle.transactions
         .get({ transactionId: args.transactionId })
         .pipe(Effect.map(Option.map(formatTransaction)), Effect.orDie)
@@ -497,7 +509,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       })
     })
 
-    const transactionGenerateInvoicePDF: PaymentClient.Methods["transactions"]["generateInvoicePDF"] = Effect.fn(
+    const transactionGenerateInvoicePDF: PaymentProvider.Methods["transactions"]["generateInvoicePDF"] = Effect.fn(
       function* (args) {
         return yield* paddle.transactions
           .generateInvoicePDF({ transactionId: args.transactionId })
@@ -505,7 +517,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }
     )
 
-    const transactionPreview: PaymentClient.Methods["transactions"]["preview"] = Effect.fn(function* (args) {
+    const transactionPreview: PaymentProvider.Methods["transactions"]["preview"] = Effect.fn(function* (args) {
       const preview = yield* paddle.transactions
         .preview({
           customerId: args.providerCustomerId,
@@ -524,7 +536,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }).pipe(Effect.orDie)
     })
 
-    const transactionCreate: PaymentClient.Methods["transactions"]["create"] = Effect.fn(function* (args) {
+    const transactionCreate: PaymentProvider.Methods["transactions"]["create"] = Effect.fn(function* (args) {
       const priceOption = yield* paddle.prices.get({ priceId: args.providerOfferId }).pipe(Effect.orDie)
       const price = yield* Option.match(priceOption, {
         onNone: () =>
@@ -560,7 +572,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     // ----------------------------------------------------------------------------------------
 
-    const refundList: PaymentClient.Methods["refunds"]["list"] = Effect.fn(function* (args) {
+    const refundList: PaymentProvider.Methods["refunds"]["list"] = Effect.fn(function* (args) {
       return yield* paddle.refunds
         .list({
           transactionId: args.transactionId,
@@ -575,7 +587,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
         )
     })
 
-    const refundGet: PaymentClient.Methods["refunds"]["get"] = Effect.fn(function* (args) {
+    const refundGet: PaymentProvider.Methods["refunds"]["get"] = Effect.fn(function* (args) {
       return yield* paddle.refunds.get({ refundId: args.refundId }).pipe(
         Effect.orDie,
         Effect.flatMap(
@@ -587,7 +599,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       )
     })
 
-    const refundCreate: PaymentClient.Methods["refunds"]["create"] = Effect.fn(function* (args) {
+    const refundCreate: PaymentProvider.Methods["refunds"]["create"] = Effect.fn(function* (args) {
       return yield* paddle.transactions
         .refund({ transactionId: args.transactionId, amount: args.amount })
         .pipe(Effect.flatMap(RefundResult.decode), Effect.orDie)
@@ -595,7 +607,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
 
     // ----------------------------------------------------------------------------------------
 
-    const checkoutPrepare: PaymentClient.Methods["checkout"]["prepare"] = Effect.fn(function* (args) {
+    const checkoutPrepare: PaymentProvider.Methods["checkout"]["prepare"] = Effect.fn(function* (args) {
       const priceOption = yield* paddle.prices.get({ priceId: args.providerOfferId }).pipe(Effect.orDie)
       const metadata = {
         projectId: args.projectId,
@@ -653,7 +665,7 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       })
     })
 
-    const billingPortalCreateSession: PaymentClient.Methods["billingPortal"]["createSession"] = Effect.fn(
+    const billingPortalCreateSession: PaymentProvider.Methods["billingPortal"]["createSession"] = Effect.fn(
       function* (args) {
         const nextFlow = args.flow ?? "general"
         const session = yield* paddle.billingPortal
@@ -746,13 +758,13 @@ export class Paddle extends Context.Tag("@pay:provider-paddle")<Paddle, PaddleIm
       }
     } satisfies Omit<PaddleImpl, "onDialect" | "onDialectOrElse">
 
-    return makePaymentClient<PaddleImpl>(Paddle._tag, methods)
+    return makePaymentProvider<PaddleImpl>(Paddle._tag, methods)
   })
 
   static layerConfig = (config: PaddleConfig) =>
-    Layer.effect(PaymentClient, Paddle.make).pipe(Layer.provide(Layer.effect(PaddleClient, makePaddleClient(config))))
+    Layer.effect(PaymentProvider, Paddle.make).pipe(Layer.provide(Layer.effect(PaddleClient, makePaddleClient(config))))
 
-  static layer = Layer.effect(PaymentClient, Paddle.make).pipe(
+  static layer = Layer.effect(PaymentProvider, Paddle.make).pipe(
     Layer.provide(
       Layer.unwrapEffect(
         Effect.gen(function* () {

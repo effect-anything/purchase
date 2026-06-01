@@ -1,8 +1,6 @@
-import type { Page } from "playwright-core"
-
 import { Playwright } from "effect-playwright"
 import * as Effect from "effect/Effect"
-import { chromium } from "playwright-core"
+import { chromium, type Page } from "playwright-core"
 
 import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
@@ -36,9 +34,11 @@ export const captureVendorSession = Effect.fn(
     if (credentials) {
       yield* page.use((nativePage) => signInToPaddleVendor(nativePage, credentials, timeoutMs))
     }
+
     yield* page.waitForURL(/\/checkout-settings/, { timeout: timeoutMs })
 
     const cookies = yield* context.cookies()
+
     const cookieHeader = buildCookieHeader(cookies)
     const xsrfToken = readCookieValue(cookies, "XSRF-TOKEN")
 
@@ -74,10 +74,9 @@ async function signInToPaddleVendor(
   },
   timeoutMs: number
 ) {
-  if (page.url().includes("/checkout-settings")) return
-
   const email = page.locator('input[type="email"], input[name="email"], input[autocomplete="email"]').first()
-  await email.waitFor({ state: "visible", timeout: 60_000 })
+  if (!(await email.isVisible({ timeout: 5_000 }).catch(() => false))) return
+
   await email.fill(credentials.email)
 
   const password = page
@@ -90,7 +89,7 @@ async function signInToPaddleVendor(
   await password.waitFor({ state: "visible", timeout: 60_000 })
   await password.fill(credentials.password)
   await clickSubmitButton(page, /log in|sign in|continue/i)
-  await page.waitForURL(/\/checkout-settings/, { timeout: timeoutMs })
+  await page.waitForURL(/\/checkout-settings/, { timeout: timeoutMs }).catch(() => undefined)
 }
 
 async function clickSubmitButton(page: Page, name: RegExp) {

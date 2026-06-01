@@ -369,7 +369,7 @@ P0 的目标不是“功能变多”，而是先让当前最危险的错位被�
 // - optional webhook / replay / reconciliation
 
 // 3. assert provider
-// - PaymentClient get/list/latest or captured provider calls
+// - PaymentProvider get/list/latest or captured provider calls
 
 // 4. assert database
 // - SqlClient direct rows

@@ -5,7 +5,7 @@ describe("reconciliation workflow scenarios", () => {
   // Partial processing failures should be recoverable from provider facts.
   // Implementation note:
   // - stop after receipt/event persistence but before final entitlement replacement
-  // - verify provider-side fact is still stable through PaymentClient
+  // - verify provider-side fact is still stable through PaymentProvider
   // - verify partial local durable state through SqlClient
   // - rerun reconciliation entrypoint
   // - assert final snapshot equals the clean success-path snapshot

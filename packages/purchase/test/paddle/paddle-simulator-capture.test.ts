@@ -35,7 +35,7 @@ describe.runIf(() => process.env.PADDLE_LIVE_TESTS === "1" && paddleSimulatorEna
 
         const event = yield* provider.webhooksUnmarshal({
           payload: captured.payload,
-          signature: captured.signature
+          headers: { "stripe-signature": captured.signature, "paddle-signature": captured.signature }
         })
 
         expect(event.event_type).toBe("transaction.paid")

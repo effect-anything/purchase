@@ -2,7 +2,7 @@ import { Context } from "effect"
 
 import type { BrokerEndpoint } from "../utils/types.ts"
 
-export class TestConfig extends Context.Tag("TestConfig")<
+export class TestConfig extends Context.Tag("@E2E/TestConfig")<
   TestConfig,
   {
     readonly runId: string

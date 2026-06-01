@@ -396,7 +396,7 @@ describe("core provider webhook fixtures", () => {
           const result = yield* sdk.webhooks.handle({
             provider: fixtureCase.provider,
             body: payload,
-            signature: "fixture_signature"
+            headers: { "stripe-signature": "fixture_signature", "paddle-signature": "fixture_signature" }
           })
 
           expect(result.accepted).toBe(true)
@@ -551,7 +551,7 @@ describe("core provider webhook fixtures", () => {
           const duplicate = yield* sdk.webhooks.handle({
             provider: fixtureCase.provider,
             body: payload,
-            signature: "fixture_signature"
+            headers: { "stripe-signature": "fixture_signature", "paddle-signature": "fixture_signature" }
           })
           const replay = yield* sdk.webhooks.replay({
             provider: fixtureCase.provider,

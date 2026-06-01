@@ -33,12 +33,12 @@ describe("provider webhook replay", () => {
 
         const webhookEvent = yield* provider.webhooksUnmarshal({
           payload: fixture.payload,
-          signature
+          headers: { "stripe-signature": signature }
         })
         const normalized = yield* provider.webhooksNormalize(webhookEvent)
         const replayedWebhookEvent = yield* provider.webhooksUnmarshal({
           payload: fixture.payload,
-          signature
+          headers: { "stripe-signature": signature }
         })
         const replayedNormalized = yield* provider.webhooksNormalize(replayedWebhookEvent)
 
@@ -76,12 +76,12 @@ describe("provider webhook replay", () => {
 
         const webhookEvent = yield* provider.webhooksUnmarshal({
           payload: fixture.payload,
-          signature
+          headers: { "paddle-signature": signature }
         })
         const normalized = yield* provider.webhooksNormalize(webhookEvent)
         const replayedWebhookEvent = yield* provider.webhooksUnmarshal({
           payload: fixture.payload,
-          signature
+          headers: { "paddle-signature": signature }
         })
         const replayedNormalized = yield* provider.webhooksNormalize(replayedWebhookEvent)
 
@@ -114,7 +114,7 @@ describe("provider webhook replay", () => {
       const error = yield* Effect.flip(
         provider.webhooksUnmarshal({
           payload: fixture.payload,
-          signature
+          headers: { "paddle-signature": signature }
         })
       )
 

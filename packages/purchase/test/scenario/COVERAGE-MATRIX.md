@@ -172,7 +172,7 @@ catalog
 
 后续补这些缺口时，统一遵守下面这个模板：
 
-1. 用 `PaymentClient` 验证 provider 侧事实或 provider 调用。
+1. 用 `PaymentProvider` 验证 provider 侧事实或 provider 调用。
 2. 用 `SqlClient` 验证本地 durable facts。
 3. 用 SDK public API 验证最终业务读模型。
 

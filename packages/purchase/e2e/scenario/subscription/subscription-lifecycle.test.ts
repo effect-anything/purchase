@@ -1,11 +1,12 @@
 import { describe, it } from "@effect/vitest"
+import { Effect } from "effect"
 
 // Subscription lifecycle scenarios cover what happens after acquisition.
 describe("subscription lifecycle scenarios", () => {
   // Cancellation must follow the product's access-until-period-end rule.
   // Implementation note:
   // - assert both the provider mutation receipt and the post-webhook account state
-  // - verify provider-side subscription flags through PaymentClient
+  // - verify provider-side subscription flags through PaymentProvider
   // - verify local subscription row and entitlement rows through SqlClient
   // - separate "cancel requested" from "access removed"
   it.todo(

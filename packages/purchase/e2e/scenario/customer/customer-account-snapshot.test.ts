@@ -1,43 +1,57 @@
-import { layer } from "@effect/vitest"
-import * as Effect from "effect/Effect"
+import { describe, layer } from "@effect/vitest"
+import { Effect } from "effect"
 
-import { expectCustomerSnapshotIsolated } from "../../utils/assertions.ts"
+import { assert } from "../../utils/assertions.ts"
 import {
   aiCredits500Pack,
   desktopLifetimePurchase,
   notesProMonthlySubscription
 } from "../../utils/business-fixtures.ts"
 import * as Harness from "../../utils/harness.ts"
-import { makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
+import { filteredScenarioPaymentProviders, makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
 
-const Live = makeScenarioRuntime()
+describe.each(filteredScenarioPaymentProviders)(
+  "%s customer account snapshot scenarios",
+  (_providerName, paymentProvider) => {
+    const Live = makeScenarioRuntime(paymentProvider)
 
-// Customer account scenarios validate the final commercial snapshot exposed by a real app.
-layer(Live)("customer account snapshot scenarios", (it) => {
-  // The account view should converge as a customer accumulates multiple commercial artifacts.
-  it.todo(
-    `returns a stable account snapshot after ${notesProMonthlySubscription.offerId}, ${desktopLifetimePurchase.offerId}, and ${aiCredits500Pack.offerId}`
-  )
-  // Restarts should not make already-paid business state disappear from account reads.
-  it.todo("keeps account state queryable after the app process restarts and re-registers its webhook target")
-  // Multi-tenant isolation is required for any production billing system.
-  // Implementation note:
-  // - use expectCustomerSnapshotIsolated to assert one customer's paid state never leaks to another account.
-  it.effect("shows only the current customer's checkout activity in a multi-tenant test app", () =>
-    Effect.gen(function* () {
-      const owner = yield* Harness.createCustomerAccount()
-      const bystander = yield* Harness.createCustomerAccount()
+    // Customer account scenarios validate the final commercial snapshot exposed by a real app.
+    layer(Live, { excludeTestServices: true })((it) => {
+      // The account view should converge as a customer accumulates multiple commercial artifacts.
+      // Implementation note:
+      // - complete real subscription, one-time purchase, and credit-pack checkouts for the same app customer
+      // - assert provider-side paid state for each checkout through PaymentProvider
+      // - assert local subscription, purchase, invoice, entitlement, and credit ledger rows through SqlClient
+      // - assert the app account response exposes only commercial ids and stable product state
+      it.todo(
+        `returns a stable account snapshot after ${notesProMonthlySubscription.offerId}, ${desktopLifetimePurchase.offerId}, and ${aiCredits500Pack.offerId}`
+      )
+      // Restarts should not make already-paid business state disappear from account reads.
+      // Implementation note:
+      // - persist a real completed checkout through webhook projection
+      // - rebuild the app runtime against the same database and re-register the broker target
+      // - assert snapshot, entitlements, and wallet remain queryable without replaying browser payment
+      it.todo("keeps account state queryable after the app process restarts and re-registers its webhook target")
+      // Multi-tenant isolation is required for any production billing system.
+      // Implementation note:
+      // - use assert.account.isolated to assert one customer's paid state never leaks to another account.
+      it.effect("shows only the current customer's checkout activity in a multi-tenant test app", () =>
+        Effect.gen(function* () {
+          const owner = yield* Harness.createCustomerAccount()
+          const bystander = yield* Harness.createCustomerAccount()
 
-      yield* Harness.startSubscriptionCheckout({
-        session: owner,
-        offerId: notesProMonthlySubscription.offerId
-      })
+          yield* Harness.checkout({
+            session: owner,
+            offerId: notesProMonthlySubscription.offerId
+          })
 
-      const bystanderAccount = yield* Harness.viewAccount(bystander)
-      expectCustomerSnapshotIsolated(bystanderAccount, {
-        customerEmail: bystander.email,
-        forbiddenOfferIds: [notesProMonthlySubscription.offerId]
-      })
+          const bystanderAccount = yield* Harness.getAccount(bystander)
+          assert.account.isolated(bystanderAccount, {
+            customerEmail: bystander.email,
+            forbiddenOfferIds: [notesProMonthlySubscription.offerId]
+          })
+        })
+      )
     })
-  )
-})
+  }
+)

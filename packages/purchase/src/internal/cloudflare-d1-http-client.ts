@@ -151,7 +151,7 @@ export const make = (
           })
         ),
         Effect.mapError((cause) =>
-          cause instanceof SqlError ? cause : new SqlError({ cause, message: "Failed to execute D1 query" })
+          cause._tag === "SqlError" ? cause : new SqlError({ cause, message: "Failed to execute D1 query" })
         )
       )
 

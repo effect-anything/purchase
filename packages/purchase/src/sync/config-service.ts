@@ -13,7 +13,7 @@ import {
   PaddleVendorPrepareService,
   PaddleVendorPrepareServiceLayer
 } from "../paddle/internal/paddle-vendor-prepare.ts"
-import { PaymentClient } from "../provider/client.ts"
+import { PaymentProvider } from "../provider/client.ts"
 import {
   CommercialCatalogSyncService,
   CommercialCatalogSyncServiceLayer,
@@ -46,7 +46,7 @@ export type {
 
 export { formatPrepareResult } from "./provider-prepare.ts"
 
-export class PurchaseConfigService extends Context.Tag("@pay/core/PurchaseConfigService")<
+export class PurchaseConfigService extends Context.Tag("@xstack/purchase/sync/PurchaseConfigService")<
   PurchaseConfigService,
   {
     readonly syncCatalog: (
@@ -62,7 +62,7 @@ export const PurchaseConfigServiceLayer = Layer.effect(
   PurchaseConfigService,
   Effect.gen(function* () {
     const catalogSync = yield* CommercialCatalogSyncService
-    const provider = yield* PaymentClient
+    const provider = yield* PaymentProvider
 
     const syncCatalog = (input?: CommercialCatalogSyncInput | undefined) => catalogSync.sync(input)
 

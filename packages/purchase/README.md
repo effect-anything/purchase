@@ -119,45 +119,7 @@ export class Pay extends PurchaseSDK<Pay, Record<string, never>, typeof plans, t
   plans,
   products
 }) {}
-```
 
-Wire exactly one configured provider layer at your app runtime boundary. Keep
-sandbox/test-mode credentials in runtime configuration rather than in the SDK
-class so the same catalog can be reused across environments:
-
-```ts
-import { Paddle, PurchaseProvider, Stripe } from "@effect-x/purchase"
-import { Layer, Redacted } from "effect"
-
-const providerLayer = PurchaseProvider.fromTags({
-  paddle: Paddle.layerConfig({
-    apiToken: Redacted.make(process.env.PADDLE_API_TOKEN ?? ""),
-    webhookToken: Redacted.make(process.env.PADDLE_WEBHOOK_TOKEN ?? ""),
-    environment: "sandbox"
-  }),
-  stripe: Stripe.layerConfig({
-    apiToken: Redacted.make(process.env.STRIPE_API_KEY ?? ""),
-    webhookToken: Redacted.make(process.env.STRIPE_WEBHOOK_SECRET ?? ""),
-    environment: "sandbox"
-  })
-})
-
-export const PayLayer = Pay.layer(Pay).pipe(Layer.provide(providerLayer))
-```
-
-For Stripe runtime wiring, swap in `PurchaseProvider.fromTags({ paddle: Paddle.layer, stripe: Stripe.layer })`
-or `PurchaseProvider.FromTags({ paddle: Paddle.layer, stripe: Stripe.layer })`.
-
-The Next.js example follows this same path in
-[`examples/nextjs/purchase.ts`](../../examples/nextjs/purchase.ts) and
-[`examples/nextjs/context.ts`](../../examples/nextjs/context.ts): the catalog is
-bound once, then the app runtime supplies a Paddle sandbox provider layer. Use
-`Stripe.layerConfig(...)` with `environment: "sandbox"` for Stripe test-mode
-experiments.
-
-Then call the shared workflow API:
-
-```ts
 const checkout = Pay.checkout.start({
   customerId,
   offerId: "app:pro_monthly"

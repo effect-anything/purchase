@@ -12,7 +12,10 @@ import {
   ConsumeCreditsPayload,
   CreditsConflict,
   MissingOfferId,
-  ProviderNotConfigured
+  ProviderNotConfigured,
+  WebhookApiResponse,
+  WebhookProcessingFailed,
+  WebhookProviderPath
 } from "./domain.ts"
 
 export const AppApi = HttpApi.make("purchase-e2e")
@@ -48,6 +51,14 @@ export const AppApi = HttpApi.make("purchase-e2e")
         .addSuccess(ConsumeCreditsApiResponse)
         .addError(AuthenticationRequired, { status: 401 })
         .addError(CreditsConflict, { status: 409 })
+    )
+  )
+  .add(
+    HttpApiGroup.make("webhooks").add(
+      HttpApiEndpoint.post("handle", "/webhooks/:provider")
+        .setPath(WebhookProviderPath)
+        .addSuccess(WebhookApiResponse)
+        .addError(WebhookProcessingFailed, { status: 400 })
     )
   )
   .prefix("/api")

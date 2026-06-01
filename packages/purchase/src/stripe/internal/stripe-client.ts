@@ -767,7 +767,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       SubscriptionNotFound | PriceNotFound
     > {
       const current = yield* getSubscriptionById(args.subscriptionId).pipe(
-        Effect.catchAll((error) => (error instanceof SubscriptionNotFound ? Effect.fail(error) : Effect.die(error)))
+        Effect.catchAll((error) => (error._tag === "SubscriptionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       const customerId = resolveStripeCustomerId(current.customer)
       if (!customerId) {
@@ -819,7 +819,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       SubscriptionNotFound | PriceNotFound
     > {
       const current = yield* getSubscriptionById(args.subscriptionId).pipe(
-        Effect.catchAll((error) => (error instanceof SubscriptionNotFound ? Effect.fail(error) : Effect.die(error)))
+        Effect.catchAll((error) => (error._tag === "SubscriptionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       const customerId = resolveStripeCustomerId(current.customer)
       if (!customerId) {
@@ -944,11 +944,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
             orElse: (response) => unexpectedStatus(response.request, response)
           })
         ),
-        Effect.catchAll((error) =>
-          error instanceof SubscriptionNotFound || error instanceof ProviderOperationNotSupported
-            ? Effect.fail(error)
-            : Effect.die(error)
-        )
+        Effect.catchAll((error) => (error._tag === "SubscriptionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
     }),
     resume: Effect.fn(function* (
@@ -979,12 +975,12 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
               orElse: (response) => unexpectedStatus(response.request, response)
             })
           ),
-          Effect.catchAll((error) => (error instanceof SubscriptionNotFound ? Effect.fail(error) : Effect.die(error)))
+          Effect.catchAll((error) => (error._tag === "SubscriptionNotFound" ? Effect.fail(error) : Effect.die(error)))
         )
         return
       }
       const current = yield* getSubscriptionById(args.subscriptionId).pipe(
-        Effect.catchAll((error) => (error instanceof SubscriptionNotFound ? Effect.fail(error) : Effect.die(error)))
+        Effect.catchAll((error) => (error._tag === "SubscriptionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (current.status !== "paused") {
         return yield* new ProviderOperationNotSupported({
@@ -1020,11 +1016,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
             orElse: (response) => unexpectedStatus(response.request, response)
           })
         ),
-        Effect.catchAll((error) =>
-          error instanceof SubscriptionNotFound || error instanceof ProviderOperationNotSupported
-            ? Effect.fail(error)
-            : Effect.die(error)
-        )
+        Effect.catchAll((error) => (error._tag === "SubscriptionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
     })
   }
@@ -1094,9 +1086,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
             orElse: (response) => unexpectedStatus(response.request, response)
           })
         ),
-        Effect.catchAll((error) =>
-          error._tag === "CustomerNotFound" || error instanceof PriceNotFound ? Effect.fail(error) : Effect.die(error)
-        )
+        Effect.catchAll((error) => (error._tag === "CustomerNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
     }),
     create: Effect.fn(function* (args: {
@@ -1169,7 +1159,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       transactionId: string
     }): Effect.fn.Return<string, TransactionNotFound> {
       const invoice = yield* getInvoiceById(args.transactionId).pipe(
-        Effect.catchAll((error) => (error instanceof TransactionNotFound ? Effect.fail(error) : Effect.die(error)))
+        Effect.catchAll((error) => (error._tag === "TransactionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       if (!invoice.invoice_pdf) {
         return yield* new TransactionNotFound({
@@ -1186,7 +1176,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
       const invoice = yield* getInvoiceById(args.transactionId, {
         expand: ["payment_intent"]
       } satisfies StripeSdk.InvoiceRetrieveParams).pipe(
-        Effect.catchAll((error) => (error instanceof TransactionNotFound ? Effect.fail(error) : Effect.die(error)))
+        Effect.catchAll((error) => (error._tag === "TransactionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       const paymentIntentId = resolveStripePaymentIntentId(invoice)
       if (!paymentIntentId) {
@@ -1212,7 +1202,7 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
             orElse: (response) => unexpectedStatus(response.request, response)
           })
         ),
-        Effect.catchAll((error) => (error instanceof TransactionNotFound ? Effect.fail(error) : Effect.die(error)))
+        Effect.catchAll((error) => (error._tag === "TransactionNotFound" ? Effect.fail(error) : Effect.die(error)))
       )
       return formatStripeRefund(refund, args.transactionId)
     })
@@ -1445,12 +1435,15 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
   } as const
 })
 
-export class StripeClient extends Context.Tag("StripeClient")<
+export class StripeClient extends Context.Tag("@xstack/purchase/provider/stripe/StripeClient")<
   StripeClient,
   Effect.Effect.Success<ReturnType<typeof makeStripeClient>>
 >() {}
 
-export class StripeClientConfig extends Context.Tag("StripeClientConfig")<StripeClientConfig, StripeConfig>() {}
+export class StripeClientConfig extends Context.Tag("@xstack/purchase/provider/stripe/StripeClientConfig")<
+  StripeClientConfig,
+  StripeConfig
+>() {}
 
 export const StripeConfigFromRecord = (config: StripeConfig) => Layer.succeed(StripeClientConfig, config)
 

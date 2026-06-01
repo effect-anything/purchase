@@ -419,8 +419,8 @@ provider id 只是内部 ref。
 
 后续每个 e2e 场景都应该同时验证三种状态来源，避免多方不一致：
 
-1. provider client 视角：
-   通过真实 `PaymentClient` 查询第三方平台状态，例如 customer、checkout、subscription、transaction、invoice、refund。
+1. provider provider 视角：
+   通过真实 `PaymentProvider` 查询第三方平台状态，例如 customer、checkout、subscription、transaction、invoice、refund。
 
 2. 数据库视角：
    通过 `SqlClient` 直接查询本地 durable facts，例如 checkout intent、webhook receipt、commercial event、subscription、invoice、credit ledger、provider ref、entitlement。

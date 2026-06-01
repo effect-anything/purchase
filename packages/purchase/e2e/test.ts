@@ -37,7 +37,7 @@ const TestLayer = Layer.scopedDiscard(
           localBaseURL: broker.localBaseURL,
           publicBaseURL: broker.publicBaseURL
         },
-        paymentClient: Paddle
+        paymentProvider: Paddle
       })
     )
 

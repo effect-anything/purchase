@@ -234,7 +234,7 @@ describe("core purchase refund workflow", () => {
         const result = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_refund_updated" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
 
         expect(result.accepted).toBe(true)

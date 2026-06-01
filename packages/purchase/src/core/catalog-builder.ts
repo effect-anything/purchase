@@ -137,7 +137,7 @@ export const buildCommercialCatalog = Effect.fn("buildCommercialCatalog")(
 
 export const decodeCommercialCatalog = Schema.decodeUnknown(CommercialCatalog)
 
-export class CatalogState extends Context.Tag("@xstack/pay/core/CatalogState")<
+export class CatalogState extends Context.Tag("@xstack/purchase/core/CatalogState")<
   CatalogState,
   {
     catalog: CommercialCatalog

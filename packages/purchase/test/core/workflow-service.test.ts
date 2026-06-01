@@ -100,7 +100,7 @@ describe("core workflow service", () => {
         const webhook = yield* workflow.receiveWebhook({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_checkout_123", type: "checkout.session.completed" }),
-          signature: "sig_test"
+          headers: { "stripe-signature": "sig_test", "paddle-signature": "sig_test" }
         })
         const replay = yield* workflow.replayWebhook({
           provider: "stripe",

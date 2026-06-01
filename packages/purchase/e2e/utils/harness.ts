@@ -1,14 +1,10 @@
-/** @effect-diagnostics preferSchemaOverJson:off */
-import { PaymentHarness } from "@effect-x/purchase/harness"
-import * as SqlClient from "@effect/sql/SqlClient"
-import * as Data from "effect/Data"
-import * as Duration from "effect/Duration"
-import * as Effect from "effect/Effect"
-import * as Schedule from "effect/Schedule"
+import { SqlClient } from "@effect/sql"
+import { Data, Duration, Effect, Schedule } from "effect"
 
+import { PaymentHarness } from "../../src/harness.ts"
 import { TestConfig } from "../http-api/config.ts"
 
-export class PublicPaddleScenarioError extends Data.TaggedError("PublicPaddleScenarioError")<{
+export class E2EHarnessError extends Data.TaggedError("E2EHarnessError")<{
   readonly message: string
   readonly cause?: unknown
 }> {}
@@ -231,17 +227,6 @@ export interface DurableCommercialState {
   }>
 }
 
-interface WebhookTargetRegistration {
-  readonly ok: boolean
-  readonly provider: "paddle" | "stripe"
-  readonly runId: string
-  readonly localBaseURL: string
-  readonly publicBaseURL: string
-  readonly brokerWebhookUrl: string
-  readonly targetUrl: string
-  readonly webhookSecret?: string | undefined
-}
-
 const withHeaders = (baseUrl: string, headers: HeadersInit = {}) => ({
   ...headers,
   origin: baseUrl
@@ -257,7 +242,7 @@ const parseCookie = (headers: Headers) =>
 const fetchText = (input: RequestInfo | URL, init?: RequestInit) =>
   Effect.tryPromise({
     try: () => fetch(input, init).then(async (response) => ({ response, text: await response.text() })),
-    catch: (cause) => new PublicPaddleScenarioError({ message: "HTTP request failed", cause })
+    catch: (cause) => new E2EHarnessError({ message: "HTTP request failed", cause })
   }).pipe(Effect.retry(Schedule.exponential(Duration.millis(500)).pipe(Schedule.compose(Schedule.recurs(4)))))
 
 const fetchJson = <A = unknown>(input: RequestInfo | URL, init?: RequestInit) =>
@@ -266,16 +251,16 @@ const fetchJson = <A = unknown>(input: RequestInfo | URL, init?: RequestInit) =>
       const json = text ? (JSON.parse(text) as A) : ({} as A)
       return response.ok
         ? Effect.succeed({ response, json })
-        : Effect.fail(new PublicPaddleScenarioError({ message: `HTTP ${response.status}: ${text}` }))
+        : Effect.fail(new E2EHarnessError({ message: `HTTP ${response.status}: ${text}` }))
     }),
     Effect.mapError((cause) =>
-      cause instanceof PublicPaddleScenarioError
+      cause._tag === "E2EHarnessError"
         ? cause
-        : new PublicPaddleScenarioError({ message: "Failed to parse JSON response", cause })
+        : new E2EHarnessError({ message: "Failed to parse JSON response", cause })
     )
   )
 
-export const signUp = Effect.fn(function* (input?: SignUpInput | undefined) {
+export const createCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
   const { baseURL } = yield* TestConfig
   const email = input?.email ?? `e2e-${Date.now()}@example.com`
   const password = input?.password ?? "password123456"
@@ -294,20 +279,16 @@ export const signUp = Effect.fn(function* (input?: SignUpInput | undefined) {
   }).pipe(
     Effect.flatMap(({ response, text }) => {
       if (!response.ok) {
-        return Effect.fail(
-          new PublicPaddleScenarioError({ message: `Sign-up failed with ${response.status}: ${text}` })
-        )
+        return Effect.fail(new E2EHarnessError({ message: `Sign-up failed with ${response.status}: ${text}` }))
       }
       const cookie = parseCookie(response.headers)
       if (!cookie) {
-        return Effect.fail(new PublicPaddleScenarioError({ message: "Sign-up did not return an auth cookie" }))
+        return Effect.fail(new E2EHarnessError({ message: "Sign-up did not return an auth cookie" }))
       }
       return Effect.succeed({ email, password, cookie } satisfies PublicAuthSession)
     })
   )
 })
-
-export const createCustomerAccount = signUp
 
 export const getAccount = Effect.fn(function* (session: PublicAuthSession) {
   const { baseURL } = yield* TestConfig
@@ -317,11 +298,9 @@ export const getAccount = Effect.fn(function* (session: PublicAuthSession) {
   }).pipe(Effect.map(({ json }) => json))
 })
 
-export const viewAccount = getAccount
-
 export const openFreshCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
   const session = yield* createCustomerAccount(input)
-  const account = yield* viewAccount(session)
+  const account = yield* getAccount(session)
 
   return { session, account } satisfies CustomerAccount
 })
@@ -332,20 +311,34 @@ export const getCatalog = Effect.fn(function* () {
   return yield* fetchJson<CatalogOverview>(`${baseURL}/api/catalog`).pipe(Effect.map(({ json }) => json))
 })
 
-export const viewCatalog = getCatalog
-
 export const waitForAccount = Effect.fn(function* (input: {
   readonly session: PublicAuthSession
   readonly until: (account: AccountOverview) => boolean
   readonly timeoutMessage: string
 }) {
+  let latest: AccountOverview | undefined
+
   return yield* getAccount(input.session).pipe(
-    Effect.flatMap((account) =>
-      input.until(account)
-        ? Effect.succeed(account)
-        : Effect.fail(new PublicPaddleScenarioError({ message: input.timeoutMessage }))
-    ),
-    Effect.retry(Schedule.exponential(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(45))))
+    Effect.tap((account) => Effect.sync(() => (latest = account))),
+    Effect.flatMap((account) => {
+      if (input.until(account)) {
+        return Effect.succeed(account)
+      }
+
+      return Effect.fail(
+        new E2EHarnessError({
+          message: `${input.timeoutMessage}. Latest account snapshot: ${JSON.stringify(summarizeAccount(account))}`
+        })
+      )
+    }),
+    Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
+    Effect.mapError(
+      (cause) =>
+        new E2EHarnessError({
+          message: `${input.timeoutMessage}. Latest account snapshot: ${JSON.stringify(summarizeAccount(latest))}`,
+          cause
+        })
+    )
   )
 })
 
@@ -367,8 +360,7 @@ export const waitForActiveSubscription = Effect.fn(function* (input: {
 })
 
 export const checkout = Effect.fn(function* (input: { readonly session: PublicAuthSession; readonly offerId: string }) {
-  const { baseURL } = yield* TestConfig
-  const runId = yield* currentRunId
+  const { baseURL, runId } = yield* TestConfig
 
   return yield* fetchJson<{ readonly checkout: CheckoutStartResult }>(`${baseURL}/api/checkout/start`, {
     method: "POST",
@@ -377,23 +369,14 @@ export const checkout = Effect.fn(function* (input: { readonly session: PublicAu
   }).pipe(Effect.map(({ json }) => json.checkout))
 })
 
-export const startSubscriptionCheckout = checkout
-export const startOneTimePurchaseCheckout = checkout
-export const startCreditPackCheckout = checkout
-
 export const startSubscriptionSignupCheckout = Effect.fn(function* (input: { readonly offerId: string }) {
   const session = yield* createCustomerAccount()
-
-  yield* Effect.logTrace("session", session)
-
-  const checkoutResult = yield* startSubscriptionCheckout({
+  const checkoutResult = yield* checkout({
     session,
     offerId: input.offerId
   })
 
-  yield* Effect.logTrace("checkout", checkoutResult)
-
-  const account = yield* viewAccount(session)
+  const account = yield* getAccount(session)
 
   return {
     session,
@@ -415,31 +398,33 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
   const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
 
   if (!checkoutResult.url) {
-    return yield* Effect.die(
-      new Error(
-        `purchaseSubscription requires a checkout URL but provider returned mode="${checkoutResult.mode}" without one`
-      )
+    return yield* Effect.dieMessage(
+      `purchaseSubscription requires a checkout URL but provider returned mode="${checkoutResult.mode}" without one`
     )
   }
 
   const payment = yield* paymentHarness.payCheckout({
     checkout: {
-      provider: "paddle",
+      provider: paymentHarness.provider,
       sessionId: checkoutResult.sessionId,
       url: checkoutResult.url
     },
-    checkoutUrl: checkoutResult.url,
     mode: "subscription",
     customer: {
       email: input.session.email,
-      name: "Purchase SDK E2E User"
+      name: input.session.email
     }
   })
+
+  const durable = yield* waitForDurableSubscription({
+    session: input.session,
+    offerId: input.offerId
+  })
+
   const accountOverview = yield* waitForActiveSubscription({
     session: input.session,
     offerId: input.offerId
   })
-  const durable = yield* getDurableState(input.session)
 
   return {
     session: input.session,
@@ -450,7 +435,16 @@ export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurc
   } satisfies SubscriptionPurchaseResult
 })
 
-export const buySubscription = purchaseSubscription
+const summarizeAccount = (account: AccountOverview | undefined) => ({
+  user: account?.user,
+  activeOfferIds: account?.snapshot?.activeOfferIds ?? [],
+  subscriptions: account?.snapshot?.subscriptions ?? [],
+  purchases: account?.snapshot?.purchases ?? [],
+  wallets: account?.snapshot?.wallets ?? [],
+  benefits: account?.entitlements?.benefits ?? [],
+  checkoutIntents: account?.activity?.checkoutIntents ?? [],
+  events: account?.activity?.events ?? []
+})
 
 export const consumeCredits = Effect.fn(function* (input: {
   readonly session: PublicAuthSession
@@ -478,12 +472,52 @@ export const tryConsumeCredits = Effect.fn(function* (input: {
 })
 
 export const getDurableState = Effect.fn(function* (session: PublicAuthSession) {
+  const customerId = yield* getCustomerId(session)
+
+  return yield* getDurableStateForCustomer(customerId)
+})
+
+export const waitForDurableSubscription = Effect.fn(function* (input: {
+  readonly session: PublicAuthSession
+  readonly offerId: string
+}) {
+  const customerId = yield* getCustomerId(input.session)
+  let latest: DurableCommercialState | undefined
+
+  return yield* getDurableStateForCustomer(customerId).pipe(
+    Effect.tap((durable) => Effect.sync(() => (latest = durable))),
+    Effect.flatMap((durable) =>
+      hasDurableActiveSubscription(durable, input.offerId)
+        ? Effect.succeed(durable)
+        : Effect.fail(
+            new E2EHarnessError({
+              message: `Durable state did not expose an active subscription for offer "${input.offerId}". Latest durable state: ${JSON.stringify(summarizeDurable(latest))}`
+            })
+          )
+    ),
+    Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
+    Effect.mapError(
+      (cause) =>
+        new E2EHarnessError({
+          message: `Durable state did not expose an active subscription for offer "${input.offerId}". Latest durable state: ${JSON.stringify(summarizeDurable(latest))}`,
+          cause
+        })
+    )
+  )
+})
+
+const getCustomerId = Effect.fn(function* (session: PublicAuthSession) {
   const account = yield* getAccount(session)
   const customerId = account.user?.id
+
   if (!customerId) {
-    return yield* Effect.fail(new PublicPaddleScenarioError({ message: "Account response did not include user id" }))
+    return yield* new E2EHarnessError({ message: "Account response did not include user id" })
   }
 
+  return customerId
+})
+
+const getDurableStateForCustomer = Effect.fn(function* (customerId: string) {
   const sql = yield* SqlClient.SqlClient
   const [
     checkoutIntents,
@@ -615,10 +649,17 @@ export const getDurableState = Effect.fn(function* (session: PublicAuthSession) 
   } satisfies DurableCommercialState
 })
 
-const currentRunId = Effect.gen(function* () {
-  const config = yield* TestConfig
-  if (config.runId) {
-    return config.runId
-  }
-  return `run_${crypto.randomUUID()}`
+const hasDurableActiveSubscription = (durable: DurableCommercialState, offerId: string) =>
+  durable.checkoutIntents.some((intent) => intent.offerId === offerId && intent.status === "accepted") &&
+  durable.commercialEvents.some((event) => event.offerId === offerId && event.kind === "transaction_updated") &&
+  durable.commercialEvents.some((event) => event.offerId === offerId && event.kind === "subscription_updated") &&
+  durable.subscriptions.some((subscription) => subscription.status === "active") &&
+  durable.invoices.some((invoice) => invoice.status === "paid")
+
+const summarizeDurable = (durable: DurableCommercialState | undefined) => ({
+  checkoutIntents: durable?.checkoutIntents ?? [],
+  events: durable?.commercialEvents ?? [],
+  subscriptions: durable?.subscriptions ?? [],
+  invoices: durable?.invoices ?? [],
+  entitlements: durable?.entitlements ?? []
 })

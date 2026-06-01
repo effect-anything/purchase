@@ -16,9 +16,9 @@ import { CommercialCatalogIssue, type CommercialOffer, type CommercialProduct } 
 import { CommercialWorkflowConflict } from "../core/workflow-schema.ts"
 import { PurchaseStorageAdapter, type PurchaseStorageProductRecord } from "../db.ts"
 import { normalizeCatalog, normalizeSchema } from "../dsl.ts"
-import { PaymentClient } from "../provider/client.ts"
+import { PaymentProvider } from "../provider/client.ts"
 
-export class CommercialCatalogSyncService extends Context.Tag("@pay/core/CommercialCatalogSyncService")<
+export class CommercialCatalogSyncService extends Context.Tag("@xstack/purchase/sync/CommercialCatalogSyncService")<
   CommercialCatalogSyncService,
   {
     /**
@@ -43,7 +43,7 @@ export const CommercialCatalogSyncServiceLayer = (input: {
     Effect.gen(function* () {
       const storage = yield* PurchaseStorageAdapter
       const catalogState = yield* CatalogState
-      const provider = yield* PaymentClient
+      const provider = yield* PaymentProvider
       const activeProvider = provider._tag
 
       const getNormalizedCatalog = () =>

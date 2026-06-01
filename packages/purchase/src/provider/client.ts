@@ -304,7 +304,7 @@ type ProviderClientError = HttpClientError.HttpClientError
 /**
  * Shared payment client surface implemented by each provider adapter.
  */
-interface PaymentClientShape {
+interface PaymentProviderShape {
   readonly _tag: PaymentProviderTag
 
   /**
@@ -319,7 +319,7 @@ interface PaymentClientShape {
    * Run provider-specific logic with a fallback branch.
    */
   readonly onDialectOrElse: <A, B = never, C = never>(options: {
-    readonly orElse: (client: PaymentClientShape) => A
+    readonly orElse: (client: PaymentProviderShape) => A
     readonly stripe?: (client: Omit<StripeImpl, "onDialect" | "onDialectOrElse"> & { _tag: "stripe" }) => B
     readonly paddle?: (client: Omit<PaddleImpl, "onDialect" | "onDialectOrElse"> & { _tag: "paddle" }) => C
   }) => A | B | C
@@ -329,10 +329,10 @@ interface PaymentClientShape {
    */
   readonly webhooksUnmarshal: ({
     payload,
-    signature
+    headers
   }: {
     payload: string
-    signature: string
+    headers: Record<string, string>
   }) => Effect.Effect<any, WebhookUnmarshalError>
 
   /**
@@ -641,42 +641,45 @@ interface PaymentClientShape {
 }
 
 /**
- * Runtime payment client service.
+ * Runtime payment provider service.
  */
-export class PaymentClient extends Context.Tag("PaymentClient")<PaymentClient, PaymentClientShape>() {}
+export class PaymentProvider extends Context.Tag("@xstack/purchase/PaymentProvider")<
+  PaymentProvider,
+  PaymentProviderShape
+>() {}
 
-export declare namespace PaymentClient {
-  export type Methods = Context.Tag.Service<PaymentClient>
+export declare namespace PaymentProvider {
+  export type Methods = Context.Tag.Service<PaymentProvider>
   export type Returns<key extends keyof Methods, R = never> = ServicesReturns<Methods[key], R>
 }
 
 /**
- * Paddle-specific payment client implementation.
+ * Paddle-specific payment provider implementation.
  */
-export interface PaddleImpl extends PaymentClientShape {
+export interface PaddleImpl extends PaymentProviderShape {
   // Test. Provider-specific methods
   readonly paddleHi: Effect.Effect<string>
 }
 
 /**
- * Stripe-specific payment client implementation.
+ * Stripe-specific payment provider implementation.
  */
-export interface StripeImpl extends PaymentClientShape {
+export interface StripeImpl extends PaymentProviderShape {
   // Test. Provider-specific methods
   readonly stripeHi: Effect.Effect<string>
 }
 
-type ProviderMethods<T extends PaymentClientShape> = Omit<T, "onDialect" | "onDialectOrElse">
+type ProviderMethods<T extends PaymentProviderShape> = Omit<T, "onDialect" | "onDialectOrElse">
 
-export const makePaymentClient = <T extends PaymentClientShape>(
+export const makePaymentProvider = <T extends PaymentProviderShape>(
   tag: PaymentProviderTag,
   methods: ProviderMethods<T>
 ): T => {
-  const onDialect: PaymentClient.Methods["onDialect"] = (options) => {
+  const onDialect: PaymentProvider.Methods["onDialect"] = (options) => {
     return options[tag](methods as never)
   }
 
-  const onDialectOrElse: PaymentClient.Methods["onDialectOrElse"] = (options) => {
+  const onDialectOrElse: PaymentProvider.Methods["onDialectOrElse"] = (options) => {
     return options[tag] !== undefined ? options[tag](methods as never) : options.orElse(methods as never)
   }
 

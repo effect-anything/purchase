@@ -1,47 +1,75 @@
-import { Paddle } from "@effect-x/purchase/paddle"
-import { Stripe } from "@effect-x/purchase/stripe"
-import { layer, describe, beforeAll, afterAll } from "@effect/vitest"
-import * as Effect from "effect/Effect"
+import { describe, layer } from "@effect/vitest"
+import { Effect } from "effect"
 
-import {
-  expectCompletedSubscriptionAcquisition,
-  expectUnknownOfferCheckoutDeniedWithoutLocalState
-} from "../../utils/assertions.ts"
+import { assert } from "../../utils/assertions.ts"
 import {
   aiCredits500Pack,
   desktopLifetimePurchase,
   notesProMonthlySubscription
 } from "../../utils/business-fixtures.ts"
 import * as Harness from "../../utils/harness.ts"
-import { makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
+import { filteredScenarioPaymentProviders, makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
 
-describe.each([
-  ["Paddle", Paddle]
-  // ["Stripe", Stripe.layer]
-])("[%s], checkout lifecycle scenarios", (_provider, paymentClient) => {
-  const Live = makeScenarioRuntime({ paymentClient })
+describe.each(filteredScenarioPaymentProviders)("%s checkout lifecycle scenarios", (_providerName, paymentProvider) => {
+  const Live = makeScenarioRuntime(paymentProvider)
 
-  // Checkout e2e scenarios cover the path from app API to hosted provider payment entry points.
+  // Checkout e2e scenarios stop at the hosted provider payment entry point.
+  // Payment completion, webhook projection, and account entitlements live in acquisition scenarios.
   layer(Live, { excludeTestServices: true })((it) => {
-    // The app needs to complete a real provider checkout and reconnect provider completion back to local state.
-    it.effect("completes a hosted checkout for a signed-in user and reconnects the completed payment", () =>
+    it.effect("creates a real subscription checkout without granting paid access before payment", () =>
       Effect.gen(function* () {
         const session = yield* Harness.createCustomerAccount()
-        const result = yield* Harness.buySubscription({
+
+        const checkout = yield* Harness.checkout({
           session,
           offerId: notesProMonthlySubscription.offerId
         })
+        const account = yield* Harness.getAccount(session)
 
-        expectCompletedSubscriptionAcquisition(result, {
+        assert.checkout.startedWithoutSubscriptionAccess(checkout, account, {
           offerId: notesProMonthlySubscription.offerId,
-          customerEmail: session.email,
-          enabledBenefits: notesProMonthlySubscription.enabledBenefits,
-          quotaBenefits: notesProMonthlySubscription.quotaBenefits
+          benefitKeys: notesProMonthlySubscription.enabledBenefits
         })
       })
     )
 
-    it.effect.skip("rejects unknown offers without creating provider or local checkout state", () =>
+    it.effect("creates a real one-time purchase checkout without granting the durable purchase before payment", () =>
+      Effect.gen(function* () {
+        const session = yield* Harness.createCustomerAccount()
+        const checkout = yield* Harness.checkout({
+          session,
+          offerId: desktopLifetimePurchase.offerId
+        })
+        const account = yield* Harness.getAccount(session)
+
+        assert.checkout.reconnectable(checkout, {
+          offerId: desktopLifetimePurchase.offerId
+        })
+        assert.account.noPurchaseAccess(account, {
+          offerId: desktopLifetimePurchase.offerId
+        })
+      })
+    )
+
+    it.effect("creates a real credit-pack checkout without increasing the wallet before payment", () =>
+      Effect.gen(function* () {
+        const session = yield* Harness.createCustomerAccount()
+        const checkout = yield* Harness.checkout({
+          session,
+          offerId: aiCredits500Pack.offerId
+        })
+        const account = yield* Harness.getAccount(session)
+
+        assert.checkout.reconnectable(checkout, {
+          offerId: aiCredits500Pack.offerId
+        })
+        assert.credit.noAccountWallet(account, {
+          creditKey: aiCredits500Pack.creditKey
+        })
+      })
+    )
+
+    it.effect("rejects unknown offers without creating provider or local checkout state", () =>
       Effect.gen(function* () {
         const unknownOfferId = "notes:missing_plan"
         const session = yield* Harness.createCustomerAccount()
@@ -49,24 +77,16 @@ describe.each([
           session,
           offerId: unknownOfferId
         })
-        const account = yield* Harness.viewAccount(session)
+        const account = yield* Harness.getAccount(session)
         const durable = yield* Harness.getDurableState(session)
 
-        expectUnknownOfferCheckoutDeniedWithoutLocalState(result, account, durable, {
+        assert.checkout.unknownOfferDenied(result, account, durable, {
           offerId: unknownOfferId
         })
       })
     )
 
-    // One-time purchases should become durable grants after real payment completion.
-    it.todo(
-      `completes ${desktopLifetimePurchase.offerId} checkout and exposes an active purchase grant in the account API`
-    )
-
-    // Credit-pack purchases should land in the wallet only after reconciliation succeeds.
-    it.todo(`completes ${aiCredits500Pack.offerId} checkout and reflects the acquired balance in wallet endpoints`)
-
-    // Abandoned or expired checkouts must not grant any paid state.
+    // Abandoned or expired checkouts must remain conservative across provider, durable, and account state.
     it.todo(
       "marks abandoned or expired checkouts as non-active without granting subscription, purchase, or credit state"
     )

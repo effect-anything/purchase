@@ -1,18 +1,21 @@
-import { PaymentEnvironmentTag, PaymentProviderTag } from "@effect-x/purchase/provider"
-import { CheckoutMode, CommercialCatalog } from "@effect-x/purchase/schema"
 import { Context, Schema } from "effect"
+
+import { PaymentEnvironmentTag, PaymentProviderTag } from "../../src/provider.ts"
+import { CheckoutMode, CommercialCatalog } from "../../src/schema.ts"
 
 export class AuthenticationRequired extends Schema.TaggedError<AuthenticationRequired>()("AuthenticationRequired", {
   message: Schema.String
 }) {}
 
 export class ProviderNotConfigured extends Schema.TaggedError<ProviderNotConfigured>()("ProviderNotConfigured", {
-  message: Schema.String
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown)
 }) {}
 
 export class CreditsConflict extends Schema.TaggedError<CreditsConflict>()("CreditsConflict", {
   workflow: Schema.String,
-  message: Schema.String
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown)
 }) {}
 
 export class MissingOfferId extends Schema.TaggedError<MissingOfferId>()("MissingOfferId", {
@@ -20,8 +23,17 @@ export class MissingOfferId extends Schema.TaggedError<MissingOfferId>()("Missin
 }) {}
 
 export class WebhookProcessingFailed extends Schema.TaggedError<WebhookProcessingFailed>()("WebhookProcessingFailed", {
-  message: Schema.String
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown)
 }) {}
+
+export const WebhookProviderPath = Schema.Struct({
+  provider: PaymentProviderTag
+})
+
+export const WebhookApiResponse = Schema.Struct({
+  accepted: Schema.Boolean
+})
 
 export const AuthenticatedUser = Schema.Struct({
   id: Schema.String,
@@ -32,7 +44,7 @@ export const AuthenticatedUser = Schema.Struct({
 })
 export type AuthenticatedUser = typeof AuthenticatedUser.Type
 
-export class CurrentUser extends Context.Tag("CurrentUser")<CurrentUser, AuthenticatedUser>() {}
+export class CurrentUser extends Context.Tag("@E2E/CurrentUser")<CurrentUser, AuthenticatedUser>() {}
 
 export const AuthSignUpPayload = Schema.Struct({
   email: Schema.optional(Schema.String),

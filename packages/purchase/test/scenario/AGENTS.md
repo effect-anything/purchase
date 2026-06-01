@@ -8,7 +8,7 @@
 
 本目录属于 `packages/purchase/test`，因此仍然是非 e2e 测试。它按业务场景组织本地测试，用来验证 SDK public workflow 语义，而不是验证真实第三方连通性。
 
-允许使用 fake `PaymentClient`、fixture replay、provider simulator 和 SQLite harness，只要它们服务于稳定地验证业务不变量。
+允许使用 fake `PaymentProvider`、fixture replay、provider simulator 和 SQLite harness，只要它们服务于稳定地验证业务不变量。
 
 禁止在本目录使用真实 hosted checkout、真实 provider credentials、Cloudflare tunnel 或 live provider webhook delivery。这些属于 `packages/purchase/e2e`。
 
@@ -127,7 +127,7 @@ catalog
    - `paykit_provider_ref`
    - `paykit_entitlement`
 
-2. `PaymentClient` / provider 视角：
+2. `PaymentProvider` / provider 视角：
    验证第三方平台上的真实状态或 provider call 语义是否一致。
    本地 scenario 至少要验证 provider call 输入、provider id、capability 路径。
    真实 e2e 则要尽量调用 provider client 的 `get/list/latest` 能力确认第三方状态。
@@ -329,7 +329,7 @@ describe("subscription acquisition", () => {
 这些场景在实现时，都要明确带上：
 
 - `SqlClient` 查询断言
-- `PaymentClient` provider 断言
+- `PaymentProvider` provider 断言
 - public read model 断言
 
 ## 避免的误区

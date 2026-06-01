@@ -44,7 +44,7 @@ import {
   type PurchaseStorageCheckoutIntentRecord,
   type PurchaseStorageOverrides
 } from "./db.ts"
-import { PaymentClient } from "./provider/client.ts"
+import { PaymentProvider } from "./provider/client.ts"
 
 /**
  * Public checkout entrypoint for the commercial runtime.
@@ -133,7 +133,7 @@ export interface PurchaseSDKContract<_TPlans extends ReadonlyArray<unknown>, TPr
    * Configured provider client used by the SDK runtime. Exposed for provider-level
    * test harnesses and advanced integrations that need direct provider inspection.
    */
-  readonly provider: PaymentClient.Methods
+  readonly provider: PaymentProvider.Methods
   /**
    * Read-only commercial catalog access for application runtime code.
    * Infrastructure mutations such as catalog sync live in `@effect-x/purchase/config`.
@@ -195,7 +195,7 @@ export interface PurchaseSDKContract<_TPlans extends ReadonlyArray<unknown>, TPr
   }
 }
 
-export class Purchase extends Context.Tag("Purchase")<
+export class Purchase extends Context.Tag("@xstack/purchase/Purchase")<
   Purchase,
   PurchaseSDKContract<ReadonlyArray<unknown>, ReadonlyArray<unknown>>
 >() {}
@@ -215,11 +215,11 @@ export function PurchaseSDK<
     readonly products: TProducts
     readonly layer: <T extends Context.Tag<Self, Service>>(
       T: T
-    ) => Layer.Layer<Self, never, PaymentClient | SqlClient.SqlClient>
+    ) => Layer.Layer<Self, never, PaymentProvider | SqlClient.SqlClient>
     readonly make: <T extends Context.Tag<Self, Service>, E, R>(
       T: T,
       f: Effect.Effect<Shape, E, R | Purchase>
-    ) => Layer.Layer<Self, E, Exclude<R, Purchase> | PaymentClient | SqlClient.SqlClient>
+    ) => Layer.Layer<Self, E, Exclude<R, Purchase> | PaymentProvider | SqlClient.SqlClient>
   }
 
   const catalogStateLive = Layer.effect(
@@ -257,7 +257,7 @@ export function PurchaseSDK<
         workflow: CommercialWorkflowService,
         workflowStore: CommercialWorkflowStore
       })
-      const provider = yield* PaymentClient
+      const provider = yield* PaymentProvider
 
       const getCommerceSnapshot = ({ customerId }: { readonly customerId: string }) =>
         commerce.projection.refreshCustomerSnapshot({

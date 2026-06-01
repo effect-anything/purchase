@@ -1,6 +1,6 @@
 /** @effect-diagnostics preferSchemaOverJson:off */
 import { HttpApiBuilder, HttpServerRequest, HttpLayerRouter, HttpServerResponse } from "@effect/platform"
-import * as SqlClient from "@effect/sql/SqlClient"
+import { SqlClient } from "@effect/sql"
 import { Effect, Layer } from "effect"
 
 import { syncCatalog } from "../../src/sync/config-service.ts"
@@ -15,17 +15,7 @@ import {
 import { AppApi } from "./http.ts"
 import { SessionStore } from "./session.ts"
 
-const provider = "paddle" as const
 const environment = "sandbox"
-
-const nowIso = () => new Date().toISOString()
-
-const describeCause = (cause: unknown) => {
-  if (cause instanceof Error) {
-    return cause.message
-  }
-  return String(cause)
-}
 
 const requireUser = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest
@@ -47,7 +37,7 @@ const requireUser = Effect.gen(function* () {
 const writeCustomer = (input: { readonly id: string; readonly email: string; readonly name: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
-    const now = nowIso()
+    const now = new Date().toISOString()
 
     yield* sql.unsafe(
       `INSERT INTO paykit_customer (id, email, name, metadata, provider, created_at, updated_at)
@@ -98,9 +88,10 @@ const CatalogHttpLive = HttpApiBuilder.group(AppApi, "catalog", (handlers) =>
     Effect.gen(function* () {
       const purchase = yield* CommercialPay
       const catalog = yield* purchase.catalog.getCatalog().pipe(Effect.orDie)
+
       return {
         environment,
-        provider,
+        provider: purchase.provider._tag,
         catalog
       }
     })
@@ -171,7 +162,7 @@ const AccountHttpApiLive = HttpApiBuilder.group(AppApi, "account", (handlers) =>
 
       return {
         environment,
-        provider,
+        provider: purchase.provider._tag,
         user,
         snapshot: {
           activeOfferIds: snapshot.activeOfferIds.map(String),
@@ -266,13 +257,13 @@ const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
               typeof cause === "object" && cause !== null ? (cause as { readonly _tag?: string })._tag : undefined
             return tag === "CommercialOfferNotFound"
               ? new MissingOfferId({ message: `Unknown offerId: ${payload.offerId}` })
-              : new ProviderNotConfigured({ message: `Checkout provider failed: ${describeCause(cause)}` })
+              : new ProviderNotConfigured({ message: `Checkout provider failed`, cause })
           })
         )
 
       return {
         environment,
-        provider,
+        provider: purchase.provider._tag,
         checkout: {
           offerId: checkout.offerId,
           intentId: checkout.intentId,
@@ -303,7 +294,8 @@ const CreditsHttpLive = HttpApiBuilder.group(AppApi, "credits", (handlers) =>
             (cause) =>
               new CreditsConflict({
                 workflow: "credits.consume",
-                message: `Credit consume failed: ${describeCause(cause)}`
+                message: `Credit consume failed`,
+                cause
               })
           )
         )
@@ -319,52 +311,51 @@ const CreditsHttpLive = HttpApiBuilder.group(AppApi, "credits", (handlers) =>
   )
 )
 
-const WebhookRoute = HttpLayerRouter.add("POST", "/api/webhooks/paddle", (request) =>
-  Effect.gen(function* () {
-    const signature = request.headers["paddle-signature"]
-    if (!signature) {
-      return yield* HttpServerResponse.json(
-        { error: "Missing paddle-signature header" },
-        {
-          status: 400
-        }
-      )
-    }
-
-    const body = yield* request.text
-    const purchase = yield* CommercialPay
-    const result = yield* purchase.webhooks
-      .handle({
-        provider,
-        body,
-        signature
-      })
-      .pipe(
+const WebhookHttpLive = HttpApiBuilder.group(AppApi, "webhooks", (handlers) =>
+  handlers.handleRaw("handle", ({ path, request }) =>
+    Effect.gen(function* () {
+      const body = yield* request.text.pipe(
         Effect.mapError(
           (cause) =>
             new WebhookProcessingFailed({
-              message: `Webhook processing failed: ${describeCause(cause)}`
+              message: `Webhook body read failed`,
+              cause
             })
         )
       )
+      const purchase = yield* CommercialPay
+      const result = yield* purchase.webhooks
+        .handle({
+          provider: path.provider,
+          body,
+          headers: request.headers
+        })
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new WebhookProcessingFailed({
+                message: `Webhook processing failed`,
+                cause
+              })
+          )
+        )
 
-    return yield* HttpServerResponse.json({ accepted: result.accepted })
-  }).pipe(
-    Effect.catchTag("WebhookProcessingFailed", (error) =>
-      HttpServerResponse.json(
-        { error: error.message },
-        {
-          status: 400
-        }
-      )
-    )
+      return { accepted: result.accepted }
+    })
   )
 )
 
 const PublicApiRoutes = HttpLayerRouter.addHttpApi(AppApi, { openapiPath: "/api/docs/openapi.json" }).pipe(
-  Layer.provide(Layer.mergeAll(AccountHttpApiLive, AuthHttpLive, CatalogHttpLive, CheckoutHttpLive, CreditsHttpLive))
+  Layer.provide(
+    Layer.mergeAll(
+      AccountHttpApiLive,
+      AuthHttpLive,
+      CatalogHttpLive,
+      CheckoutHttpLive,
+      CreditsHttpLive,
+      WebhookHttpLive
+    )
+  )
 )
 
-const AllRoutes = Layer.mergeAll(PublicApiRoutes, WebhookRoute)
-
-export const HttpRouterLive = HttpLayerRouter.serve(AllRoutes)
+export const HttpRouterLive = HttpLayerRouter.serve(PublicApiRoutes).pipe(Layer.provideMerge(SessionStore.Live))

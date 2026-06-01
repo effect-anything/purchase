@@ -719,7 +719,8 @@ const fakeStripeClient = {
         url: "https://billing.stripe.com/p/session/test_fixture"
       })
   },
-  webhooksUnmarshal: (payload: string) => Effect.succeed(JSON.parse(payload))
+  webhooksUnmarshal: (payload: string | { readonly payload: string }) =>
+    Effect.succeed(JSON.parse(typeof payload === "string" ? payload : payload.payload))
 } as unknown as Context.Tag.Service<typeof StripeClient>
 
 export const makeStripeFixtureProvider = Effect.gen(function* () {
@@ -1296,7 +1297,8 @@ const fakePaddleClient = {
         }
       })
   },
-  webhooksUnmarshal: (payload: string) => Effect.succeed(JSON.parse(payload))
+  webhooksUnmarshal: (payload: string | { readonly payload: string }) =>
+    Effect.succeed(JSON.parse(typeof payload === "string" ? payload : payload.payload))
 } as unknown as Context.Tag.Service<typeof PaddleClient>
 
 export const makePaddleFixtureProvider = Effect.gen(function* () {

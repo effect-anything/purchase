@@ -8,7 +8,7 @@ interface SessionRecord {
 
 const sessionCookieName = "purchase_e2e_session"
 
-export class SessionStore extends Context.Tag("SessionStore")<
+export class SessionStore extends Context.Tag("@E2E/SessionStore")<
   SessionStore,
   {
     readonly cookieName: string

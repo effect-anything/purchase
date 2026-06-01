@@ -5,12 +5,10 @@ import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Config from "effect/Config"
 import * as Context from "effect/Context"
-import * as Duration from "effect/Duration"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
 import fs from "node:fs"
 import path from "node:path"
@@ -28,6 +26,17 @@ import {
   type ProviderPrepareResult
 } from "../../sync/provider-prepare.ts"
 import { getPaddleUrl } from "../config.ts"
+import {
+  GET_CHECKOUT_SETTINGS_QUERY,
+  GET_CHECKOUT_STYLES_QUERY,
+  GET_OVERLAY_SETTINGS_QUERY,
+  GET_SELLER_DOMAINS_QUERY,
+  PADDLE_WEBHOOK_SUBSCRIBED_EVENTS,
+  SAVE_CHECKOUT_SETTINGS_MUTATION,
+  SAVE_OVERLAY_SETTINGS_MUTATION,
+  SAVE_STYLES_MUTATION,
+  SUBMIT_DOMAIN_APPROVAL_REQUEST_MUTATION
+} from "./constants.ts"
 import {
   PaddleVendorCheckoutSettingsData,
   PaddleVendorCheckoutStylesData,
@@ -53,7 +62,9 @@ interface PaddleDomainReviewState {
   readonly status: string
 }
 
-export class PaddleVendorPrepareService extends Context.Tag("@pay/core/PaddleVendorPrepareService")<
+export class PaddleVendorPrepareService extends Context.Tag(
+  "@xstack/purchase/provider/Paddle/PaddleVendorPrepareService"
+)<
   PaddleVendorPrepareService,
   {
     readonly prepare: (
@@ -251,22 +262,32 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
       const domain = new URL(checkoutUrl).hostname
       const current = knownDomains ?? (yield* fetchPaddleApprovedDomains)
 
-      if (current.some((entry: PaddleDomainReviewState) => entry.domain === domain && entry.status === "approved")) {
+      if (current.some((entry: PaddleDomainReviewState) => isPaddleDomainReviewApproved(entry, domain))) {
         return
       }
 
-      const submitted = yield* submitPaddleDomainApprovalRequest(domain)
-      if (submitted.status === "approved") {
+      const submitted = yield* submitPaddleDomainApprovalRequest(domain).pipe(
+        Effect.catchAll((cause) =>
+          fetchPaddleApprovedDomains.pipe(
+            Effect.catchAll(() => Effect.fail(cause)),
+            Effect.flatMap((domains) =>
+              domains.some((entry: PaddleDomainReviewState) => isPaddleDomainReviewApproved(entry, domain))
+                ? Effect.succeed({ id: "", domain, status: "approved" })
+                : Effect.fail(cause)
+            )
+          )
+        )
+      )
+      if (isPaddleDomainReviewApproved(submitted, domain)) {
         return
       }
 
       yield* fetchPaddleApprovedDomains.pipe(
         Effect.flatMap((domains) =>
-          domains.some((entry: PaddleDomainReviewState) => entry.domain === domain && entry.status === "approved")
+          domains.some((entry: PaddleDomainReviewState) => isPaddleDomainReviewApproved(entry, domain))
             ? Effect.void
             : Effect.dieMessage(`Paddle checkout domain "${domain}" is not approved yet`)
-        ),
-        Effect.retry(Schedule.spaced(Duration.seconds(3)).pipe(Schedule.compose(Schedule.recurs(10))))
+        )
       )
     })
 
@@ -379,12 +400,15 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
       notificationSetting: PaddleNotificationSettingState | undefined,
       approvedDomains: ReadonlyArray<PaddleDomainReviewState>
     ) {
+      const hasActionableChange = (predicate: (path: string) => boolean) =>
+        plan.changes.some((change) => change.action !== "none" && predicate(change.path))
+
       if (
-        plan.changes.some(
-          (change) =>
-            change.path.startsWith("checkout.settings") ||
-            change.path === "checkout.defaultCheckoutUrl" ||
-            change.path.startsWith("checkout.paymentMethods")
+        hasActionableChange(
+          (path) =>
+            path.startsWith("checkout.settings") ||
+            path === "checkout.defaultCheckoutUrl" ||
+            path.startsWith("checkout.paymentMethods")
         )
       ) {
         if (input.approvedCheckoutUrl) {
@@ -412,7 +436,7 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
         )
       }
 
-      if (plan.changes.some((change) => change.path.startsWith("checkout.overlay"))) {
+      if (hasActionableChange((path) => path.startsWith("checkout.overlay"))) {
         const response = yield* vendorRequest({
           operationName: "SaveOverlaySettings",
           variables: PaddleVendorOverlaySettingsData.buildMutationVariables(input.checkout?.overlay),
@@ -421,7 +445,7 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
         yield* PaddleVendorSaveOverlaySettingsResponse.decode(response.data)
       }
 
-      if (plan.changes.some((change) => change.path.startsWith("checkout.styles"))) {
+      if (hasActionableChange((path) => path.startsWith("checkout.styles"))) {
         const response = yield* vendorRequest({
           operationName: "SaveStyles",
           variables: PaddleVendorCheckoutStylesData.buildMutationVariables(input.checkout?.styles),
@@ -430,7 +454,7 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
         yield* PaddleVendorSaveStylesResponse.decode(response.data)
       }
 
-      if (input.webhookUrl && plan.changes.some((change) => change.path.startsWith("webhook."))) {
+      if (input.webhookUrl && hasActionableChange((path) => path.startsWith("webhook."))) {
         yield* upsertPaddleNotificationSetting(input.environment, notificationSetting, input.webhookUrl)
       }
     })
@@ -675,315 +699,8 @@ const formatPaddleSecrets = (notificationSetting: PaddleNotificationSettingState
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value)
 
-const PADDLE_WEBHOOK_SUBSCRIBED_EVENTS = [
-  "adjustment.created",
-  "adjustment.updated",
-  "customer.created",
-  "customer.updated",
-  "subscription.activated",
-  "subscription.canceled",
-  "subscription.created",
-  "subscription.past_due",
-  "subscription.paused",
-  "subscription.resumed",
-  "subscription.trialing",
-  "subscription.updated",
-  "transaction.billed",
-  "transaction.canceled",
-  "transaction.completed",
-  "transaction.created",
-  "transaction.paid",
-  "transaction.payment_failed",
-  "transaction.ready",
-  "transaction.updated"
-] as const
-
-const GET_CHECKOUT_SETTINGS_QUERY = `query GetCheckoutSettings {
-  getDomainReviews {
-    id
-    domain
-    status
-    applePayVerificationStatus
-    events {
-      type
-      time
-      __typename
-    }
-    __typename
-  }
-  getCheckoutSettings {
-    data {
-      vendorName
-      audienceOptin
-      checkoutDiscounts
-      enableSavedPaymentMethods
-      statementDescription
-      vendorFeatures {
-        toggleCardPayments
-        wireTransfers
-        paypal
-        __typename
-      }
-      defaultCheckoutUrl {
-        url
-        state
-        __typename
-      }
-      featureFlags {
-        defaultCheckoutUrl
-        showAliPaySetting
-        showIdealSetting
-        showGooglePaySetting
-        showBancontactSetting
-        showSavedPaymentMethodsSetting
-        showApplePayDomainVerificationTab
-        showPixSetting
-        showUpiSetting
-        showWeChatSetting
-        showMBWaySetting
-        showBlikSetting
-        showSouthKoreaLocalCardSetting
-        showNaverPaySetting
-        showKakaoPaySetting
-        showSamsungPaySetting
-        showPaycoSetting
-        __typename
-      }
-      orderConfirmationEmail {
-        freeCheckoutReceipts
-        receiptShowMessage
-        __typename
-      }
-      paymentMethods {
-        card
-        paypal
-        wireTransfer
-        alipay
-        googlePay
-        applePay
-        ideal
-        bancontact
-        pix
-        upi
-        blik
-        mbway
-        wechat
-        southKoreaLocalCard
-        naverPay
-        kakaoPay
-        samsungPay
-        payco
-        __typename
-      }
-      __typename
-    }
-    __typename
-  }
-}`
-
-const GET_OVERLAY_SETTINGS_QUERY = `query GetOverlaySettings {
-  getOverlaySettings {
-    data {
-      brandColor
-      __typename
-    }
-    __typename
-  }
-}`
-
-const GET_CHECKOUT_STYLES_QUERY = `query GetCheckoutStyles($sellerId: ID) {
-  getCheckoutStyles(sellerId: $sellerId) {
-    data {
-      theme {
-        globals {
-          activeFocusBorderColor
-          activeFocusBoxShadowColor
-          borderRadius
-          fontFamily
-          primaryFontSize
-          secondaryFontSize
-          useContainerPadding
-          maxWidth
-          __typename
-        }
-        inputs {
-          text {
-            activeColor
-            backgroundColor
-            borderColor
-            borderRadius
-            borderWidth
-            color
-            fontSize
-            minHeight
-            placeholderColor
-            withBoxShadow
-            __typename
-          }
-          checkbox {
-            backgroundColor
-            borderRadius
-            __typename
-          }
-          select {
-            backgroundColor
-            borderColor
-            borderRadius
-            borderWidth
-            color
-            fontSize
-            height
-            minHeight
-            withBoxShadow
-            __typename
-          }
-          selectFieldWithLabel {
-            labelVisible
-            labelPosition
-            __typename
-          }
-          inputFieldWithLabel {
-            labelVisible
-            labelPosition
-            __typename
-          }
-          __typename
-        }
-        buttons {
-          primary {
-            activeFocusBorderColor
-            activeFocusBoxShadowColor
-            borderColor
-            borderColorHover
-            borderWidth
-            color
-            colorHover
-            backgroundColor
-            backgroundColorHover
-            borderRadius
-            fontSize
-            height
-            width
-            __typename
-          }
-          secondary {
-            activeFocusBorderColor
-            activeFocusBoxShadowColor
-            borderColor
-            borderColorHover
-            borderWidth
-            color
-            colorHover
-            backgroundColor
-            backgroundColorHover
-            borderRadius
-            fontSize
-            height
-            width
-            __typename
-          }
-          __typename
-        }
-        paddleBar {
-          container {
-            backgroundColor
-            borderColor
-            borderRadius
-            __typename
-          }
-          dataSharedAndPaddleAddress {
-            fontSize
-            __typename
-          }
-          paddleMerchantOrderProcess {
-            fontSize
-            __typename
-          }
-          __typename
-        }
-        label {
-          color
-          fontSize
-          fontWeight
-          __typename
-        }
-        link {
-          color
-          colorHover
-          fontSize
-          __typename
-        }
-        notification {
-          container {
-            backgroundColor
-            borderColor
-            borderRadius
-            __typename
-          }
-          text {
-            fontSize
-            __typename
-          }
-          __typename
-        }
-        __typename
-      }
-      __typename
-    }
-    __typename
-  }
-}`
-
-const SAVE_CHECKOUT_SETTINGS_MUTATION = `mutation SaveCheckoutSettings($checkoutSettingsObject: CheckoutSettingsObjectInput!) {
-  saveCheckoutSettings(checkoutSettingsObject: $checkoutSettingsObject) {
-    message
-    __typename
-  }
-}`
-
-const SAVE_STYLES_MUTATION = `mutation SaveStyles($stylesObject: CheckoutStylesObjectInput!) {
-  saveStyles(stylesObject: $stylesObject) {
-    message
-    __typename
-  }
-}`
-
-const SAVE_OVERLAY_SETTINGS_MUTATION = `mutation SaveOverlaySettings($overlaySettingsObject: OverlaySettingsObjectInput!) {
-  saveOverlaySettings(overlaySettingsObject: $overlaySettingsObject) {
-    message
-    __typename
-  }
-}`
-
-const GET_SELLER_DOMAINS_QUERY = `query GetSellerDomains {
-  getDomainReviews {
-    id
-    domain
-    status
-    applePayVerificationStatus
-    events {
-      type
-      time
-      __typename
-    }
-    __typename
-  }
-}`
-
-const SUBMIT_DOMAIN_APPROVAL_REQUEST_MUTATION = `mutation SubmitDomainApprovalRequest($domain: String!) {
-  submitDomainApprovalRequest(domain: $domain) {
-    id
-    domain
-    status
-    applePayVerificationStatus
-    events {
-      type
-      time
-      __typename
-    }
-    __typename
-  }
-}`
+const isPaddleDomainReviewApproved = (entry: Pick<PaddleDomainReviewState, "domain" | "status">, domain: string) =>
+  entry.domain === domain && entry.status.toLowerCase() === "approved"
 
 const decodePaddleDomainReview = (input: unknown): PaddleDomainReviewState => {
   if (!isRecord(input)) {
@@ -993,7 +710,7 @@ const decodePaddleDomainReview = (input: unknown): PaddleDomainReviewState => {
   return {
     id: String(input.id),
     domain: String(input.domain),
-    status: String(input.status)
+    status: String(input.status).toLowerCase()
   }
 }
 

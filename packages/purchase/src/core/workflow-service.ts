@@ -10,7 +10,7 @@ import type { BillingPortalSession, CheckoutSession, SubscriptionChangePreview }
 import type { PaymentProviderTag } from "../provider/types.ts"
 
 import { PurchaseStorageAdapter } from "../db.ts"
-import { PaymentClient, type PaymentWebhookNormalization } from "../provider/client.ts"
+import { PaymentProvider, type PaymentWebhookNormalization } from "../provider/client.ts"
 import { CommercialCatalogService } from "./catalog-service.ts"
 import {
   CommercialAgreementNotFound,
@@ -56,7 +56,7 @@ import { CommercialWorkflowStore } from "./workflow-store.ts"
 /**
  * Orchestrates provider-backed commercial workflows.
  */
-export class CommercialWorkflowService extends Context.Tag("@pay/core/CommercialWorkflowService")<
+export class CommercialWorkflowService extends Context.Tag("@xstack/purchase/core/CommercialWorkflowService")<
   CommercialWorkflowService,
   {
     /**
@@ -260,7 +260,7 @@ const resolveCustomerProfileUpdate = (normalizedEvent: PaymentWebhookNormalizati
 }
 
 const ensureProviderCustomer = (input: {
-  readonly payment: PaymentClient.Methods
+  readonly payment: PaymentProvider.Methods
   readonly provider: PaymentProviderTag
   readonly customerId: string
   readonly workflowStore: CommercialWorkflowStore.Methods
@@ -331,7 +331,7 @@ const normalizeCommercialEvents = (input: {
 export const CommercialWorkflowServiceLayer = Layer.effect(
   CommercialWorkflowService,
   Effect.gen(function* () {
-    const payment = yield* PaymentClient
+    const payment = yield* PaymentProvider
     const catalogService = yield* CommercialCatalogService
     const workflowStore = yield* CommercialWorkflowStore
     const projectionService = yield* CommercialProjectionService
@@ -1354,7 +1354,7 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       const rawEvent = yield* payment
         .webhooksUnmarshal({
           payload: input.body,
-          signature: input.signature
+          headers: input.headers
         })
         .pipe(
           Effect.mapError((error) => new CommercialWebhookRejected({ provider: input.provider, message: error.error }))

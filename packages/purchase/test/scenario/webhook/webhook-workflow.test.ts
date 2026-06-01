@@ -64,7 +64,7 @@ describe("core webhook workflow", () => {
         const result = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_checkout_completed" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
 
         expect(result.accepted).toBe(true)
@@ -148,7 +148,7 @@ describe("core webhook workflow", () => {
         const first = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_checkout_completed" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
         expect(first.accepted).toBe(true)
         expect(first.normalizedEvents).toHaveLength(1)
@@ -159,7 +159,7 @@ describe("core webhook workflow", () => {
         const second = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_checkout_completed" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
         const after = yield* countCoreRows
 
@@ -197,7 +197,7 @@ describe("core webhook workflow", () => {
         yield* sdk.webhooks.handle({
           provider: "paddle",
           body: '{"id":"evt_test_checkout_completed"}',
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
 
         const refs = yield* queryAll<{
@@ -234,7 +234,7 @@ describe("core webhook workflow", () => {
         yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_checkout_completed" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
         const before = yield* countCoreRows
 
@@ -293,7 +293,7 @@ describe("core webhook workflow", () => {
           sdk.webhooks.handle({
             provider: "paddle",
             body: JSON.stringify({ id: "evt_wrong_provider" }),
-            signature: "test_signature"
+            headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
           })
         )
         const after = yield* countCoreRows

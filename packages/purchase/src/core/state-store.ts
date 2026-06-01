@@ -8,7 +8,7 @@ import type { CreditsWalletState, PurchaseGrantState, SubscriptionAgreementState
 
 import { CommercialProjectionService } from "./projection-service.ts"
 
-export class CommercialStateStore extends Context.Tag("@pay/core/CommercialStateStore")<
+export class CommercialStateStore extends Context.Tag("@xstack/purchase/core/CommercialStateStore")<
   CommercialStateStore,
   {
     readonly getSubscriptionAgreement: (input: {

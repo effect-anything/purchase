@@ -20,7 +20,7 @@ import { PurchaseStorageAdapter } from "../db.ts"
 /**
  * Read-side service for resolved commercial catalog data.
  */
-export class CommercialCatalogService extends Context.Tag("@pay/core/CommercialCatalogService")<
+export class CommercialCatalogService extends Context.Tag("@xstack/purchase/core/CommercialCatalogService")<
   CommercialCatalogService,
   {
     /**

@@ -26,7 +26,7 @@ import type {
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
 
 import { ProviderOperationNotSupported, WebhookUnmarshalError } from "../../src/errors.ts"
-import { makePaymentClient, PaymentClient } from "../../src/provider/client.ts"
+import { makePaymentProvider, PaymentProvider } from "../../src/provider/client.ts"
 
 export const TEST_PROVIDER_CUSTOMER_ID = "cus_test_123"
 export const TEST_CHECKOUT_SESSION_ID = "cs_test_123"
@@ -41,21 +41,21 @@ export const TEST_REFUND_ID = "re_test_123"
 export interface TestPaymentCalls {
   readonly products: {
     readonly create: Array<CreateProductParams>
-    readonly archive: Array<Parameters<PaymentClient.Methods["products"]["archive"]>[0]>
+    readonly archive: Array<Parameters<PaymentProvider.Methods["products"]["archive"]>[0]>
   }
   readonly prices: {
     readonly create: Array<CreatePriceParams>
-    readonly archive: Array<Parameters<PaymentClient.Methods["prices"]["archive"]>[0]>
+    readonly archive: Array<Parameters<PaymentProvider.Methods["prices"]["archive"]>[0]>
   }
   readonly customers: {
-    readonly find: Array<Parameters<PaymentClient.Methods["customers"]["find"]>[0]>
-    readonly create: Array<Parameters<PaymentClient.Methods["customers"]["create"]>[0]>
+    readonly find: Array<Parameters<PaymentProvider.Methods["customers"]["find"]>[0]>
+    readonly create: Array<Parameters<PaymentProvider.Methods["customers"]["create"]>[0]>
   }
   readonly checkout: {
-    readonly prepare: Array<Parameters<PaymentClient.Methods["checkout"]["prepare"]>[0]>
+    readonly prepare: Array<Parameters<PaymentProvider.Methods["checkout"]["prepare"]>[0]>
   }
   readonly subscriptions: {
-    readonly cancel: Array<Parameters<PaymentClient.Methods["subscriptions"]["cancel"]>[0]>
+    readonly cancel: Array<Parameters<PaymentProvider.Methods["subscriptions"]["cancel"]>[0]>
     readonly change: Array<ChangeSubscriptionParams>
     readonly pause: Array<PauseSubscriptionParams>
     readonly resume: Array<ResumeSubscriptionParams>
@@ -65,7 +65,7 @@ export interface TestPaymentCalls {
     readonly create: Array<RefundTransactionParams>
   }
   readonly billingPortal: {
-    readonly createSession: Array<Parameters<PaymentClient.Methods["billingPortal"]["createSession"]>[0]>
+    readonly createSession: Array<Parameters<PaymentProvider.Methods["billingPortal"]["createSession"]>[0]>
   }
 }
 
@@ -188,7 +188,7 @@ export const makeTestPaymentLayer = (options?: {
       }
     }) as unknown as SubscriptionChangePreview
 
-  const client = makePaymentClient(provider, {
+  const client = makePaymentProvider(provider, {
     _tag: provider,
     webhooksUnmarshal: ({ payload }) =>
       Effect.try({
@@ -341,7 +341,7 @@ export const makeTestPaymentLayer = (options?: {
         Effect.sync(() => calls.checkout.prepare.push(params)).pipe(
           Effect.zipRight(failIfUnsupported("checkout.prepare")),
           Effect.as({
-            mode: "subscription",
+            mode: "redirect",
             provider,
             environment: "sandbox",
             offerId: params.offerId,
@@ -373,6 +373,6 @@ export const makeTestPaymentLayer = (options?: {
 
   return {
     calls,
-    layer: Layer.succeed(PaymentClient, PaymentClient.of(client))
+    layer: Layer.succeed(PaymentProvider, PaymentProvider.of(client))
   } as const
 }

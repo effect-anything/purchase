@@ -6,7 +6,7 @@ describe("subscription command workflow scenarios", () => {
   // Implementation note:
   // - seed an active agreement
   // - call cancel/change/pause/resume separately
-  // - assert provider calls and reconciliation triggers through PaymentClient expectations
+  // - assert provider calls and reconciliation triggers through PaymentProvider expectations
   // - assert local SqlClient rows do not jump to the final webhook-derived state
   // - assert local projection does not jump to the final webhook-derived state prematurely
   it.todo("returns reconciliation receipts without mutating subscription projection before webhook convergence")

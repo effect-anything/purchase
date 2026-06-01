@@ -97,7 +97,7 @@ describe("core purchase and credit workflows", () => {
         const result = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_lifetime_paid" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
         expect(result.accepted).toBe(true)
 
@@ -215,7 +215,7 @@ describe("core purchase and credit workflows", () => {
         const first = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_credits_paid" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
         expect(first.accepted).toBe(true)
 
@@ -270,7 +270,7 @@ describe("core purchase and credit workflows", () => {
         const second = yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_credits_paid" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
         expect(second.accepted).toBe(false)
         expect(yield* countRows("paykit_credit_ledger")).toBe(1)
@@ -311,14 +311,14 @@ describe("core purchase and credit workflows", () => {
         yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_subscription_paid" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
 
         webhook = creditsPaidNormalization
         yield* sdk.webhooks.handle({
           provider: "stripe",
           body: JSON.stringify({ id: "evt_test_credits_paid" }),
-          signature: "test_signature"
+          headers: { "stripe-signature": "test_signature", "paddle-signature": "test_signature" }
         })
 
         const wallet = yield* sdk.credits.getWallet({

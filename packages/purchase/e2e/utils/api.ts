@@ -1,31 +1,30 @@
-import type { PaymentClient, PaymentProviderTag } from "@effect-x/purchase/provider"
-
-import { PaymentHarness } from "@effect-x/purchase/harness"
-import { Paddle } from "@effect-x/purchase/paddle"
 import { Cookies, FetchHttpClient, HttpClient, HttpClientRequest, HttpServer } from "@effect/platform"
 import { NodeContext, NodeFileSystem, NodeHttpServer } from "@effect/platform-node"
 import { SqlClient } from "@effect/sql"
-import { Effect, String as EffectString, Config, Layer, Logger, LogLevel, Ref, ConfigProvider } from "effect"
+import { ConfigProvider, Effect, String as EffectString, Layer, Logger, LogLevel, Ref } from "effect"
 import { createServer } from "node:http"
 
+import type { PaymentProvider, PaymentProviderTag } from "../../src/provider.ts"
 import type { BrokerEndpoint } from "./types.ts"
 
+import { PaymentHarness, type PaymentHarnessCleanupOptions, type PaymentTestBrowserOptions } from "../../src/harness.ts"
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
 import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
 import { CommercialPay, CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
 import { TestConfig } from "../http-api/config.ts"
 import { HttpRouterLive } from "../http-api/handler.ts"
-import { SessionStore } from "../http-api/session.ts"
 import { EnvLayer } from "./runtime.ts"
-import { registerWebhookTarget, E2EBrokerApiClient } from "./webhook-broker.ts"
+import { E2EBrokerApiClient, registerWebhookTarget } from "./webhook-broker.ts"
 
 export interface HttpApiTestingOptions {
   readonly broker: BrokerEndpoint
-  readonly paymentClient: {
+  readonly paymentProvider: {
     _tag: PaymentProviderTag
-    layer: Layer.Layer<PaymentClient, any>
+    layer: Layer.Layer<PaymentProvider, any>
   }
+  readonly browser?: PaymentTestBrowserOptions | undefined
+  readonly cleanup?: PaymentHarnessCleanupOptions | undefined
 }
 
 const DBMemory = SQLite.layer({
@@ -56,7 +55,6 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
   )
 
   return HttpRouterLive.pipe(
-    Layer.provideMerge(SessionStore.Live),
     Layer.provideMerge(
       Layer.unwrapEffect(
         Effect.gen(function* () {
@@ -87,7 +85,7 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
           )
 
           const registerTarget = yield* registerWebhookTarget({
-            provider: options.paymentClient._tag,
+            provider: options.paymentProvider._tag,
             broker: options.broker,
             runId,
             baseURL: localBaseUrl
@@ -99,14 +97,14 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
               runId,
               baseURL: localBaseUrl,
               broker: options.broker
-              // TODO
+              // TODO: 提供更多方便测试使用的信息
             })
           )
-          const publicCheckoutUrl = `${registerTarget.publicBaseURL}/${options.paymentClient._tag}/checkout`
+          const publicCheckoutUrl = `${registerTarget.publicBaseURL}/${options.paymentProvider._tag}/checkout`
 
           const payLayer = PayLive.pipe(
-            Layer.provideMerge(PaymentHarness.make()),
-            Layer.provideMerge(options.paymentClient.layer),
+            Layer.provideMerge(PaymentHarness.make({})),
+            Layer.provideMerge(options.paymentProvider.layer),
             Layer.provide(testConfig),
             Layer.provide(
               Layer.unwrapEffect(
@@ -115,6 +113,7 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
                     Layer.setConfigProvider(
                       // TODO: 更多的 provider 支持
                       ConfigProvider.fromJson({
+                        PADDLE_ENVIRONMENT: "sandbox",
                         PADDLE_WEBHOOK_TOKEN: registerTarget.webhookSecret,
                         PADDLE_CHECKOUT_URL: publicCheckoutUrl
                       }).pipe(ConfigProvider.orElse(() => currentProvider))

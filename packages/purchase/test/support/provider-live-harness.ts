@@ -98,7 +98,10 @@ export const createLiveTestHarness = (options: ProviderLiveHarnessOptions) =>
           const result = yield* sdk.webhooks.handle({
             provider: options.provider,
             body: fixture.payload,
-            signature: signature ?? "test_signature"
+            headers: {
+              "stripe-signature": signature ?? "test_signature",
+              "paddle-signature": signature ?? "test_signature"
+            }
           })
 
           return {
