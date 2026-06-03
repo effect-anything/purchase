@@ -1,19 +1,359 @@
+import { Cookies, FetchHttpClient, HttpApiClient, HttpClient, HttpClientRequest } from "@effect/platform"
 import { SqlClient } from "@effect/sql"
-import { Data, Duration, Effect, Schedule } from "effect"
+import { Context, Data, Duration, Effect, flow, Layer, Option, pipe, Schedule } from "effect"
 
-import { PaymentHarness } from "../../src/harness.ts"
+import { PaymentHarness, type PaymentHarnessCleanupOptions, type PaymentTestBrowserOptions } from "../../src/harness.ts"
 import { TestConfig } from "../http-api/config.ts"
+import { AppApi } from "../http-api/http.ts"
 
 export class E2EHarnessError extends Data.TaggedError("E2EHarnessError")<{
   readonly message: string
   readonly cause?: unknown
 }> {}
 
+export interface HarnessOptions {
+  readonly browser?: PaymentTestBrowserOptions | undefined
+  readonly cleanup?: PaymentHarnessCleanupOptions | false | undefined
+}
+
+export class Harness extends Context.Tag("@E2E/Harness")<
+  Harness,
+  {
+    readonly createCustomerAccount: (input?: SignUpInput | undefined) => Effect.Effect<PublicAuthSession>
+
+    readonly getAccount: (session: PublicAuthSession) => Effect.Effect<AccountOverview>
+
+    readonly openFreshCustomerAccount: (input?: SignUpInput | undefined) => Effect.Effect<CustomerAccount>
+
+    readonly getCatalog: () => Effect.Effect<CatalogOverview, unknown>
+
+    readonly waitForAccount: (input: {
+      readonly session: PublicAuthSession
+      readonly until: (account: AccountOverview) => boolean
+      readonly timeoutMessage: string
+    }) => Effect.Effect<AccountOverview, unknown>
+
+    readonly waitForActiveSubscription: (input: {
+      readonly session: PublicAuthSession
+      readonly offerId: string
+    }) => Effect.Effect<AccountOverview, unknown>
+
+    readonly checkout: (input: {
+      readonly session: PublicAuthSession
+      readonly offerId: string
+    }) => Effect.Effect<CheckoutStartResult, unknown>
+
+    readonly startSubscriptionSignupCheckout: (input: {
+      readonly offerId: string
+    }) => Effect.Effect<CheckoutAttemptResult, unknown>
+
+    readonly purchaseSubscription: (
+      input: SubscriptionPurchaseInput
+    ) => Effect.Effect<SubscriptionPurchaseResult, unknown>
+
+    readonly consumeCredits: (input: {
+      readonly session: PublicAuthSession
+      readonly amount: number
+      readonly reason?: string | undefined
+    }) => Effect.Effect<CreditWalletOverview, unknown>
+
+    readonly getDurableState: (session: PublicAuthSession) => Effect.Effect<DurableCommercialState, unknown>
+
+    readonly waitForDurableSubscription: (input: {
+      readonly session: PublicAuthSession
+      readonly offerId: string
+    }) => Effect.Effect<DurableCommercialState, unknown>
+  } & Context.Tag.Service<PaymentHarness>
+>() {
+  static make = (options?: HarnessOptions | undefined) =>
+    Layer.effect(
+      Harness,
+      Effect.gen(function* () {
+        const apiClient = yield* AppApiClient
+        const paymentHarness = yield* PaymentHarness
+        const sql = yield* SqlClient.SqlClient
+        const { runId } = yield* TestConfig
+
+        const createCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
+          const email = input?.email ?? `e2e-${Date.now()}@example.com`
+          const password = input?.password ?? "password123456"
+          const name = input?.name ?? "Purchase SDK E2E User"
+
+          const [{ user }, response] = yield* apiClient.auth.signUpEmail({
+            payload: {
+              email,
+              password,
+              name
+            },
+            withResponse: true
+          })
+
+          const cookie = Cookies.toCookieHeader(response.cookies)
+
+          return { id: user.id, email: user.name, name: user.name, password, cookie }
+        }, Effect.orDie)
+
+        const getAccount = Effect.fn(function* (session: PublicAuthSession) {
+          return yield* apiClient.account
+            .get()
+            .pipe(
+              Effect.provideService(FetchHttpClient.RequestInit, { headers: new Headers({ cookie: session.cookie }) })
+            )
+        }, Effect.orDie)
+
+        const openFreshCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
+          const session = yield* createCustomerAccount(input)
+          const account = yield* getAccount(session)
+
+          return { session, account } satisfies CustomerAccount
+        })
+
+        const getCatalog = Effect.fn(function* () {
+          return yield* apiClient.catalog.get()
+        })
+
+        const waitForAccount = Effect.fn(function* (input: {
+          readonly session: PublicAuthSession
+          readonly until: (account: AccountOverview) => boolean
+          readonly timeoutMessage: string
+        }) {
+          let latest: AccountOverview | undefined
+
+          return yield* getAccount(input.session).pipe(
+            Effect.tap((account) => Effect.sync(() => (latest = account))),
+            Effect.flatMap((account) => {
+              if (input.until(account)) {
+                return Effect.succeed(account)
+              }
+
+              return Effect.fail(
+                new E2EHarnessError({
+                  message: `${input.timeoutMessage}. Latest account snapshot: ${JSON.stringify(summarizeAccount(account))}`
+                })
+              )
+            }),
+            Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
+            Effect.mapError(
+              (cause) =>
+                new E2EHarnessError({
+                  message: `${input.timeoutMessage}. Latest account snapshot: ${JSON.stringify(summarizeAccount(latest))}`,
+                  cause
+                })
+            )
+          )
+        })
+
+        const waitForActiveSubscription = Effect.fn(function* (input: {
+          readonly session: PublicAuthSession
+          readonly offerId: string
+        }) {
+          return yield* waitForAccount({
+            session: input.session,
+            timeoutMessage: `Account did not expose an active subscription for offer "${input.offerId}"`,
+            until: (account) =>
+              Boolean(
+                account.snapshot?.activeOfferIds?.includes(input.offerId) &&
+                account.snapshot.subscriptions?.some(
+                  (subscription) => subscription.offerId === input.offerId && subscription.status === "active"
+                )
+              )
+          })
+        })
+
+        const checkout = Effect.fn(function* (input: {
+          readonly session: PublicAuthSession
+          readonly offerId: string
+        }) {
+          return yield* apiClient.checkout.start({ payload: { offerId: input.offerId, runId } }).pipe(
+            Effect.provideService(FetchHttpClient.RequestInit, {
+              headers: new Headers({ cookie: input.session.cookie })
+            }),
+            Effect.map((_) => _.checkout)
+          )
+        })
+
+        const startSubscriptionSignupCheckout = Effect.fn(function* (input: { readonly offerId: string }) {
+          const session = yield* createCustomerAccount()
+          const checkoutResult = yield* checkout({
+            session,
+            offerId: input.offerId
+          })
+
+          const account = yield* getAccount(session)
+
+          return {
+            session,
+            checkout: checkoutResult,
+            account
+          } satisfies CheckoutAttemptResult
+        })
+
+        const consumeCredits = Effect.fn(function* (input: {
+          readonly session: PublicAuthSession
+          readonly amount: number
+          readonly reason?: string | undefined
+        }) {
+          return yield* apiClient.credits.consume({ payload: { amount: input.amount, reason: input.reason } }).pipe(
+            Effect.provideService(FetchHttpClient.RequestInit, {
+              headers: new Headers({ cookie: input.session.cookie })
+            }),
+            Effect.map((_) => _.wallet)
+          )
+        })
+
+        const getCustomerId = Effect.fn(function* (session: PublicAuthSession) {
+          const account = yield* getAccount(session)
+          const customerId = account.user?.id
+
+          if (!customerId) {
+            return yield* new E2EHarnessError({ message: "Account response did not include user id" })
+          }
+
+          return customerId
+        })
+
+        const getDurableState = Effect.fn(function* (session: PublicAuthSession) {
+          const customerId = yield* getCustomerId(session)
+
+          return yield* getDurableStateForCustomer(sql, customerId)
+        })
+
+        const waitForDurableSubscription = Effect.fn(function* (input: {
+          readonly session: PublicAuthSession
+          readonly offerId: string
+        }) {
+          const customerId = yield* getCustomerId(input.session)
+          let latest: DurableCommercialState | undefined
+
+          return yield* getDurableStateForCustomer(sql, customerId).pipe(
+            Effect.tap((durable) => Effect.sync(() => (latest = durable))),
+            Effect.flatMap((durable) =>
+              hasDurableActiveSubscription(durable, input.offerId)
+                ? Effect.succeed(durable)
+                : Effect.fail(
+                    new E2EHarnessError({
+                      message: `Durable state did not expose an active subscription for offer "${input.offerId}". Latest durable state: ${JSON.stringify(summarizeDurable(latest))}`
+                    })
+                  )
+            ),
+            Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
+            Effect.mapError(
+              (cause) =>
+                new E2EHarnessError({
+                  message: `Durable state did not expose an active subscription for offer "${input.offerId}". Latest durable state: ${JSON.stringify(summarizeDurable(latest))}`,
+                  cause
+                })
+            )
+          )
+        })
+
+        const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurchaseInput) {
+          const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
+
+          if (!checkoutResult.url) {
+            return yield* Effect.dieMessage(
+              `purchaseSubscription requires a checkout URL but provider returned mode="${checkoutResult.mode}" without one`
+            )
+          }
+
+          const payment = yield* paymentHarness.payCheckout({
+            checkout: {
+              provider: paymentHarness.provider,
+              sessionId: checkoutResult.sessionId,
+              url: checkoutResult.url
+            },
+            mode: "subscription",
+            customer: {
+              email: input.session.email,
+              name: input.session.name
+            }
+          })
+
+          const durable = yield* waitForDurableSubscription({
+            session: input.session,
+            offerId: input.offerId
+          })
+
+          const accountOverview = yield* waitForActiveSubscription({
+            session: input.session,
+            offerId: input.offerId
+          })
+
+          return {
+            session: input.session,
+            checkout: checkoutResult,
+            transaction: payment.transaction,
+            account: accountOverview,
+            durable
+          } satisfies SubscriptionPurchaseResult
+        })
+
+        return {
+          ...paymentHarness,
+          createCustomerAccount,
+          getAccount,
+          openFreshCustomerAccount,
+          getCatalog,
+          waitForAccount,
+          waitForActiveSubscription,
+          checkout,
+          startSubscriptionSignupCheckout,
+          purchaseSubscription,
+          consumeCredits,
+          getDurableState,
+          waitForDurableSubscription
+        }
+      })
+    ).pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          AppApiClient.Default,
+          PaymentHarness.make({ browser: options?.browser, cleanup: options?.cleanup })
+        )
+      )
+    )
+}
+
+const AppApiClient_ = HttpApiClient.make(AppApi, {
+  transformClient: flow(
+    HttpClient.mapRequestInputEffect(
+      Effect.fn(function* (request) {
+        const baseURL = yield* Effect.serviceOption(TestConfig).pipe(
+          Effect.flatMap(Option.map((_) => _.baseURL)),
+          Effect.orDie
+        )
+        const requestInit = yield* Effect.serviceOption(FetchHttpClient.RequestInit)
+
+        const requestHeaders = Option.flatMap(requestInit, (_) => Option.fromNullable(_.headers)).pipe(
+          Option.getOrElse(() => new Headers())
+        )
+
+        return pipe(request, HttpClientRequest.prependUrl(baseURL), HttpClientRequest.setHeaders(requestHeaders))
+      })
+    ),
+    HttpClient.retryTransient({
+      mode: "response-only",
+      schedule: Schedule.exponential(Duration.millis(500))
+    })
+  )
+})
+
+class AppApiClient extends Context.Tag("@E2E/AppApiClient")<
+  AppApiClient,
+  Effect.Effect.Success<typeof AppApiClient_>
+>() {
+  static Default = Layer.effect(AppApiClient, AppApiClient_).pipe(Layer.provide(FetchHttpClient.layer))
+}
+
 export interface PublicAuthSession {
+  readonly id: string
   readonly email: string
+  readonly name: string
   readonly password: string
   readonly cookie: string
 }
+
+export type AccountOverview = Effect.Effect.Success<ReturnType<typeof AppApiClient.Service.account.get<false>>>
 
 export interface CustomerAccount {
   readonly session: PublicAuthSession
@@ -55,66 +395,6 @@ export interface SubscriptionPurchaseResult {
   }
   readonly account: AccountOverview
   readonly durable: DurableCommercialState
-}
-
-export interface AccountOverview {
-  readonly user?: {
-    readonly id?: string
-    readonly email?: string
-    readonly name?: string
-  }
-  readonly snapshot?: {
-    readonly activeOfferIds?: ReadonlyArray<string>
-    readonly subscriptions?: ReadonlyArray<{
-      readonly id?: string
-      readonly status?: string
-      readonly offerId?: string
-    }>
-    readonly purchases?: ReadonlyArray<{
-      readonly id?: string
-      readonly status?: string
-      readonly offerId?: string
-    }>
-    readonly wallets?: ReadonlyArray<{
-      readonly id?: string
-      readonly productId?: string
-      readonly available?: number
-      readonly acquired?: number
-      readonly consumed?: number
-      readonly refunded?: number
-    }>
-  }
-  readonly entitlements?: {
-    readonly benefits?: ReadonlyArray<{
-      readonly key?: string
-      readonly type?: string
-      readonly enabled?: boolean
-      readonly limit?: number
-    }>
-  }
-  readonly activity?: {
-    readonly checkoutIntents?: ReadonlyArray<{
-      readonly id: string
-      readonly offerId: string
-      readonly status: string
-      readonly updatedAt: string
-    }>
-    readonly events?: ReadonlyArray<{
-      readonly id: string
-      readonly provider: string
-      readonly kind: string
-      readonly offerId: string | null
-      readonly occurredAt: string
-    }>
-    readonly creditLedger?: ReadonlyArray<{
-      readonly id: string
-      readonly productId: string
-      readonly amount: number
-      readonly direction: string
-      readonly reason: string | null
-      readonly createdAt: string
-    }>
-  }
 }
 
 export interface CatalogOverview {
@@ -227,214 +507,6 @@ export interface DurableCommercialState {
   }>
 }
 
-const withHeaders = (baseUrl: string, headers: HeadersInit = {}) => ({
-  ...headers,
-  origin: baseUrl
-})
-
-const parseCookie = (headers: Headers) =>
-  (headers.get("set-cookie") ?? "")
-    .split(/,(?=\s*[^;=]+=)/)
-    .map((value) => value.split(";")[0]?.trim())
-    .filter((value): value is string => Boolean(value))
-    .join("; ")
-
-const fetchText = (input: RequestInfo | URL, init?: RequestInit) =>
-  Effect.tryPromise({
-    try: () => fetch(input, init).then(async (response) => ({ response, text: await response.text() })),
-    catch: (cause) => new E2EHarnessError({ message: "HTTP request failed", cause })
-  }).pipe(Effect.retry(Schedule.exponential(Duration.millis(500)).pipe(Schedule.compose(Schedule.recurs(4)))))
-
-const fetchJson = <A = unknown>(input: RequestInfo | URL, init?: RequestInit) =>
-  fetchText(input, init).pipe(
-    Effect.flatMap(({ response, text }) => {
-      const json = text ? (JSON.parse(text) as A) : ({} as A)
-      return response.ok
-        ? Effect.succeed({ response, json })
-        : Effect.fail(new E2EHarnessError({ message: `HTTP ${response.status}: ${text}` }))
-    }),
-    Effect.mapError((cause) =>
-      cause._tag === "E2EHarnessError"
-        ? cause
-        : new E2EHarnessError({ message: "Failed to parse JSON response", cause })
-    )
-  )
-
-export const createCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
-  const { baseURL } = yield* TestConfig
-  const email = input?.email ?? `e2e-${Date.now()}@example.com`
-  const password = input?.password ?? "password123456"
-  const name = input?.name ?? "Purchase SDK E2E User"
-
-  return yield* fetchText(`${baseURL}/api/auth/sign-up/email`, {
-    method: "POST",
-    headers: withHeaders(baseURL, { "content-type": "application/json" }),
-    body: JSON.stringify({
-      email,
-      password,
-      name,
-      callbackURL: "/account"
-    }),
-    redirect: "manual"
-  }).pipe(
-    Effect.flatMap(({ response, text }) => {
-      if (!response.ok) {
-        return Effect.fail(new E2EHarnessError({ message: `Sign-up failed with ${response.status}: ${text}` }))
-      }
-      const cookie = parseCookie(response.headers)
-      if (!cookie) {
-        return Effect.fail(new E2EHarnessError({ message: "Sign-up did not return an auth cookie" }))
-      }
-      return Effect.succeed({ email, password, cookie } satisfies PublicAuthSession)
-    })
-  )
-})
-
-export const getAccount = Effect.fn(function* (session: PublicAuthSession) {
-  const { baseURL } = yield* TestConfig
-
-  return yield* fetchJson<AccountOverview>(`${baseURL}/api/me/account`, {
-    headers: withHeaders(baseURL, { cookie: session.cookie })
-  }).pipe(Effect.map(({ json }) => json))
-})
-
-export const openFreshCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
-  const session = yield* createCustomerAccount(input)
-  const account = yield* getAccount(session)
-
-  return { session, account } satisfies CustomerAccount
-})
-
-export const getCatalog = Effect.fn(function* () {
-  const { baseURL } = yield* TestConfig
-
-  return yield* fetchJson<CatalogOverview>(`${baseURL}/api/catalog`).pipe(Effect.map(({ json }) => json))
-})
-
-export const waitForAccount = Effect.fn(function* (input: {
-  readonly session: PublicAuthSession
-  readonly until: (account: AccountOverview) => boolean
-  readonly timeoutMessage: string
-}) {
-  let latest: AccountOverview | undefined
-
-  return yield* getAccount(input.session).pipe(
-    Effect.tap((account) => Effect.sync(() => (latest = account))),
-    Effect.flatMap((account) => {
-      if (input.until(account)) {
-        return Effect.succeed(account)
-      }
-
-      return Effect.fail(
-        new E2EHarnessError({
-          message: `${input.timeoutMessage}. Latest account snapshot: ${JSON.stringify(summarizeAccount(account))}`
-        })
-      )
-    }),
-    Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
-    Effect.mapError(
-      (cause) =>
-        new E2EHarnessError({
-          message: `${input.timeoutMessage}. Latest account snapshot: ${JSON.stringify(summarizeAccount(latest))}`,
-          cause
-        })
-    )
-  )
-})
-
-export const waitForActiveSubscription = Effect.fn(function* (input: {
-  readonly session: PublicAuthSession
-  readonly offerId: string
-}) {
-  return yield* waitForAccount({
-    session: input.session,
-    timeoutMessage: `Account did not expose an active subscription for offer "${input.offerId}"`,
-    until: (account) =>
-      Boolean(
-        account.snapshot?.activeOfferIds?.includes(input.offerId) &&
-        account.snapshot.subscriptions?.some(
-          (subscription) => subscription.offerId === input.offerId && subscription.status === "active"
-        )
-      )
-  })
-})
-
-export const checkout = Effect.fn(function* (input: { readonly session: PublicAuthSession; readonly offerId: string }) {
-  const { baseURL, runId } = yield* TestConfig
-
-  return yield* fetchJson<{ readonly checkout: CheckoutStartResult }>(`${baseURL}/api/checkout/start`, {
-    method: "POST",
-    headers: withHeaders(baseURL, { "content-type": "application/json", cookie: input.session.cookie }),
-    body: JSON.stringify({ offerId: input.offerId, runId })
-  }).pipe(Effect.map(({ json }) => json.checkout))
-})
-
-export const startSubscriptionSignupCheckout = Effect.fn(function* (input: { readonly offerId: string }) {
-  const session = yield* createCustomerAccount()
-  const checkoutResult = yield* checkout({
-    session,
-    offerId: input.offerId
-  })
-
-  const account = yield* getAccount(session)
-
-  return {
-    session,
-    checkout: checkoutResult,
-    account
-  } satisfies CheckoutAttemptResult
-})
-
-export const tryStartCheckout = Effect.fn(function* (input: {
-  readonly session: PublicAuthSession
-  readonly offerId: string
-}) {
-  return yield* Effect.either(checkout(input))
-})
-
-export const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurchaseInput) {
-  const paymentHarness = yield* PaymentHarness
-
-  const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
-
-  if (!checkoutResult.url) {
-    return yield* Effect.dieMessage(
-      `purchaseSubscription requires a checkout URL but provider returned mode="${checkoutResult.mode}" without one`
-    )
-  }
-
-  const payment = yield* paymentHarness.payCheckout({
-    checkout: {
-      provider: paymentHarness.provider,
-      sessionId: checkoutResult.sessionId,
-      url: checkoutResult.url
-    },
-    mode: "subscription",
-    customer: {
-      email: input.session.email,
-      name: input.session.email
-    }
-  })
-
-  const durable = yield* waitForDurableSubscription({
-    session: input.session,
-    offerId: input.offerId
-  })
-
-  const accountOverview = yield* waitForActiveSubscription({
-    session: input.session,
-    offerId: input.offerId
-  })
-
-  return {
-    session: input.session,
-    checkout: checkoutResult,
-    transaction: payment.transaction,
-    account: accountOverview,
-    durable
-  } satisfies SubscriptionPurchaseResult
-})
-
 const summarizeAccount = (account: AccountOverview | undefined) => ({
   user: account?.user,
   activeOfferIds: account?.snapshot?.activeOfferIds ?? [],
@@ -446,79 +518,7 @@ const summarizeAccount = (account: AccountOverview | undefined) => ({
   events: account?.activity?.events ?? []
 })
 
-export const consumeCredits = Effect.fn(function* (input: {
-  readonly session: PublicAuthSession
-  readonly amount: number
-  readonly reason?: string | undefined
-}) {
-  const { baseURL } = yield* TestConfig
-
-  return yield* fetchJson<{ readonly wallet: CreditWalletOverview }>(`${baseURL}/api/me/credits/consume`, {
-    method: "POST",
-    headers: withHeaders(baseURL, { "content-type": "application/json", cookie: input.session.cookie }),
-    body: JSON.stringify({
-      amount: input.amount,
-      reason: input.reason
-    })
-  }).pipe(Effect.map(({ json }) => json.wallet))
-})
-
-export const tryConsumeCredits = Effect.fn(function* (input: {
-  readonly session: PublicAuthSession
-  readonly amount: number
-  readonly reason?: string | undefined
-}) {
-  return yield* Effect.either(consumeCredits(input))
-})
-
-export const getDurableState = Effect.fn(function* (session: PublicAuthSession) {
-  const customerId = yield* getCustomerId(session)
-
-  return yield* getDurableStateForCustomer(customerId)
-})
-
-export const waitForDurableSubscription = Effect.fn(function* (input: {
-  readonly session: PublicAuthSession
-  readonly offerId: string
-}) {
-  const customerId = yield* getCustomerId(input.session)
-  let latest: DurableCommercialState | undefined
-
-  return yield* getDurableStateForCustomer(customerId).pipe(
-    Effect.tap((durable) => Effect.sync(() => (latest = durable))),
-    Effect.flatMap((durable) =>
-      hasDurableActiveSubscription(durable, input.offerId)
-        ? Effect.succeed(durable)
-        : Effect.fail(
-            new E2EHarnessError({
-              message: `Durable state did not expose an active subscription for offer "${input.offerId}". Latest durable state: ${JSON.stringify(summarizeDurable(latest))}`
-            })
-          )
-    ),
-    Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
-    Effect.mapError(
-      (cause) =>
-        new E2EHarnessError({
-          message: `Durable state did not expose an active subscription for offer "${input.offerId}". Latest durable state: ${JSON.stringify(summarizeDurable(latest))}`,
-          cause
-        })
-    )
-  )
-})
-
-const getCustomerId = Effect.fn(function* (session: PublicAuthSession) {
-  const account = yield* getAccount(session)
-  const customerId = account.user?.id
-
-  if (!customerId) {
-    return yield* new E2EHarnessError({ message: "Account response did not include user id" })
-  }
-
-  return customerId
-})
-
-const getDurableStateForCustomer = Effect.fn(function* (customerId: string) {
-  const sql = yield* SqlClient.SqlClient
+const getDurableStateForCustomer = Effect.fn(function* (sql: SqlClient.SqlClient, customerId: string) {
   const [
     checkoutIntents,
     webhookReceipts,
@@ -530,28 +530,30 @@ const getDurableStateForCustomer = Effect.fn(function* (customerId: string) {
     creditLedger
   ] = yield* Effect.all([
     sql.unsafe<DurableCommercialState["checkoutIntents"][number]>(
-      `SELECT id,
-                customer_id AS customerId,
-                offer_id AS offerId,
-                provider,
-                provider_checkout_session_id AS providerCheckoutSessionId,
-                status,
-                updated_at AS updatedAt
-           FROM paykit_checkout_intent
-          WHERE customer_id = ?
-          ORDER BY updated_at DESC`,
+      `SELECT
+          id,
+          customer_id AS customerId,
+          offer_id AS offerId,
+          provider,
+          provider_checkout_session_id AS providerCheckoutSessionId,
+          status,
+          updated_at AS updatedAt
+          FROM paykit_checkout_intent
+        WHERE customer_id = ?
+        ORDER BY updated_at DESC`,
       [customerId]
     ).withoutTransform,
     sql.unsafe<DurableCommercialState["webhookReceipts"][number]>(
-      `SELECT id,
-                provider_id AS providerId,
-                provider_event_id AS providerEventId,
-                type,
-                status,
-                received_at AS receivedAt,
-                processed_at AS processedAt
-           FROM paykit_webhook_event
-          ORDER BY received_at DESC`
+      `SELECT
+         id,
+         provider_id AS providerId,
+         provider_event_id AS providerEventId,
+         type,
+         status,
+         received_at AS receivedAt,
+         processed_at AS processedAt
+       FROM paykit_webhook_event
+       ORDER BY received_at DESC`
     ).withoutTransform,
     sql.unsafe<DurableCommercialState["commercialEvents"][number]>(
       `SELECT id,

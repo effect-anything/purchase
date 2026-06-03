@@ -1,4 +1,4 @@
-import * as Effect from "effect/Effect"
+import { Effect } from "effect"
 import { writeFileSync } from "node:fs"
 
 import type { PaymentProviderTag } from "../../src/provider/types.ts"

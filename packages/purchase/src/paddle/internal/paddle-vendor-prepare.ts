@@ -24,7 +24,7 @@ import {
   type ProviderPrepareInput,
   type ProviderPreparePlan,
   type ProviderPrepareResult
-} from "../../sync/provider-prepare.ts"
+} from "../../provider/provider-prepare.ts"
 import { getPaddleUrl } from "../config.ts"
 import {
   GET_CHECKOUT_SETTINGS_QUERY,
@@ -63,7 +63,7 @@ interface PaddleDomainReviewState {
 }
 
 export class PaddleVendorPrepareService extends Context.Tag(
-  "@xstack/purchase/provider/Paddle/PaddleVendorPrepareService"
+  "@effect-x/purchase/provider/Paddle/PaddleVendorPrepareService"
 )<
   PaddleVendorPrepareService,
   {

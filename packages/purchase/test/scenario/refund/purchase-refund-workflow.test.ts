@@ -1,10 +1,8 @@
-import * as SqlClient from "@effect/sql/SqlClient"
+import { SqlClient } from "@effect/sql"
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Either from "effect/Either"
-import * as Option from "effect/Option"
+import { Effect, Either, Option } from "effect"
 
-import { syncCatalog } from "../../../src/sync/config-service.ts"
+import { syncCatalog } from "../../../src/catalog/config-service.ts"
 import { runPayEffect } from "../../../test/support/run-pay-effect.ts"
 import {
   countCoreRows,
@@ -14,7 +12,7 @@ import {
   queryAll,
   queryOne
 } from "../../../test/support/sqlite-pay-harness.ts"
-import { TestPay, testCustomerId, testOfferIds } from "../../../test/support/test-catalog.ts"
+import { testCustomerId, testOfferIds, TestPay } from "../../../test/support/test-catalog.ts"
 import {
   makeTestPaymentLayer,
   TEST_CREATED_PRICE_ID,

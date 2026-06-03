@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Option from "effect/Option"
+import { Effect, Option } from "effect"
 
 import { CommercialEvent } from "../../src/core/commercial-schema.ts"
 import { CommercialWorkflowStore } from "../../src/core/workflow-store.ts"

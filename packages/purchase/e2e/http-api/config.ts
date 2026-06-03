@@ -1,6 +1,6 @@
 import { Context } from "effect"
 
-import type { BrokerEndpoint } from "../utils/types.ts"
+import type { BrokerEndpoint } from "../internal/types.ts"
 
 export class TestConfig extends Context.Tag("@E2E/TestConfig")<
   TestConfig,

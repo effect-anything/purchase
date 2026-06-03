@@ -8,7 +8,7 @@ import {
   buildCustomerEntitlementSnapshot,
   CommercialProjectionService
 } from "../../src/core/projection-service.ts"
-import { syncCatalog } from "../../src/sync/config-service.ts"
+import { syncCatalog } from "../../src/catalog/config-service.ts"
 import { runCorePayEffect } from "../support/run-core-pay-effect.ts"
 import { queryAll } from "../support/sqlite-pay-harness.ts"
 import { testCustomerId, testOfferIds } from "../support/test-catalog.ts"

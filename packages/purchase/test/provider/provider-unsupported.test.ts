@@ -1,11 +1,10 @@
-import * as SqlClient from "@effect/sql/SqlClient"
+import { SqlClient } from "@effect/sql"
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Either from "effect/Either"
+import { Effect, Either } from "effect"
 
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
 
-import { syncCatalog } from "../../src/sync/config-service.ts"
+import { syncCatalog } from "../../src/catalog/config-service.ts"
 import { runPayEffect } from "../support/run-pay-effect.ts"
 import { countCoreRows, insertTestCustomer, queryOne } from "../support/sqlite-pay-harness.ts"
 import { testCustomerId, testOfferIds, TestPay, testSubscriptionAgreementId } from "../support/test-catalog.ts"

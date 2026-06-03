@@ -1,21 +1,14 @@
 import { Paddle } from "@effect-x/purchase/paddle"
-/**
- * Standalone broker runner for manual testing outside vitest.
- *
- * This starts the broker with a Wrangler tunnel and keeps it alive until the process is
- * terminated. Useful for debugging webhook delivery without running the full
- * test suite.
- */
 import { PlatformConfigProvider } from "@effect/platform"
 import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
 import { Layer, Effect } from "effect"
 import * as path from "node:path"
 
+import { Live } from "./internal/runtime.ts"
+import { BrokerServer } from "./internal/webhook-broker.ts"
 import { makeHttpApiTesting } from "./utils/api.ts"
-import { Live } from "./utils/runtime.ts"
-import { BrokerServer } from "./utils/webhook-broker.ts"
 
-const repoRoot = new URL("../../..", import.meta.url).pathname
+const repoRoot = new URL("../../../", import.meta.url).pathname
 
 const EnvFileLayer = Layer.mergeAll(
   PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),
@@ -26,6 +19,14 @@ const EnvFileLayer = Layer.mergeAll(
     error._tag === "SystemError" && error.reason === "NotFound" ? Layer.empty : Layer.fail(error)
   )
 )
+
+/**
+ * Standalone broker runner for manual testing outside vitest.
+ *
+ * This starts the broker with a Wrangler tunnel and keeps it alive until the process is
+ * terminated. Useful for debugging webhook delivery without running the full
+ * test suite.
+ */
 
 const TestLayer = Layer.scopedDiscard(
   Effect.gen(function* () {

@@ -2,7 +2,7 @@ import * as Command from "@effect/cli/Command"
 import * as Span from "@effect/cli/HelpDoc/Span"
 
 import { catalogSyncCommand } from "./cli/catalog-sync.ts"
-import { prepareCommand } from "./cli/prepare.ts"
+import { prepareCommand } from "./cli/provider-prepare.ts"
 
 const packageVersion = "0.0.1"
 

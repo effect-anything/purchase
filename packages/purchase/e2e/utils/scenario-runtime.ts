@@ -35,7 +35,7 @@ export const makeScenarioRuntime = (
   paymentProvider: ScenarioPaymentProvider,
   options?: Partial<Omit<HttpApiTestingOptions, "broker" | "paymentProvider">> | undefined
 ) => {
-  const ctx = inject("purchaseProviderE2E")
+  const ctx = inject("purchaseE2E")
 
   return makeHttpApiTesting({
     broker: ctx.broker,

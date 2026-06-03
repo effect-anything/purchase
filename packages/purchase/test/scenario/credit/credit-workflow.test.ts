@@ -1,9 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Either from "effect/Either"
-import * as Option from "effect/Option"
+import { Option, Effect, Either } from "effect"
 
-import { syncCatalog } from "../../../src/sync/config-service.ts"
+import { syncCatalog } from "../../../src/catalog/config-service.ts"
 import { runPayEffect } from "../../../test/support/run-pay-effect.ts"
 import {
   countRows,
@@ -13,11 +11,11 @@ import {
   queryOne
 } from "../../../test/support/sqlite-pay-harness.ts"
 import {
-  TestPay,
   asCommercialOfferId,
   testCustomerId,
   testManualEventId,
-  testOfferIds
+  testOfferIds,
+  TestPay
 } from "../../../test/support/test-catalog.ts"
 import {
   makeTestPaymentLayer,

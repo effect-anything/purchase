@@ -21,7 +21,7 @@ import {
   type WaitForTransactionInput
 } from "./types.ts"
 
-export class PaymentHarness extends Context.Tag("@xstack/purchase/PaymentHarness")<
+export class PaymentHarness extends Context.Tag("@effect-x/purchase/PaymentHarness")<
   PaymentHarness,
   {
     readonly provider: PaymentProviderTag

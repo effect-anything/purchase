@@ -1403,12 +1403,12 @@ export const makePaddleClient = (config: PaddleConfig) =>
     } as const
   })
 
-export class PaddleClient extends Context.Tag("@xstack/purchase/provider/Paddle/PaddleClient")<
+export class PaddleClient extends Context.Tag("@effect-x/purchase/provider/Paddle/PaddleClient")<
   PaddleClient,
   Effect.Effect.Success<ReturnType<typeof makePaddleClient>>
 >() {}
 
-export class PaddleClientConfig extends Context.Tag("@xstack/purchase/provider/Paddle/PaddleClientConfig")<
+export class PaddleClientConfig extends Context.Tag("@effect-x/purchase/provider/Paddle/PaddleClientConfig")<
   PaddleClientConfig,
   PaddleConfig
 >() {}

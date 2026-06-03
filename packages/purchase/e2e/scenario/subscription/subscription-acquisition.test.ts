@@ -1,9 +1,9 @@
 import { describe, layer } from "@effect/vitest"
 import { Effect } from "effect"
 
+import { notesProMonthlySubscription } from "../../business-fixtures.ts"
 import { assert } from "../../utils/assertions.ts"
-import { notesProMonthlySubscription } from "../../utils/business-fixtures.ts"
-import * as Harness from "../../utils/harness.ts"
+import { Harness } from "../../utils/harness.ts"
 import { filteredScenarioPaymentProviders, makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
 
 describe.each(filteredScenarioPaymentProviders)(
@@ -22,27 +22,25 @@ describe.each(filteredScenarioPaymentProviders)(
       // - keep provider transaction ids as diagnostics, not primary assertions
       it.effect(
         "completes a provider sandbox subscription checkout and returns an active subscription in the account snapshot",
-        () =>
-          Effect.gen(function* () {
-            const session = yield* Harness.createCustomerAccount()
-            const before = yield* Harness.getAccount(session)
-            assert.account.noSubscriptionAccess(before, {
-              offerId: notesProMonthlySubscription.offerId,
-              benefitKeys: notesProMonthlySubscription.enabledBenefits
-            })
-
-            const result = yield* Harness.purchaseSubscription({
-              session,
-              offerId: notesProMonthlySubscription.offerId
-            })
-
-            assert.subscription.acquired(result, {
-              offerId: notesProMonthlySubscription.offerId,
-              customerEmail: session.email,
-              enabledBenefits: notesProMonthlySubscription.enabledBenefits,
-              quotaBenefits: notesProMonthlySubscription.quotaBenefits
-            })
+        Effect.fn(function* () {
+          const harness = yield* Harness
+          const session = yield* harness.createCustomerAccount()
+          const before = yield* harness.getAccount(session)
+          assert.account.noSubscriptionAccess(before, {
+            offerId: notesProMonthlySubscription.offerId,
+            benefitKeys: notesProMonthlySubscription.enabledBenefits
           })
+          const result = yield* harness.purchaseSubscription({
+            session,
+            offerId: notesProMonthlySubscription.offerId
+          })
+          assert.subscription.acquired(result, {
+            offerId: notesProMonthlySubscription.offerId,
+            customerEmail: session.email,
+            enabledBenefits: notesProMonthlySubscription.enabledBenefits,
+            quotaBenefits: notesProMonthlySubscription.quotaBenefits
+          })
+        })
       )
 
       // The golden path must prove the three states agree, not just that the browser payment succeeded.
@@ -60,6 +58,7 @@ describe.each(filteredScenarioPaymentProviders)(
       it.todo(
         "grants the correct subscription entitlements only after the webhook round-trip has been accepted and projected"
       )
+
       // Provider success without local reconciliation must not leak paid access.
       // Implementation note:
       // - complete provider payment but delay or suppress local webhook handling
@@ -67,6 +66,7 @@ describe.each(filteredScenarioPaymentProviders)(
       it.todo(
         "does not leak entitlements when the checkout succeeds at the provider but the webhook has not yet been processed"
       )
+
       // Provider metadata is useful but should not be the only recovery path.
       // Implementation note:
       // - complete checkout with missing or partial custom_data where the provider allows it
@@ -92,6 +92,7 @@ describe.each(filteredScenarioPaymentProviders)(
       it.todo(
         "recovers from duplicate checkout completion and subscription update webhooks without creating duplicate agreements"
       )
+
       // Provider event order is not guaranteed during acquisition.
       // Implementation note:
       // - observe checkout completion, invoice paid, and subscription update in different delivery orders

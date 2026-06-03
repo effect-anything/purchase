@@ -1,10 +1,6 @@
-import * as HttpClientError from "@effect/platform/HttpClientError"
-import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
-import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
+import { HttpClientError, HttpClientResponse, HttpClientRequest } from "@effect/platform"
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Fiber from "effect/Fiber"
-import * as TestClock from "effect/TestClock"
+import { Effect, Fiber, TestClock } from "effect"
 
 import { providerRetryDelayMillis, retryProviderTransient } from "../../src/internal/provider-http-retry.ts"
 

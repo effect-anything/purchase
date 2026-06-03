@@ -1,9 +1,8 @@
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
+import { Effect, Layer } from "effect"
 
 import type { PaymentProvider } from "../../src/provider/client.ts"
 
-import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
+import { PurchaseConfigLayer } from "../../src/catalog/config-service.ts"
 import { setupPayTables, SqlitePayHarnessLive } from "./sqlite-pay-harness.ts"
 import { TestPay, testPlans, testProducts } from "./test-catalog.ts"
 

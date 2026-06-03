@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
+import { Effect, Option } from "effect"
 
 import { buildCommercialCatalog } from "../../src/core/catalog-builder.ts"
 import { creditPackProduct, creditUnit, featureFlag, plan, subscriptionProduct } from "../../src/dsl.ts"

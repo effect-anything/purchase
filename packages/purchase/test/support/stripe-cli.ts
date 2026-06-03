@@ -1,5 +1,4 @@
-import * as Effect from "effect/Effect"
-import * as Option from "effect/Option"
+import { Effect, Option } from "effect"
 
 import { commandExistsSync, execFileText, spawnTextProcess, waitForProcessOutput } from "./command.ts"
 import { type LocalWebhookServer, makeLocalWebhookServer } from "./local-webhook-server.ts"

@@ -195,7 +195,7 @@ export interface PurchaseSDKContract<_TPlans extends ReadonlyArray<unknown>, TPr
   }
 }
 
-export class Purchase extends Context.Tag("@xstack/purchase/Purchase")<
+export class Purchase extends Context.Tag("@effect-x/purchase/Purchase")<
   Purchase,
   PurchaseSDKContract<ReadonlyArray<unknown>, ReadonlyArray<unknown>>
 >() {}

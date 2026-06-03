@@ -5,26 +5,24 @@ import { ConfigProvider, Effect, String as EffectString, Layer, Logger, LogLevel
 import { createServer } from "node:http"
 
 import type { PaymentProvider, PaymentProviderTag } from "../../src/provider.ts"
-import type { BrokerEndpoint } from "./types.ts"
+import type { BrokerEndpoint } from "../internal/types.ts"
 
-import { PaymentHarness, type PaymentHarnessCleanupOptions, type PaymentTestBrowserOptions } from "../../src/harness.ts"
+import { PurchaseConfigLayer } from "../../src/catalog/config-service.ts"
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
-import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
 import { CommercialPay, CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
 import { TestConfig } from "../http-api/config.ts"
 import { HttpRouterLive } from "../http-api/handler.ts"
-import { EnvLayer } from "./runtime.ts"
-import { E2EBrokerApiClient, registerWebhookTarget } from "./webhook-broker.ts"
+import { EnvLayer } from "../internal/runtime.ts"
+import { E2EBrokerApiClient, registerWebhookTarget } from "../internal/webhook-broker.ts"
+import { Harness, type HarnessOptions } from "./harness.ts"
 
-export interface HttpApiTestingOptions {
+export interface HttpApiTestingOptions extends HarnessOptions {
   readonly broker: BrokerEndpoint
   readonly paymentProvider: {
     _tag: PaymentProviderTag
     layer: Layer.Layer<PaymentProvider, any>
   }
-  readonly browser?: PaymentTestBrowserOptions | undefined
-  readonly cleanup?: PaymentHarnessCleanupOptions | undefined
 }
 
 const DBMemory = SQLite.layer({
@@ -103,7 +101,7 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
           const publicCheckoutUrl = `${registerTarget.publicBaseURL}/${options.paymentProvider._tag}/checkout`
 
           const payLayer = PayLive.pipe(
-            Layer.provideMerge(PaymentHarness.make({})),
+            Layer.provideMerge(Harness.make({})),
             Layer.provideMerge(options.paymentProvider.layer),
             Layer.provide(testConfig),
             Layer.provide(

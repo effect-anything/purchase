@@ -1,6 +1,5 @@
-import * as SqlClient from "@effect/sql/SqlClient"
-import * as Effect from "effect/Effect"
-import * as String from "effect/String"
+import { SqlClient } from "@effect/sql"
+import { Effect, String } from "effect"
 
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
 

@@ -12,23 +12,27 @@ describe("subscription lifecycle scenarios", () => {
   it.todo(
     "cancels a subscription and keeps entitlements only until the provider-confirmed period end when product rules require it"
   )
+
   // Scheduled cancellation should be reversible while the subscription is still active.
   // Implementation note:
   // - start from a cancel-at-period-end subscription
   // - resume it through the public SDK flow or portal flow
   // - assert the account snapshot returns to a normal active lifecycle
   it.todo("resumes a scheduled cancellation and restores the account snapshot to a normal active lifecycle")
+
   // Plan changes should switch the customer from old entitlements to new entitlements.
   // Implementation note:
   // - assert both intermediate preview output and final post-reconciliation entitlements
   // - verify provider-side changed offer/item and local subscription/provider_ref rows
   // - focus on business delta, not raw provider payload
   it.todo("upgrades or downgrades between plans and switches entitlements after provider reconciliation")
+
   // Preview output should stay aligned with the provider-side proration behavior.
   // Implementation note:
   // - compare preview fields with the later applied change receipt where possible
   // - keep this tolerant to provider formatting differences while locking business meaning
   it.todo("surfaces preview and proration information that matches the provider-side change workflow")
+
   // Provider portal changes still need to converge back into local application state.
   // Implementation note:
   // - drive the mutation from the provider-hosted portal, not only from SDK command APIs

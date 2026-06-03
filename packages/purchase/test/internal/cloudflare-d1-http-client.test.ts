@@ -1,9 +1,7 @@
-import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
-import * as SqlClient from "@effect/sql/SqlClient"
+import { FetchHttpClient } from "@effect/platform"
+import { SqlClient } from "@effect/sql"
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
-import * as Redacted from "effect/Redacted"
+import { Effect, Layer, Redacted } from "effect"
 
 import * as CloudflareD1HttpClient from "../../src/internal/cloudflare-d1-http-client.ts"
 

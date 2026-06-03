@@ -1,9 +1,9 @@
 import { describe, layer } from "@effect/vitest"
 import { Effect } from "effect"
 
+import { aiCredits500Pack } from "../../business-fixtures.ts"
 import { assert } from "../../utils/assertions.ts"
-import { aiCredits500Pack } from "../../utils/business-fixtures.ts"
-import * as Harness from "../../utils/harness.ts"
+import { Harness } from "../../utils/harness.ts"
 import { filteredScenarioPaymentProviders, makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
 
 describe.each(filteredScenarioPaymentProviders)(
@@ -28,22 +28,25 @@ describe.each(filteredScenarioPaymentProviders)(
       // - verify no provider-side mutation is expected for pure app-side consume
       // - verify credit_ledger rows and wallet snapshot both converge to a single consume entry
       it.todo(`consumes ${aiCredits500Pack.creditKey} idempotently after a real credit-pack purchase`)
+
       // Overspend attempts should fail safely even under concurrent requests.
       // Implementation note:
       // - verify provider-side state stays unchanged
       // - verify SqlClient rows do not grow unexpectedly
-      it.effect("rejects overspend attempts without changing available balance or writing credit ledger rows", () =>
-        Effect.gen(function* () {
-          const customer = yield* Harness.openFreshCustomerAccount()
-
-          const result = yield* Harness.tryConsumeCredits({
-            session: customer.session,
-            amount: aiCredits500Pack.amount,
-            reason: "e2e-overspend"
-          })
-          const account = yield* Harness.getAccount(customer.session)
-          const durable = yield* Harness.getDurableState(customer.session)
-
+      it.effect(
+        "rejects overspend attempts without changing available balance or writing credit ledger rows",
+        Effect.fn(function* () {
+          const harness = yield* Harness
+          const customer = yield* harness.openFreshCustomerAccount()
+          const result = yield* Effect.either(
+            harness.consumeCredits({
+              session: customer.session,
+              amount: aiCredits500Pack.amount,
+              reason: "e2e-overspend"
+            })
+          )
+          const account = yield* harness.getAccount(customer.session)
+          const durable = yield* harness.getDurableState(customer.session)
           assert.credit.spendDenied(account, result, {
             creditKey: aiCredits500Pack.creditKey
           })
@@ -52,6 +55,7 @@ describe.each(filteredScenarioPaymentProviders)(
           })
         })
       )
+
       // Refund handling must express the product rule for reversing or compensating credits.
       // Implementation note:
       // - verify provider-side refund plus local refund ledger semantics together

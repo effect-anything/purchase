@@ -643,7 +643,7 @@ interface PaymentProviderShape {
 /**
  * Runtime payment provider service.
  */
-export class PaymentProvider extends Context.Tag("@xstack/purchase/PaymentProvider")<
+export class PaymentProvider extends Context.Tag("@effect-x/purchase/PaymentProvider")<
   PaymentProvider,
   PaymentProviderShape
 >() {}

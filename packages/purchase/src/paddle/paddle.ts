@@ -54,7 +54,7 @@ import { makePaddleClient, PaddleClient, PaddleConfig } from "./internal/paddle-
 /**
  * Paddle payment client service.
  */
-export class Paddle extends Context.Tag("@xstack/purchase/provider/Paddle")<Paddle, PaddleImpl>() {
+export class Paddle extends Context.Tag("@effect-x/purchase/provider/Paddle")<Paddle, PaddleImpl>() {
   static readonly _tag: PaymentProviderTag = "paddle"
 
   static make = Effect.gen(function* () {

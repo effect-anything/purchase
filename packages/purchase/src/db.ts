@@ -534,7 +534,7 @@ export type PurchaseWebhookEventModel = typeof defaultPurchaseStorageModels.webh
 export type PurchaseProductModel = typeof defaultPurchaseStorageModels.product
 export type PurchaseProviderRefModel = typeof defaultPurchaseStorageModels.providerRef
 
-export class PurchaseStorageAdapter extends Context.Tag("@xstack/purchase/PurchaseStorageAdapter")<
+export class PurchaseStorageAdapter extends Context.Tag("@effect-x/purchase/PurchaseStorageAdapter")<
   PurchaseStorageAdapter,
   {
     readonly checkoutIntent: PurchaseStorageRepo<PurchaseCheckoutIntentModel>

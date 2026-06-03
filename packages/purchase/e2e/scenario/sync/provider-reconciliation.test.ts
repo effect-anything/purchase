@@ -1,7 +1,7 @@
 import { describe, it } from "@effect/vitest"
 import { Effect } from "effect"
 
-import { notesProMonthlySubscription } from "../../utils/business-fixtures.ts"
+import { notesProMonthlySubscription } from "../../business-fixtures.ts"
 
 // Provider reconciliation scenarios verify recovery from retries, restarts, and delayed delivery.
 describe("provider reconciliation scenarios", () => {

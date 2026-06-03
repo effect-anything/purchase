@@ -1,5 +1,4 @@
-import * as Effect from "effect/Effect"
-import * as Schedule from "effect/Schedule"
+import { Effect, Schedule } from "effect"
 import { createHmac } from "node:crypto"
 
 export interface PaddleSimulatorCapture {
@@ -35,6 +34,7 @@ export interface PaddleNotificationSetting {
 const paddleBaseUrl = "https://sandbox-api.paddle.com"
 
 const paddleRequest = <A>(path: string, init: RequestInit, parse: (json: any) => A) =>
+  // @effect-diagnostics-next-line unknownInEffectCatch:off
   Effect.tryPromise({
     try: async () => {
       const response = await fetch(`${paddleBaseUrl}${path}`, init)

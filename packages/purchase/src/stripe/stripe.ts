@@ -46,7 +46,7 @@ import { StripeClient, StripeConfig, makeStripeClient } from "./internal/stripe-
 /**
  * Stripe payment client service.
  */
-export class Stripe extends Context.Tag("@xstack/purchase/provider/Stripe")<Stripe, StripeImpl>() {
+export class Stripe extends Context.Tag("@effect-x/purchase/provider/Stripe")<Stripe, StripeImpl>() {
   static readonly _tag: PaymentProviderTag = "stripe"
 
   static make = Effect.gen(function* () {

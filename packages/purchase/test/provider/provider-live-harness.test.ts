@@ -1,11 +1,11 @@
-import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
+import { describe, expect, it } from "@effect/vitest";
+import { Effect } from "effect";
 
-import { createLiveTestHarness } from "../support/provider-live-harness.ts"
-import { runPayEffect } from "../support/run-pay-effect.ts"
-import { queryOne } from "../support/sqlite-pay-harness.ts"
-import { TestPay } from "../support/test-catalog.ts"
-import { makeTestPaymentLayer } from "../support/test-payment-provider.ts"
+import { createLiveTestHarness } from "../support/provider-live-harness.ts";
+import { runPayEffect } from "../support/run-pay-effect.ts";
+import { queryOne } from "../support/sqlite-pay-harness.ts";
+import { TestPay } from "../support/test-catalog.ts";
+import { makeTestPaymentLayer } from "../support/test-payment-provider.ts";
 
 describe("provider live harness", () => {
   it.effect("creates test customers through the shared harness API", () => {

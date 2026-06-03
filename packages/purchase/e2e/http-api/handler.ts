@@ -3,7 +3,6 @@ import { HttpApiBuilder, HttpServerRequest, HttpLayerRouter, HttpServerResponse 
 import { SqlClient } from "@effect/sql"
 import { Effect, Layer } from "effect"
 
-import { syncCatalog } from "../../src/sync/config-service.ts"
 import { aiCredits, CommercialPay } from "../commercial-catalog.ts"
 import {
   AuthenticationRequired,
@@ -228,16 +227,6 @@ const CheckoutHttpLive = HttpApiBuilder.group(AppApi, "checkout", (handlers) =>
       if (!payload.offerId) {
         return yield* new MissingOfferId({ message: "Missing offerId" })
       }
-
-      yield* syncCatalog().pipe(
-        Effect.mapError(
-          (cause) =>
-            new ProviderNotConfigured({
-              message: `Catalog sync failed: ${String(cause)}`
-            })
-        )
-      )
-
       const purchase = yield* CommercialPay
 
       const checkout = yield* purchase.checkout

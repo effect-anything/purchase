@@ -1,14 +1,11 @@
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
-import * as Option from "effect/Option"
-import * as Stream from "effect/Stream"
+import { Effect, Layer, Option, Stream } from "effect"
 
 import type {
   ChangeSubscriptionParams,
   CreatePriceParams,
   CreateProductParams,
-  PaymentWebhookNormalization,
   PauseSubscriptionParams,
+  PaymentWebhookNormalization,
   PreviewSubscriptionChangeParams,
   RefundTransactionParams,
   ResumeSubscriptionParams

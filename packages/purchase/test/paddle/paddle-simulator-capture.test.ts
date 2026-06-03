@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
-import * as Option from "effect/Option"
-import * as Redacted from "effect/Redacted"
+import { Option, Effect, Layer, Redacted } from "effect"
 
 import { Paddle } from "../../src/paddle.ts"
 import { PaddleClientLayer, PaddleConfigFromRecord } from "../../src/paddle/internal/paddle-client.ts"

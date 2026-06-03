@@ -1,10 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Either from "effect/Either"
+import { Option, Effect, Either } from "effect"
 
 import type { Price, Product } from "../../../src/provider/schema.ts"
 
-import { syncCatalog } from "../../../src/sync/config-service.ts"
+import { syncCatalog } from "../../../src/catalog/config-service.ts"
 import { runPayEffect } from "../../support/run-pay-effect.ts"
 import { countRows, parseJsonColumn, queryAll } from "../../support/sqlite-pay-harness.ts"
 import { TestPay, testOfferIds } from "../../support/test-catalog.ts"

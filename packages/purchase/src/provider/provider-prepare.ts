@@ -1,7 +1,7 @@
 import * as Redacted from "effect/Redacted"
 
 import type { PurchaseProviderSettings } from "../core/config.ts"
-import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
+import type { PaymentEnvironmentTag, PaymentProviderTag } from "./types.ts"
 
 export interface ProviderPrepareInput extends PurchaseProviderSettings {
   /**

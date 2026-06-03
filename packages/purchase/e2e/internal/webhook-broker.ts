@@ -27,16 +27,17 @@ import {
 } from "effect"
 import { createServer } from "node:http"
 
+import type { PurchaseConfigService } from "../../src/catalog/config-service.ts"
+import type { PaymentProvider } from "../../src/provider.ts"
 import type { BrokerEndpoint } from "./types.ts"
 
-import { PaymentProviderTag } from "../../src/provider/types.ts"
+import { prepare } from "../../src/provider/prepare.ts"
 import {
   formatPrepareResult,
-  prepare,
   type ProviderPrepareInput,
-  type ProviderPrepareResult,
-  type PurchaseConfigService
-} from "../../src/sync/config-service.ts"
+  type ProviderPrepareResult
+} from "../../src/provider/provider-prepare.ts"
+import { PaymentProviderTag } from "../../src/provider/types.ts"
 import { CloudflareTunnel } from "./cloudflare-tunnel.ts"
 
 interface WebhookBrokerRegistration {
@@ -144,7 +145,7 @@ const WebhookBrokerApiClient_ = HttpApiClient.make(E2EBrokerApi, {
   }
 })
 
-export class E2EBrokerApiClient extends Context.Tag("@E2E/E2EBrokerApiClient")<
+export class E2EBrokerApiClient extends Context.Tag("@E2E/BrokerApiClient")<
   E2EBrokerApiClient,
   Effect.Effect.Success<typeof WebhookBrokerApiClient_>
 >() {
@@ -209,7 +210,7 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
   static Default = Layer.effect(
     BrokerProvider,
     Effect.gen(function* () {
-      const ctx = yield* Effect.context<PurchaseConfigService>()
+      const ctx = yield* Effect.context<PurchaseConfigService | PaymentProvider>()
 
       const prepare_ = Effect.fn(
         function* (input: ProviderPrepareInput) {

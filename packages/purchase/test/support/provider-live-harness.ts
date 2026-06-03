@@ -1,4 +1,4 @@
-import * as Effect from "effect/Effect"
+import { Effect } from "effect"
 
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
 import type { PurchaseSDKContract } from "../../src/sdk.ts"
@@ -114,6 +114,7 @@ export const createLiveTestHarness = (options: ProviderLiveHarnessOptions) =>
         const retries = settleOptions?.retries ?? 10
         const delayMs = settleOptions?.delayMs ?? 25
 
+        // @effect-diagnostics-next-line unknownInEffectCatch:off
         return Effect.tryPromise({
           try: async () => {
             let remaining = retries

@@ -1,10 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Option from "effect/Option"
+import { Effect, Option } from "effect"
 
+import { syncCatalog } from "../../src/catalog/config-service.ts"
 import { CommercialCatalogService } from "../../src/core/catalog-service.ts"
 import { CommercialWorkflowService } from "../../src/core/workflow-service.ts"
-import { syncCatalog } from "../../src/sync/config-service.ts"
 import { runCorePayEffect } from "../support/run-core-pay-effect.ts"
 import { insertTestCustomer, queryAll, queryOne } from "../support/sqlite-pay-harness.ts"
 import { testCustomerId, testOfferIds } from "../support/test-catalog.ts"

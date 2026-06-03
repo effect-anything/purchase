@@ -1435,12 +1435,12 @@ export const makeStripeClient = Effect.fnUntraced(function* (config: StripeConfi
   } as const
 })
 
-export class StripeClient extends Context.Tag("@xstack/purchase/provider/stripe/StripeClient")<
+export class StripeClient extends Context.Tag("@effect-x/purchase/provider/stripe/StripeClient")<
   StripeClient,
   Effect.Effect.Success<ReturnType<typeof makeStripeClient>>
 >() {}
 
-export class StripeClientConfig extends Context.Tag("@xstack/purchase/provider/stripe/StripeClientConfig")<
+export class StripeClientConfig extends Context.Tag("@effect-x/purchase/provider/stripe/StripeClientConfig")<
   StripeClientConfig,
   StripeConfig
 >() {}

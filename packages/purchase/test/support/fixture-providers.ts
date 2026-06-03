@@ -1,9 +1,4 @@
-import type * as Context from "effect/Context"
-
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
-import * as Option from "effect/Option"
-import * as Redacted from "effect/Redacted"
+import { Effect, Layer, Option, Redacted, type Context } from "effect"
 
 import { ProviderOperationNotSupported } from "../../src/errors.ts"
 import { Paddle } from "../../src/paddle.ts"
@@ -261,21 +256,19 @@ const makePaddlePreviewDetails = ({ price, quantity }: { price: typeof paddlePri
   }
 }
 
-export const makeStripeProvider = Effect.gen(function* () {
-  return yield* Stripe.make.pipe(
-    Effect.provide(
-      StripeClientLayer.pipe(
-        Layer.provide(
-          StripeConfigFromRecord({
-            apiKey: Redacted.make("sk_test_fixture"),
-            webhookSecret: Redacted.make(stripeWebhookSecret),
-            environment: "sandbox"
-          })
-        )
+export const makeStripeProvider = Stripe.make.pipe(
+  Effect.provide(
+    StripeClientLayer.pipe(
+      Layer.provide(
+        StripeConfigFromRecord({
+          apiKey: Redacted.make("sk_test_fixture"),
+          webhookSecret: Redacted.make(stripeWebhookSecret),
+          environment: "sandbox"
+        })
       )
     )
   )
-})
+)
 
 const fakeStripeClient = {
   config: {
@@ -723,26 +716,22 @@ const fakeStripeClient = {
     Effect.succeed(JSON.parse(typeof payload === "string" ? payload : payload.payload))
 } as unknown as Context.Tag.Service<typeof StripeClient>
 
-export const makeStripeFixtureProvider = Effect.gen(function* () {
-  return yield* Stripe.make.pipe(Effect.provideService(StripeClient, fakeStripeClient))
-})
+export const makeStripeFixtureProvider = Stripe.make.pipe(Effect.provideService(StripeClient, fakeStripeClient))
 
-export const makePaddleProvider = Effect.gen(function* () {
-  return yield* Paddle.make.pipe(
-    Effect.provide(
-      PaddleClientLayer.pipe(
-        Layer.provide(
-          PaddleConfigFromRecord({
-            apiToken: Redacted.make("pdl_fixture_token"),
-            webhookToken: Redacted.make(paddleWebhookSecret),
-            environment: "sandbox",
-            checkoutUrl: Option.none()
-          })
-        )
+export const makePaddleProvider = Paddle.make.pipe(
+  Effect.provide(
+    PaddleClientLayer.pipe(
+      Layer.provide(
+        PaddleConfigFromRecord({
+          apiToken: Redacted.make("pdl_fixture_token"),
+          webhookToken: Redacted.make(paddleWebhookSecret),
+          environment: "sandbox",
+          checkoutUrl: Option.none()
+        })
       )
     )
   )
-})
+)
 
 const fakePaddleClient = {
   config: {
@@ -1301,6 +1290,4 @@ const fakePaddleClient = {
     Effect.succeed(JSON.parse(typeof payload === "string" ? payload : payload.payload))
 } as unknown as Context.Tag.Service<typeof PaddleClient>
 
-export const makePaddleFixtureProvider = Effect.gen(function* () {
-  return yield* Paddle.make.pipe(Effect.provideService(PaddleClient, fakePaddleClient))
-})
+export const makePaddleFixtureProvider = Paddle.make.pipe(Effect.provideService(PaddleClient, fakePaddleClient))

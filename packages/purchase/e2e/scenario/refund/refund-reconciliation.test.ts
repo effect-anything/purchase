@@ -1,7 +1,7 @@
 import { describe, it } from "@effect/vitest"
 import { Effect } from "effect"
 
-import { aiCredits500Pack, desktopLifetimePurchase } from "../../utils/business-fixtures.ts"
+import { aiCredits500Pack, desktopLifetimePurchase } from "../../business-fixtures.ts"
 
 // Refund scenarios define how paid state is unwound after money moves back to the customer.
 describe("refund reconciliation scenarios", () => {
@@ -14,6 +14,7 @@ describe("refund reconciliation scenarios", () => {
   it.todo(
     `refunds ${desktopLifetimePurchase.offerId} and removes the corresponding entitlement from the account snapshot`
   )
+
   // Credit-pack refunds need explicit wallet reconciliation semantics.
   // Implementation note:
   // - start from a real completed credit-pack checkout and wallet projection
@@ -22,6 +23,7 @@ describe("refund reconciliation scenarios", () => {
   it.todo(
     `refunds ${aiCredits500Pack.offerId} and reconciles wallet balance or compensation entries according to product rules`
   )
+
   // Partial refunds are common support operations and must not corrupt downstream state.
   it.todo("handles partial refunds without corrupting invoice state, purchase grants, or downstream entitlements")
 })

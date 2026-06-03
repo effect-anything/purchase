@@ -29,7 +29,7 @@ import {
 /**
  * Projection service for customer-facing commercial snapshots.
  */
-export class CommercialProjectionService extends Context.Tag("@xstack/purchase/core/CommercialProjectionService")<
+export class CommercialProjectionService extends Context.Tag("@effect-x/purchase/core/CommercialProjectionService")<
   CommercialProjectionService,
   {
     /**

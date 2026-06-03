@@ -7,15 +7,13 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
 import type { PurchaseConfig } from "../core/config.ts"
+import type { PaymentProvider } from "../provider.ts"
 import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
 import { Paddle } from "../paddle.ts"
+import { prepare } from "../provider/prepare.ts"
 import { Stripe } from "../stripe.ts"
-import {
-  formatPrepareResult as formatPrepareResultDetails,
-  prepare,
-  PurchaseConfigLayer
-} from "../sync/config-service.ts"
+import { formatPrepareResult as formatPrepareResultDetails } from "../provider/provider-prepare.ts"
 import { loadPurchaseConfigModule } from "./config-loader.ts"
 
 export const formatPrepareResult = <
@@ -29,7 +27,7 @@ const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(opt
 
 const envFallback = (value: Option.Option<string>, envName: string) => optionalValue(value) ?? process.env[envName]
 
-const makeProviderLayer = (options: PrepareOptions): Layer.Layer<any, unknown> => {
+const makeProviderLayer = (options: PrepareOptions): Layer.Layer<PaymentProvider, unknown> => {
   if (options.provider === "stripe") {
     return Stripe.layerConfig({
       apiKey: Redacted.make(options.stripeApiKey ?? ""),
@@ -176,12 +174,6 @@ export const prepareCommand = Command.make("prepare", prepareOptions, (config) =
         webhookUrl: options.webhookUrl ?? providerConfig?.webhookUrl,
         checkout: providerConfig?.checkout
       }).pipe(
-        Effect.provide(
-          PurchaseConfigLayer({
-            plans: purchase.plans as never,
-            products: purchase.products as never
-          })
-        ),
         Effect.provide(makeProviderLayer(options)),
         Effect.map((result) => ({ options, result }))
       )

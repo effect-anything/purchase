@@ -24,7 +24,7 @@ import {
 /**
  * Write-side store for workflow state and provider references.
  */
-export class CommercialWorkflowStore extends Context.Tag("@xstack/purchase/core/CommercialWorkflowStore")<
+export class CommercialWorkflowStore extends Context.Tag("@effect-x/purchase/core/CommercialWorkflowStore")<
   CommercialWorkflowStore,
   {
     /**

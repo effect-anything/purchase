@@ -12,16 +12,12 @@ import * as EffectString from "effect/String"
 
 import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
+import { PurchaseConfigLayer, syncCatalog } from "../catalog/config-service.ts"
+import type { CommercialCatalogSyncPlan, CommercialCatalogSyncResult } from "../catalog/sync.ts"
 import * as CloudflareD1HttpClient from "../internal/cloudflare-d1-http-client.ts"
 import * as SQLite from "../internal/node-sqlite-client.ts"
 import { Paddle } from "../paddle.ts"
 import { Stripe } from "../stripe.ts"
-import {
-  type CommercialCatalogSyncPlan,
-  type CommercialCatalogSyncResult,
-  PurchaseConfigLayer,
-  syncCatalog
-} from "../sync/config-service.ts"
 import { loadPurchaseConfigModule, type PurchaseConfigModule } from "./config-loader.ts"
 
 type CliCommand = "catalog.sync"

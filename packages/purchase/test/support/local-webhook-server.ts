@@ -1,6 +1,7 @@
+/** @effect-diagnostics unknownInEffectCatch:off */
 import type { AddressInfo } from "node:net"
 
-import * as Effect from "effect/Effect"
+import { Effect } from "effect"
 import { createServer, type IncomingMessage } from "node:http"
 
 export interface CapturedWebhookRequest {

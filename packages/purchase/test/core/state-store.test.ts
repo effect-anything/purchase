@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Option from "effect/Option"
+import { Effect, Option } from "effect"
 
 import { CommercialStateStore } from "../../src/core/state-store.ts"
 import { runCorePayEffect } from "../support/run-core-pay-effect.ts"

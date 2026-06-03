@@ -2,9 +2,9 @@ import { PlatformConfigProvider } from "@effect/platform"
 import { NodeContext } from "@effect/platform-node"
 import { String as EffectString, Layer, Logger, LogLevel } from "effect"
 
+import { PurchaseConfigLayer } from "../../src/catalog/config-service.ts"
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
 import { Paddle } from "../../src/paddle.ts"
-import { PurchaseConfigLayer } from "../../src/sync/config-service.ts"
 import { CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
 import { BrokerLive } from "./webhook-broker.ts"
 
@@ -29,7 +29,7 @@ const DBLive = SQLite.layer({
 const PurchaseLive = PurchaseConfigLayer({
   plans: CommercialPlans,
   products: CommercialProducts
-}).pipe(Layer.provide(PaddleLive), Layer.provide(DBLive))
+}).pipe(Layer.provideMerge(PaddleLive), Layer.provide(DBLive))
 
 export const Live = BrokerLive.pipe(
   Layer.provideMerge(PurchaseLive),

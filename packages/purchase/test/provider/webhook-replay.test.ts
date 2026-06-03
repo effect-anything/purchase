@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
+import { Effect } from "effect"
 import { Stripe } from "stripe"
 
 import { makePaddleProvider, makeStripeProvider } from "../support/fixture-providers.ts"

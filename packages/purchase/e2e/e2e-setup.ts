@@ -5,10 +5,10 @@ import { NodeFileSystem } from "@effect/platform-node"
 import { Effect, Layer, ManagedRuntime } from "effect"
 import * as path from "node:path"
 
-import { Live } from "./runtime.ts"
-import { BrokerServer } from "./webhook-broker.ts"
+import { Live } from "./internal/runtime.ts"
+import { BrokerServer } from "./internal/webhook-broker.ts"
 
-const repoRoot = new URL("../../../../", import.meta.url).pathname
+const repoRoot = new URL("../../../", import.meta.url).pathname
 
 const EnvFileLayer = Layer.mergeAll(
   PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),
@@ -43,7 +43,7 @@ export default async function setup(project: {
 
   const brokerServerInfo = await runtime.runPromise(program)
 
-  project.provide("purchaseProviderE2E", {
+  project.provide("purchaseE2E", {
     broker: {
       localBaseURL: brokerServerInfo.localBaseURL,
       publicBaseURL: brokerServerInfo.publicBaseURL

@@ -56,7 +56,7 @@ import { CommercialWorkflowStore } from "./workflow-store.ts"
 /**
  * Orchestrates provider-backed commercial workflows.
  */
-export class CommercialWorkflowService extends Context.Tag("@xstack/purchase/core/CommercialWorkflowService")<
+export class CommercialWorkflowService extends Context.Tag("@effect-x/purchase/core/CommercialWorkflowService")<
   CommercialWorkflowService,
   {
     /**

@@ -1,12 +1,11 @@
-import * as SqlClient from "@effect/sql/SqlClient"
+import { SqlClient } from "@effect/sql"
 import { describe, expect, it } from "@effect/vitest"
-import * as Effect from "effect/Effect"
-import * as Option from "effect/Option"
+import { Effect, Option } from "effect"
 
 import type { PaymentWebhookKind, PaymentWebhookNormalization } from "../../src/provider/client.ts"
 import type { PaymentProviderTag } from "../../src/provider/types.ts"
 
-import { syncCatalog } from "../../src/sync/config-service.ts"
+import { syncCatalog } from "../../src/catalog/config-service.ts"
 import { makePaddleProvider, makeStripeProvider } from "../support/fixture-providers.ts"
 import { loadGeneratedWebhookFixture } from "../support/generated-fixture.ts"
 import { runPayEffect } from "../support/run-pay-effect.ts"

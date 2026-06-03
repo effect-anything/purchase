@@ -1,13 +1,9 @@
 import { describe, layer } from "@effect/vitest"
 import { Effect } from "effect"
 
+import { aiCredits500Pack, desktopLifetimePurchase, notesProMonthlySubscription } from "../../business-fixtures.ts"
 import { assert } from "../../utils/assertions.ts"
-import {
-  aiCredits500Pack,
-  desktopLifetimePurchase,
-  notesProMonthlySubscription
-} from "../../utils/business-fixtures.ts"
-import * as Harness from "../../utils/harness.ts"
+import { Harness } from "../../utils/harness.ts"
 import { filteredScenarioPaymentProviders, makeScenarioRuntime } from "../../utils/scenario-runtime.ts"
 
 describe.each(filteredScenarioPaymentProviders)(
@@ -20,31 +16,31 @@ describe.each(filteredScenarioPaymentProviders)(
       // The provider catalog should expose the same stable offers that the app uses publicly.
       it.effect(
         "syncs a realistic SaaS catalog into the provider sandbox and exposes stable offer ids through the app pricing API",
-        () =>
-          Effect.gen(function* () {
-            const catalog = yield* Harness.getCatalog()
-
-            assert.catalog.exposesOffers(catalog, {
-              offers: [
-                {
-                  offerId: notesProMonthlySubscription.offerId,
-                  productId: "notes",
-                  type: "subscription"
-                },
-                {
-                  offerId: desktopLifetimePurchase.offerId,
-                  productId: "desktop_pro",
-                  type: "one_time"
-                },
-                {
-                  offerId: aiCredits500Pack.offerId,
-                  productId: "ai_credit_pack",
-                  type: "credits"
-                }
-              ]
-            })
+        Effect.fn(function* () {
+          const harness = yield* Harness
+          const catalog = yield* harness.getCatalog()
+          assert.catalog.exposesOffers(catalog, {
+            offers: [
+              {
+                offerId: notesProMonthlySubscription.offerId,
+                productId: "notes",
+                type: "subscription"
+              },
+              {
+                offerId: desktopLifetimePurchase.offerId,
+                productId: "desktop_pro",
+                type: "one_time"
+              },
+              {
+                offerId: aiCredits500Pack.offerId,
+                productId: "ai_credit_pack",
+                type: "credits"
+              }
+            ]
           })
+        })
       )
+
       // Sync must respect the boundary between sdk-owned and app-owned provider resources.
       // Implementation note:
       // - seed or identify a provider resource that is not owned by this SDK catalog run
@@ -53,6 +49,7 @@ describe.each(filteredScenarioPaymentProviders)(
       it.todo(
         "keeps sdk-owned products and prices in sync without mutating provider resources that belong to the application team"
       )
+
       // Re-running sync should converge without duplicate provider artifacts.
       // Implementation note:
       // - run the same app catalog sync more than once against the provider sandbox
