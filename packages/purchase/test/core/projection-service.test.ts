@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 
+import { syncCatalog } from "../../src/catalog/config-service.ts"
 import { CommercialCatalogService } from "../../src/core/catalog-service.ts"
 import { CustomerCommercialSnapshot } from "../../src/core/commercial-schema.ts"
 import {
@@ -8,7 +9,6 @@ import {
   buildCustomerEntitlementSnapshot,
   CommercialProjectionService
 } from "../../src/core/projection-service.ts"
-import { syncCatalog } from "../../src/catalog/config-service.ts"
 import { runCorePayEffect } from "../support/run-core-pay-effect.ts"
 import { queryAll } from "../support/sqlite-pay-harness.ts"
 import { testCustomerId, testOfferIds } from "../support/test-catalog.ts"

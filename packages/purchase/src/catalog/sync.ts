@@ -1,690 +1,657 @@
 import type { Utc } from "effect/DateTime"
 
 import * as Chunk from "effect/Chunk"
-import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 
-import type { NormalizedOffer, NormalizedPurchasePlan, ProductsModule, PurchasePlansModule } from "../dsl.ts"
-import type { ServicesReturns } from "../internal/types.ts"
+import type { NormalizedOffer, NormalizedPurchasePlan } from "../dsl.ts"
 import type { PaymentProviderTag } from "../provider/types.ts"
 
-import { CatalogState } from "../core/catalog-builder.ts"
+import { CatalogState } from "../core/catalog-state.ts"
 import { CommercialCatalogIssue, type CommercialOffer, type CommercialProduct } from "../core/commercial-schema.ts"
 import { CommercialWorkflowConflict } from "../core/workflow-schema.ts"
 import { PurchaseStorageAdapter, type PurchaseStorageProductRecord } from "../db.ts"
-import { normalizeCatalog, normalizeSchema } from "../dsl.ts"
 import { PaymentProvider } from "../provider/client.ts"
 
-export class CommercialCatalogSyncService extends Context.Tag("@effect-x/purchase/sync/CommercialCatalogSyncService")<
-  CommercialCatalogSyncService,
+export const sync: (input: { readonly dryRun?: boolean | undefined }) => Effect.Effect<
   {
-    /**
-     *
-     */
-    readonly sync: (
-      input?: CommercialCatalogSyncInput | undefined
-    ) => Effect.Effect<CommercialCatalogSyncResult, unknown>
+    readonly provider: PaymentProviderTag
+    readonly offers: number
+    readonly features: number
+    readonly dryRun: boolean
+    readonly plan: {
+      productsToCreate: ReadonlyArray<CommercialCatalogSyncPlanProductCreate>
+      pricesToCreate: ReadonlyArray<CommercialCatalogSyncPlanPriceCreate>
+      localRowsToInsert: ReadonlyArray<CommercialCatalogSyncPlanLocalRow>
+      localRowsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanLocalRow>
+      providerRefsToInsert: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
+      providerRefsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
+      staleRows: ReadonlyArray<CommercialCatalogSyncPlanStaleRow>
+      archiveCandidates: ReadonlyArray<CommercialCatalogSyncPlanArchiveCandidate>
+    }
+  },
+  CommercialCatalogIssue | CommercialWorkflowConflict,
+  CatalogState | PaymentProvider | PurchaseStorageAdapter
+> = Effect.fn("catalog.sync")(function* (input) {
+  const commercialCatalog = yield* CatalogState
+  const normalizedCatalog = commercialCatalog.normalizedCatalog
+  const normalizedPlans = commercialCatalog.normalizedPlans
+
+  const storage = yield* PurchaseStorageAdapter
+
+  const provider = yield* PaymentProvider
+  const activeProvider = provider._tag
+
+  const productMap = new Map(commercialCatalog.catalog.products.map((product) => [product.id, product] as const))
+  const normalizedOfferMap = normalizedCatalog.offerMap
+  const dryRun = input?.dryRun === true
+  const plan = makeSyncPlan()
+  const desiredOfferIds = new Set(normalizedCatalog.offers.map((offer) => offer.id))
+  const desiredProductIds = new Set(normalizedCatalog.products.map((product) => product.id))
+  const existingRows = yield* storage.product.findMany({ where: [["version", 1]] }).pipe(Effect.orDie)
+  const existingRowByOfferId = new Map(existingRows.map((row) => [row.id, row] as const))
+  const existingProviderRefs = yield* storage.providerRef
+    .findMany({ where: [["provider", activeProvider]] })
+    .pipe(Effect.orDie)
+
+  const providerRefsByKey = new Map(existingProviderRefs.map((ref) => [providerRefKey(ref), ref] as const))
+  const plannedProviderRefKeys = new Set<string>()
+  const localProviderProductRefs = new Set(
+    existingProviderRefs
+      .filter((ref) => ref.ownerType === "product" && ref.kind === "product")
+      .map((ref) => ref.providerId)
+  )
+  const localProviderOfferRefs = new Set(
+    existingProviderRefs.filter((ref) => ref.ownerType === "offer" && ref.kind === "offer").map((ref) => ref.providerId)
+  )
+
+  for (const row of existingRows) {
+    const provider = toRecord(row.provider)
+    const providerProductId = provider[providerProductKey(activeProvider)]
+    const providerOfferId = provider[activeProvider]
+    if (providerProductId) {
+      localProviderProductRefs.add(providerProductId)
+    }
+    if (providerOfferId) {
+      localProviderOfferRefs.add(providerOfferId)
+    }
   }
->() {
-  static make = (input: {
-    readonly plans: PurchasePlansModule | undefined
-    readonly products: ProductsModule | undefined
-  }) =>
-    Layer.effect(
-      CommercialCatalogSyncService,
-      Effect.gen(function* () {
-        const storage = yield* PurchaseStorageAdapter
-        const catalogState = yield* CatalogState
-        const provider = yield* PaymentProvider
-        const activeProvider = provider._tag
 
-        const getNormalizedCatalog = () =>
-          Effect.try({
-            try: () => normalizeCatalog(input.products),
-            catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize products: ${String(cause)}` })
-          })
-        const getNormalizedPlans = () =>
-          Effect.try({
-            try: () => normalizeSchema(input.plans, input.products),
-            catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize plans: ${String(cause)}` })
-          })
+  const resolvedProductIds = new Map<
+    string,
+    {
+      readonly providerId: string
+      readonly ownership: CommercialCatalogProviderOwnership
+    }
+  >()
 
-        const sync = Effect.fn("CommercialCatalogSyncService.sync")(function* (
-          syncInput?: CommercialCatalogSyncInput | undefined
-        ) {
-          const commercialCatalog = catalogState.catalog
-          const normalizedCatalog = yield* getNormalizedCatalog()
-          const normalizedPlans = yield* getNormalizedPlans()
-          const productMap = new Map(commercialCatalog.products.map((product) => [product.id, product] as const))
-          const normalizedOfferMap = normalizedCatalog.offerMap
-          const dryRun = syncInput?.dryRun === true
-          const plan = makeSyncPlan()
-          const desiredOfferIds = new Set(normalizedCatalog.offers.map((offer) => offer.id))
-          const desiredProductIds = new Set(normalizedCatalog.products.map((product) => product.id))
-          const existingRows = yield* storage.product.findMany({ where: [["version", 1]] }).pipe(Effect.orDie)
-          const existingRowByOfferId = new Map(existingRows.map((row) => [row.id, row] as const))
-          const existingProviderRefs = yield* storage.providerRef
-            .findMany({ where: [["provider", activeProvider]] })
-            .pipe(Effect.orDie)
-          const providerRefsByKey = new Map(existingProviderRefs.map((ref) => [providerRefKey(ref), ref] as const))
-          const plannedProviderRefKeys = new Set<string>()
-          const localProviderProductRefs = new Set(
-            existingProviderRefs
-              .filter((ref) => ref.ownerType === "product" && ref.kind === "product")
-              .map((ref) => ref.providerId)
-          )
-          const localProviderOfferRefs = new Set(
-            existingProviderRefs
-              .filter((ref) => ref.ownerType === "offer" && ref.kind === "offer")
-              .map((ref) => ref.providerId)
-          )
-          for (const row of existingRows) {
-            const provider = toRecord(row.provider)
-            const providerProductId = provider[providerProductKey(activeProvider)]
-            const providerOfferId = provider[activeProvider]
-            if (providerProductId) {
-              localProviderProductRefs.add(providerProductId)
-            }
-            if (providerOfferId) {
-              localProviderOfferRefs.add(providerOfferId)
-            }
-          }
-          const resolvedProductIds = new Map<
-            string,
-            {
-              readonly providerId: string
-              readonly ownership: CommercialCatalogProviderOwnership
-            }
-          >()
-
-          const upsertProviderRef = Effect.fnUntraced(function* (refInput: CommercialCatalogSyncPlanProviderRef) {
-            const refKey = providerRefKey(refInput)
-            const existing = providerRefsByKey.get(refKey)
-            if (existing) {
-              if (existing.providerId !== refInput.providerId) {
-                if (plannedProviderRefKeys.has(refKey)) {
-                  return
-                }
-                plannedProviderRefKeys.add(refKey)
-                plan.providerRefsToUpdate.push(refInput)
-                if (!dryRun) {
-                  const updated = yield* storage.providerRef
-                    .updateFirst({
-                      where: [["id", existing.id]],
-                      set: {
-                        providerId: refInput.providerId,
-                        updatedAt: toStorageUtc(new Date())
-                      }
-                    })
-                    .pipe(Effect.orDie)
-                  if (Option.isSome(updated)) {
-                    providerRefsByKey.set(refKey, updated.value)
-                    if (refInput.kind === "product") {
-                      localProviderProductRefs.add(refInput.providerId)
-                    } else {
-                      localProviderOfferRefs.add(refInput.providerId)
-                    }
-                  }
-                }
+  const upsertProviderRef = Effect.fnUntraced(function* (refInput: CommercialCatalogSyncPlanProviderRef) {
+    const refKey = providerRefKey(refInput)
+    const existing = providerRefsByKey.get(refKey)
+    if (existing) {
+      if (existing.providerId !== refInput.providerId) {
+        if (plannedProviderRefKeys.has(refKey)) {
+          return
+        }
+        plannedProviderRefKeys.add(refKey)
+        plan.providerRefsToUpdate.push(refInput)
+        if (!dryRun) {
+          const updated = yield* storage.providerRef
+            .updateFirst({
+              where: [["id", existing.id]],
+              set: {
+                providerId: refInput.providerId,
+                updatedAt: toStorageUtc(new Date())
               }
-              return
-            }
-            if (plannedProviderRefKeys.has(refKey)) {
-              return
-            }
-            plannedProviderRefKeys.add(refKey)
-            plan.providerRefsToInsert.push(refInput)
-            if (dryRun) {
-              return
-            }
-            const now = toStorageUtc(new Date())
-            const inserted = yield* storage.providerRef
-              .insert({
-                values: {
-                  id: `${activeProvider}:${refInput.kind}:${refInput.ownerType}:${refInput.ownerId}`,
-                  provider: activeProvider,
-                  ownerType: refInput.ownerType,
-                  ownerId: refInput.ownerId,
-                  providerId: refInput.providerId,
-                  kind: refInput.kind,
-                  createdAt: now,
-                  updatedAt: now
-                }
-              })
-              .pipe(Effect.orDie)
-            providerRefsByKey.set(refKey, inserted)
+            })
+            .pipe(Effect.orDie)
+          if (Option.isSome(updated)) {
+            providerRefsByKey.set(refKey, updated.value)
             if (refInput.kind === "product") {
               localProviderProductRefs.add(refInput.providerId)
             } else {
               localProviderOfferRefs.add(refInput.providerId)
             }
+          }
+        }
+      }
+      return
+    }
+    if (plannedProviderRefKeys.has(refKey)) {
+      return
+    }
+    plannedProviderRefKeys.add(refKey)
+    plan.providerRefsToInsert.push(refInput)
+    if (dryRun) {
+      return
+    }
+    const now = toStorageUtc(new Date())
+    const inserted = yield* storage.providerRef
+      .insert({
+        values: {
+          id: `${activeProvider}:${refInput.kind}:${refInput.ownerType}:${refInput.ownerId}`,
+          provider: activeProvider,
+          ownerType: refInput.ownerType,
+          ownerId: refInput.ownerId,
+          providerId: refInput.providerId,
+          kind: refInput.kind,
+          createdAt: now,
+          updatedAt: now
+        }
+      })
+      .pipe(Effect.orDie)
+    providerRefsByKey.set(refKey, inserted)
+    if (refInput.kind === "product") {
+      localProviderProductRefs.add(refInput.providerId)
+    } else {
+      localProviderOfferRefs.add(refInput.providerId)
+    }
+  })
+
+  const providerRowForProduct = (productId: string) =>
+    existingRows.find((row) => offerProductIdFromStorageId(row.id) === productId)
+
+  const resolveProviderProduct = Effect.fnUntraced(function* (product: CommercialProduct) {
+    const existingResolution = resolvedProductIds.get(product.id)
+    if (existingResolution) {
+      return existingResolution
+    }
+    const externalProviderProductId = product.provider[activeProvider]
+    if (externalProviderProductId) {
+      const resolved = {
+        providerId: externalProviderProductId,
+        ownership: "external" as const
+      }
+      resolvedProductIds.set(product.id, resolved)
+      return resolved
+    }
+    const existingRef = providerRefsByKey.get(
+      providerRefKey({ ownerType: "product", ownerId: product.id, kind: "product" })
+    )
+    const rowProvider = toRecord(providerRowForProduct(product.id)?.provider)
+    const existingProviderProductId = existingRef?.providerId ?? rowProvider[providerProductKey(activeProvider)]
+    if (existingProviderProductId) {
+      const resolved = {
+        providerId: existingProviderProductId,
+        ownership: recordOwnership(rowProvider, providerProductOwnershipKey(activeProvider))
+      }
+      resolvedProductIds.set(product.id, resolved)
+      return resolved
+    }
+    const providerProductId = dryRun
+      ? `dry_run:${activeProvider}:product:${product.id}`
+      : yield* provider.products
+          .create({
+            name: product.name,
+            description: product.description ?? undefined,
+            metadata: {
+              commercialProductId: product.id,
+              workflow: "catalog.sync"
+            }
           })
-
-          const providerRowForProduct = (productId: string) =>
-            existingRows.find((row) => offerProductIdFromStorageId(row.id) === productId)
-
-          const resolveProviderProduct = Effect.fnUntraced(function* (product: CommercialProduct) {
-            const existingResolution = resolvedProductIds.get(product.id)
-            if (existingResolution) {
-              return existingResolution
-            }
-            const externalProviderProductId = product.provider[activeProvider]
-            if (externalProviderProductId) {
-              const resolved = {
-                providerId: externalProviderProductId,
-                ownership: "external" as const
-              }
-              resolvedProductIds.set(product.id, resolved)
-              return resolved
-            }
-            const existingRef = providerRefsByKey.get(
-              providerRefKey({ ownerType: "product", ownerId: product.id, kind: "product" })
+          .pipe(
+            Effect.map((createdProduct) => createdProduct.id),
+            Effect.mapError(
+              (cause) =>
+                new CommercialWorkflowConflict({
+                  workflow: "catalog.sync",
+                  message: `Failed to create provider product for "${product.id}": ${String(cause)}`
+                })
             )
-            const rowProvider = toRecord(providerRowForProduct(product.id)?.provider)
-            const existingProviderProductId = existingRef?.providerId ?? rowProvider[providerProductKey(activeProvider)]
-            if (existingProviderProductId) {
-              const resolved = {
-                providerId: existingProviderProductId,
-                ownership: recordOwnership(rowProvider, providerProductOwnershipKey(activeProvider))
-              }
-              resolvedProductIds.set(product.id, resolved)
-              return resolved
-            }
-            const providerProductId = dryRun
-              ? `dry_run:${activeProvider}:product:${product.id}`
-              : yield* provider.products
-                  .create({
-                    name: product.name,
-                    description: product.description ?? undefined,
-                    metadata: {
-                      commercialProductId: product.id,
-                      workflow: "catalog.sync"
-                    }
-                  })
-                  .pipe(
-                    Effect.map((createdProduct) => createdProduct.id),
-                    Effect.mapError(
-                      (cause) =>
-                        new CommercialWorkflowConflict({
-                          workflow: "catalog.sync",
-                          message: `Failed to create provider product for "${product.id}": ${String(cause)}`
-                        })
-                    )
-                  )
-            const resolved = {
-              providerId: providerProductId,
-              ownership: "sdk" as const
-            }
-            resolvedProductIds.set(product.id, resolved)
-            plan.productsToCreate.push({
-              productId: product.id,
-              provider: activeProvider,
-              providerProductId,
-              ownership: resolved.ownership
-            })
-            return resolved
-          })
+          )
+    const resolved = {
+      providerId: providerProductId,
+      ownership: "sdk" as const
+    }
+    resolvedProductIds.set(product.id, resolved)
+    plan.productsToCreate.push({
+      productId: product.id,
+      provider: activeProvider,
+      providerProductId,
+      ownership: resolved.ownership
+    })
+    return resolved
+  })
 
-          const addArchiveCandidate = (candidate: CommercialCatalogSyncPlanArchiveCandidate) => {
-            if (
-              plan.archiveCandidates.some(
-                (existing) => existing.kind === candidate.kind && existing.providerId === candidate.providerId
-              )
-            ) {
-              return
-            }
+  const addArchiveCandidate = (candidate: CommercialCatalogSyncPlanArchiveCandidate) => {
+    if (
+      plan.archiveCandidates.some(
+        (existing) => existing.kind === candidate.kind && existing.providerId === candidate.providerId
+      )
+    ) {
+      return
+    }
 
-            plan.archiveCandidates.push(candidate)
-          }
+    plan.archiveCandidates.push(candidate)
+  }
 
-          const archiveProviderObject = (candidate: CommercialCatalogSyncPlanArchiveCandidate) => {
-            if (dryRun || !candidate.safeToArchive) {
-              return Effect.void
-            }
+  const archiveProviderObject = (candidate: CommercialCatalogSyncPlanArchiveCandidate) => {
+    if (dryRun || !candidate.safeToArchive) {
+      return Effect.void
+    }
 
-            if (candidate.ownerType === "offer") {
-              return provider.prices.archive({ priceId: candidate.providerId }).pipe(Effect.catchAll(() => Effect.void))
-            }
+    if (candidate.ownerType === "offer") {
+      return provider.prices.archive({ priceId: candidate.providerId }).pipe(Effect.catchAll(() => Effect.void))
+    }
 
-            return provider.products
-              .archive({ productId: candidate.providerId as never })
-              .pipe(Effect.catchAll(() => Effect.void))
-          }
+    return provider.products
+      .archive({ productId: candidate.providerId as never })
+      .pipe(Effect.catchAll(() => Effect.void))
+  }
 
-          const upsertOfferProjection = (
-            offer: CommercialOffer,
-            product: CommercialProduct,
-            normalizedOffer: NormalizedOffer,
-            normalizedPlan: NormalizedPurchasePlan
-          ) =>
-            Effect.gen(function* () {
-              const existing = Option.fromNullable(existingRowByOfferId.get(offer.id))
-              const currentProvider: Record<string, string> = Option.match(existing, {
-                onNone: () => ({}),
-                onSome: (row) => toRecord(row.provider)
-              })
-              const providerProduct = yield* resolveProviderProduct(product)
-              const externalProviderOfferId = offer.provider[activeProvider]
-              const currentProviderOfferId = currentProvider[activeProvider]
-              const existingRow = Option.getOrUndefined(existing)
-              const existingPriceAmount =
-                typeof existingRow?.priceAmount === "number" ? existingRow.priceAmount : undefined
-              const existingPriceInterval = existingRow?.priceInterval ?? undefined
-              const priceChanged = Option.isSome(existing) && existingPriceAmount !== offer.priceAmount
-              const billingIntervalChanged = Option.isSome(existing) && existingPriceInterval !== offer.billingInterval
-              const previousProviderOfferOwnership = recordOwnership(
-                currentProvider,
-                providerOfferOwnershipKey(activeProvider)
-              )
-              const shouldCreateProviderPrice =
-                !externalProviderOfferId &&
-                (!currentProviderOfferId ||
-                  priceChanged ||
-                  billingIntervalChanged ||
-                  previousProviderOfferOwnership === "external")
-              const providerOfferOwnership: CommercialCatalogProviderOwnership = externalProviderOfferId
-                ? "external"
-                : shouldCreateProviderPrice
-                  ? "sdk"
-                  : recordOwnership(currentProvider, providerOfferOwnershipKey(activeProvider))
-              const providerOfferId = externalProviderOfferId
-                ? externalProviderOfferId
-                : shouldCreateProviderPrice
-                  ? dryRun
-                    ? `dry_run:${activeProvider}:offer:${offer.id}`
-                    : yield* provider.prices
-                        .create({
-                          productId: providerProduct.providerId as never,
-                          name: offer.name,
-                          unitPrice: {
-                            amount: displayAmountToMinorUnit(offer.priceAmount ?? 0, offer.currency ?? "USD"),
-                            currencyCode: (offer.currency ?? "USD").toUpperCase()
-                          },
-                          ...(offer.billingInterval && offer.billingInterval !== "one_time"
-                            ? {
-                                billingCycle: {
-                                  interval: offer.billingInterval,
-                                  frequency: 1
-                                }
-                              }
-                            : {}),
-                          metadata: {
-                            commercialProductId: product.id,
-                            commercialOfferId: offer.id,
-                            workflow: "catalog.sync"
-                          }
-                        })
-                        .pipe(
-                          Effect.map((createdPrice) => createdPrice.id),
-                          Effect.mapError(
-                            (cause) =>
-                              new CommercialWorkflowConflict({
-                                workflow: "catalog.sync",
-                                message: `Failed to create provider price for "${offer.id}": ${String(cause)}`
-                              })
-                          )
-                        )
-                  : currentProviderOfferId
-
-              if (!providerOfferId) {
-                return yield* new CommercialCatalogIssue({ message: `Missing provider offer id for "${offer.id}"` })
-              }
-
-              if (shouldCreateProviderPrice) {
-                plan.pricesToCreate.push({
-                  offerId: offer.id,
-                  productId: product.id,
-                  provider: activeProvider,
-                  providerProductId: providerProduct.providerId,
-                  providerOfferId,
-                  reason: priceChanged
-                    ? "changed_price"
-                    : billingIntervalChanged
-                      ? "changed_billing_interval"
-                      : "missing",
-                  ownership: "sdk"
-                })
-              }
-
-              if ((priceChanged || billingIntervalChanged) && currentProviderOfferId) {
-                const safeToArchive = previousProviderOfferOwnership === "sdk"
-                const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
-                  ownerType: "offer",
-                  ownerId: offer.id,
-                  provider: activeProvider,
-                  providerId: currentProviderOfferId,
-                  kind: "offer",
-                  safeToArchive,
-                  ownership: previousProviderOfferOwnership,
-                  reason: priceChanged ? "changed_price" : "changed_billing_interval",
-                  action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
-                }
-                addArchiveCandidate(archiveCandidate)
-                yield* archiveProviderObject(archiveCandidate)
-              }
-
-              const nextProvider = {
-                ...currentProvider,
-                [providerProductKey(activeProvider)]: providerProduct.providerId,
-                [activeProvider]: providerOfferId,
-                [providerProductOwnershipKey(activeProvider)]: providerProduct.ownership,
-                [providerOfferOwnershipKey(activeProvider)]: providerOfferOwnership
-              }
-              localProviderProductRefs.add(providerProduct.providerId)
-              localProviderOfferRefs.add(providerOfferId)
-              delete nextProvider[providerArchivedAtKey(activeProvider)]
-
-              const offerHash = computeSyncHash({ normalizedOffer, normalizedPlan, offer, product })
-              const internalId = Option.match(existing, {
-                onNone: () => crypto.randomUUID(),
-                onSome: (row) => row.internalId
-              })
-              const now = toStorageUtc(new Date())
-              const productValues = {
-                name: offer.name,
-                group: offer.group,
-                isDefault: offer.isDefault,
-                priceAmount: offer.priceAmount,
-                priceInterval: offer.billingInterval,
-                hash: offerHash,
-                provider: nextProvider,
-                updatedAt: now
-              } as const
-              const rowPlan: CommercialCatalogSyncPlanLocalRow = {
-                offerId: offer.id,
-                productId: product.id,
-                provider: activeProvider,
-                providerProductId: providerProduct.providerId,
-                providerOfferId,
-                reason: Option.isNone(existing)
-                  ? "missing"
-                  : priceChanged
-                    ? "changed_price"
-                    : billingIntervalChanged
-                      ? "changed_billing_interval"
-                      : "changed_product_metadata"
-              }
-              const shouldWriteRow =
-                Option.isNone(existing) ||
-                existing.value.hash !== offerHash ||
-                !hasSameRecord(toRecord(existing.value.provider), nextProvider)
-
-              if (Option.isNone(existing)) {
-                plan.localRowsToInsert.push(rowPlan)
-              } else if (shouldWriteRow) {
-                plan.localRowsToUpdate.push(rowPlan)
-                plan.staleRows.push({
-                  offerId: offer.id,
-                  productId: product.id,
-                  reason: rowPlan.reason === "missing" ? "changed_product_metadata" : rowPlan.reason
-                })
-              }
-
-              if (!dryRun && shouldWriteRow) {
-                if (Option.isSome(existing)) {
-                  yield* storage.product
-                    .updateFirst({
-                      where: [["internalId", internalId]],
-                      set: productValues
-                    })
-                    .pipe(Effect.orDie)
-                } else {
-                  yield* storage.product
-                    .insert({
-                      values: {
-                        internalId,
-                        id: offer.id,
-                        version: 1,
-                        ...productValues,
-                        createdAt: now
+  const upsertOfferProjection = (
+    offer: CommercialOffer,
+    product: CommercialProduct,
+    normalizedOffer: NormalizedOffer,
+    normalizedPlan: NormalizedPurchasePlan
+  ) =>
+    Effect.gen(function* () {
+      const existing = Option.fromNullable(existingRowByOfferId.get(offer.id))
+      const currentProvider: Record<string, string> = Option.match(existing, {
+        onNone: () => ({}),
+        onSome: (row) => toRecord(row.provider)
+      })
+      const providerProduct = yield* resolveProviderProduct(product)
+      const externalProviderOfferId = offer.provider[activeProvider]
+      const currentProviderOfferId = currentProvider[activeProvider]
+      const existingRow = Option.getOrUndefined(existing)
+      const existingPriceAmount = typeof existingRow?.priceAmount === "number" ? existingRow.priceAmount : undefined
+      const existingPriceInterval = existingRow?.priceInterval ?? undefined
+      const priceChanged = Option.isSome(existing) && existingPriceAmount !== offer.priceAmount
+      const billingIntervalChanged = Option.isSome(existing) && existingPriceInterval !== offer.billingInterval
+      const previousProviderOfferOwnership = recordOwnership(currentProvider, providerOfferOwnershipKey(activeProvider))
+      const shouldCreateProviderPrice =
+        !externalProviderOfferId &&
+        (!currentProviderOfferId ||
+          priceChanged ||
+          billingIntervalChanged ||
+          previousProviderOfferOwnership === "external")
+      const providerOfferOwnership: CommercialCatalogProviderOwnership = externalProviderOfferId
+        ? "external"
+        : shouldCreateProviderPrice
+          ? "sdk"
+          : recordOwnership(currentProvider, providerOfferOwnershipKey(activeProvider))
+      const providerOfferId = externalProviderOfferId
+        ? externalProviderOfferId
+        : shouldCreateProviderPrice
+          ? dryRun
+            ? `dry_run:${activeProvider}:offer:${offer.id}`
+            : yield* provider.prices
+                .create({
+                  productId: providerProduct.providerId as never,
+                  name: offer.name,
+                  unitPrice: {
+                    amount: displayAmountToMinorUnit(offer.priceAmount ?? 0, offer.currency ?? "USD"),
+                    currencyCode: (offer.currency ?? "USD").toUpperCase()
+                  },
+                  ...(offer.billingInterval && offer.billingInterval !== "one_time"
+                    ? {
+                        billingCycle: {
+                          interval: offer.billingInterval,
+                          frequency: 1
+                        }
                       }
-                    })
-                    .pipe(Effect.orDie)
-                }
-              }
-
-              yield* upsertProviderRef({
-                ownerType: "product",
-                ownerId: product.id,
-                provider: activeProvider,
-                providerId: providerProduct.providerId,
-                kind: "product"
-              })
-              yield* upsertProviderRef({
-                ownerType: "offer",
-                ownerId: offer.id,
-                provider: activeProvider,
-                providerId: providerOfferId,
-                kind: "offer"
-              })
-            })
-
-          const archiveStaleRow = (row: PurchaseStorageProductRecord) =>
-            Effect.gen(function* () {
-              const currentProvider = toRecord(row.provider)
-              const productId = offerProductIdFromStorageId(row.id)
-              const providerOfferId = currentProvider[activeProvider]
-              const providerProductId = currentProvider[providerProductKey(activeProvider)]
-              const offerOwnership = recordOwnership(currentProvider, providerOfferOwnershipKey(activeProvider))
-              const productOwnership = recordOwnership(currentProvider, providerProductOwnershipKey(activeProvider))
-              plan.staleRows.push({
-                offerId: row.id,
-                ...(productId ? { productId } : {}),
-                reason: "removed_offer"
-              })
-              plan.localRowsToUpdate.push({
-                offerId: row.id,
-                productId: productId ?? "",
-                provider: activeProvider,
-                ...(providerProductId ? { providerProductId } : {}),
-                ...(providerOfferId ? { providerOfferId } : {}),
-                reason: "removed_offer"
-              })
-
-              if (providerOfferId) {
-                const safeToArchive = offerOwnership === "sdk"
-                const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
-                  ownerType: "offer",
-                  ownerId: row.id,
-                  provider: activeProvider,
-                  providerId: providerOfferId,
-                  kind: "offer",
-                  safeToArchive,
-                  ownership: offerOwnership,
-                  reason: "removed_offer",
-                  action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
-                }
-                addArchiveCandidate(archiveCandidate)
-                yield* archiveProviderObject(archiveCandidate)
-              }
-
-              if (productId && providerProductId && !desiredProductIds.has(productId)) {
-                const safeToArchive = productOwnership === "sdk"
-                const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
-                  ownerType: "product",
-                  ownerId: productId,
-                  provider: activeProvider,
-                  providerId: providerProductId,
-                  kind: "product",
-                  safeToArchive,
-                  ownership: productOwnership,
-                  reason: "removed_offer",
-                  action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
-                }
-                addArchiveCandidate(archiveCandidate)
-                yield* archiveProviderObject(archiveCandidate)
-              }
-
-              if (dryRun) {
-                return
-              }
-
-              const now = new Date()
-              const nextProvider = {
-                ...currentProvider,
-                [providerArchivedAtKey(activeProvider)]: now.toISOString()
-              }
-              yield* storage.product
-                .updateFirst({
-                  where: [["internalId", row.internalId]],
-                  set: {
-                    isDefault: false,
-                    hash: `archived:${row.hash ?? row.id}`,
-                    provider: nextProvider,
-                    updatedAt: toStorageUtc(now)
+                    : {}),
+                  metadata: {
+                    commercialProductId: product.id,
+                    commercialOfferId: offer.id,
+                    workflow: "catalog.sync"
                   }
                 })
-                .pipe(Effect.orDie)
-            })
-
-          const isArchivedForActiveProvider = (row: PurchaseStorageProductRecord) =>
-            Boolean(toRecord(row.provider)[providerArchivedAtKey(activeProvider)])
-
-          const archiveProviderOrphans = Effect.fnUntraced(function* () {
-            const providerProducts = yield* provider.products.stream({ status: ["active"], perPage: 100 }).pipe(
-              Stream.runCollect,
-              Effect.map(Chunk.toReadonlyArray),
-              Effect.catchAll(() => Effect.succeed([] as const))
-            )
-            const sdkProductIds = new Set(
-              providerProducts
-                .filter((product) => metadataString(product.metadata, "workflow") === "catalog.sync")
-                .map((product) => product.id)
-            )
-
-            yield* Effect.forEach(
-              providerProducts,
-              (providerProduct) =>
-                Effect.gen(function* () {
-                  const metadata = providerProduct.metadata ?? {}
-                  const ownerId = metadataString(metadata, "commercialProductId")
-                  const sdkOwned = metadataString(metadata, "workflow") === "catalog.sync" && Boolean(ownerId)
-
-                  yield* Effect.forEach(
-                    providerProduct.prices,
-                    (providerPrice) =>
-                      Effect.gen(function* () {
-                        const priceMetadata = providerPrice.metadata ?? {}
-                        const priceOwnerId = metadataString(priceMetadata, "commercialOfferId")
-                        const priceProductOwnerId = metadataString(priceMetadata, "commercialProductId") ?? ownerId
-                        const priceSdkOwned =
-                          Boolean(priceOwnerId) &&
-                          (metadataString(priceMetadata, "workflow") === "catalog.sync" ||
-                            sdkProductIds.has(providerPrice.productId))
-
-                        if (!providerPrice.active || !priceSdkOwned || localProviderOfferRefs.has(providerPrice.id)) {
-                          return
-                        }
-
-                        const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
-                          ownerType: "offer",
-                          ownerId: priceOwnerId ?? providerPrice.id,
-                          provider: activeProvider,
-                          providerId: providerPrice.id,
-                          kind: "offer",
-                          safeToArchive: true,
-                          ownership: "sdk",
-                          reason: "provider_orphan",
-                          action: "provider_archive_if_supported"
-                        }
-                        addArchiveCandidate(archiveCandidate)
-                        yield* archiveProviderObject(archiveCandidate)
-                      }),
-                    { concurrency: 1, discard: true }
+                .pipe(
+                  Effect.map((createdPrice) => createdPrice.id),
+                  Effect.mapError(
+                    (cause) =>
+                      new CommercialWorkflowConflict({
+                        workflow: "catalog.sync",
+                        message: `Failed to create provider price for "${offer.id}": ${String(cause)}`
+                      })
                   )
+                )
+          : currentProviderOfferId
 
-                  if (!providerProduct.active || !sdkOwned || localProviderProductRefs.has(providerProduct.id)) {
-                    return
-                  }
+      if (!providerOfferId) {
+        return yield* new CommercialCatalogIssue({ message: `Missing provider offer id for "${offer.id}"` })
+      }
 
-                  const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
-                    ownerType: "product",
-                    ownerId: ownerId ?? providerProduct.id,
-                    provider: activeProvider,
-                    providerId: providerProduct.id,
-                    kind: "product",
-                    safeToArchive: true,
-                    ownership: "sdk",
-                    reason: "provider_orphan",
-                    action: "provider_archive_if_supported"
-                  }
-                  addArchiveCandidate(archiveCandidate)
-                  yield* archiveProviderObject(archiveCandidate)
-                }),
-              { concurrency: 1, discard: true }
-            )
-          })
+      if (shouldCreateProviderPrice) {
+        plan.pricesToCreate.push({
+          offerId: offer.id,
+          productId: product.id,
+          provider: activeProvider,
+          providerProductId: providerProduct.providerId,
+          providerOfferId,
+          reason: priceChanged ? "changed_price" : billingIntervalChanged ? "changed_billing_interval" : "missing",
+          ownership: "sdk"
+        })
+      }
+
+      if ((priceChanged || billingIntervalChanged) && currentProviderOfferId) {
+        const safeToArchive = previousProviderOfferOwnership === "sdk"
+        const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
+          ownerType: "offer",
+          ownerId: offer.id,
+          provider: activeProvider,
+          providerId: currentProviderOfferId,
+          kind: "offer",
+          safeToArchive,
+          ownership: previousProviderOfferOwnership,
+          reason: priceChanged ? "changed_price" : "changed_billing_interval",
+          action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
+        }
+        addArchiveCandidate(archiveCandidate)
+        yield* archiveProviderObject(archiveCandidate)
+      }
+
+      const nextProvider = {
+        ...currentProvider,
+        [providerProductKey(activeProvider)]: providerProduct.providerId,
+        [activeProvider]: providerOfferId,
+        [providerProductOwnershipKey(activeProvider)]: providerProduct.ownership,
+        [providerOfferOwnershipKey(activeProvider)]: providerOfferOwnership
+      }
+      localProviderProductRefs.add(providerProduct.providerId)
+      localProviderOfferRefs.add(providerOfferId)
+      delete nextProvider[providerArchivedAtKey(activeProvider)]
+
+      const offerHash = computeSyncHash({ normalizedOffer, normalizedPlan, offer, product })
+      const internalId = Option.match(existing, {
+        onNone: () => crypto.randomUUID(),
+        onSome: (row) => row.internalId
+      })
+      const now = toStorageUtc(new Date())
+      const productValues = {
+        name: offer.name,
+        group: offer.group,
+        isDefault: offer.isDefault,
+        priceAmount: offer.priceAmount,
+        priceInterval: offer.billingInterval,
+        hash: offerHash,
+        provider: nextProvider,
+        updatedAt: now
+      } as const
+      const rowPlan: CommercialCatalogSyncPlanLocalRow = {
+        offerId: offer.id,
+        productId: product.id,
+        provider: activeProvider,
+        providerProductId: providerProduct.providerId,
+        providerOfferId,
+        reason: Option.isNone(existing)
+          ? "missing"
+          : priceChanged
+            ? "changed_price"
+            : billingIntervalChanged
+              ? "changed_billing_interval"
+              : "changed_product_metadata"
+      }
+      const shouldWriteRow =
+        Option.isNone(existing) ||
+        existing.value.hash !== offerHash ||
+        !hasSameRecord(toRecord(existing.value.provider), nextProvider)
+
+      if (Option.isNone(existing)) {
+        plan.localRowsToInsert.push(rowPlan)
+      } else if (shouldWriteRow) {
+        plan.localRowsToUpdate.push(rowPlan)
+        plan.staleRows.push({
+          offerId: offer.id,
+          productId: product.id,
+          reason: rowPlan.reason === "missing" ? "changed_product_metadata" : rowPlan.reason
+        })
+      }
+
+      if (!dryRun && shouldWriteRow) {
+        if (Option.isSome(existing)) {
+          yield* storage.product
+            .updateFirst({
+              where: [["internalId", internalId]],
+              set: productValues
+            })
+            .pipe(Effect.orDie)
+        } else {
+          yield* storage.product
+            .insert({
+              values: {
+                internalId,
+                id: offer.id,
+                version: 1,
+                ...productValues,
+                createdAt: now
+              }
+            })
+            .pipe(Effect.orDie)
+        }
+      }
+
+      yield* upsertProviderRef({
+        ownerType: "product",
+        ownerId: product.id,
+        provider: activeProvider,
+        providerId: providerProduct.providerId,
+        kind: "product"
+      })
+      yield* upsertProviderRef({
+        ownerType: "offer",
+        ownerId: offer.id,
+        provider: activeProvider,
+        providerId: providerOfferId,
+        kind: "offer"
+      })
+    })
+
+  const archiveStaleRow = (row: PurchaseStorageProductRecord) =>
+    Effect.gen(function* () {
+      const currentProvider = toRecord(row.provider)
+      const productId = offerProductIdFromStorageId(row.id)
+      const providerOfferId = currentProvider[activeProvider]
+      const providerProductId = currentProvider[providerProductKey(activeProvider)]
+      const offerOwnership = recordOwnership(currentProvider, providerOfferOwnershipKey(activeProvider))
+      const productOwnership = recordOwnership(currentProvider, providerProductOwnershipKey(activeProvider))
+      plan.staleRows.push({
+        offerId: row.id,
+        ...(productId ? { productId } : {}),
+        reason: "removed_offer"
+      })
+      plan.localRowsToUpdate.push({
+        offerId: row.id,
+        productId: productId ?? "",
+        provider: activeProvider,
+        ...(providerProductId ? { providerProductId } : {}),
+        ...(providerOfferId ? { providerOfferId } : {}),
+        reason: "removed_offer"
+      })
+
+      if (providerOfferId) {
+        const safeToArchive = offerOwnership === "sdk"
+        const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
+          ownerType: "offer",
+          ownerId: row.id,
+          provider: activeProvider,
+          providerId: providerOfferId,
+          kind: "offer",
+          safeToArchive,
+          ownership: offerOwnership,
+          reason: "removed_offer",
+          action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
+        }
+        addArchiveCandidate(archiveCandidate)
+        yield* archiveProviderObject(archiveCandidate)
+      }
+
+      if (productId && providerProductId && !desiredProductIds.has(productId)) {
+        const safeToArchive = productOwnership === "sdk"
+        const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
+          ownerType: "product",
+          ownerId: productId,
+          provider: activeProvider,
+          providerId: providerProductId,
+          kind: "product",
+          safeToArchive,
+          ownership: productOwnership,
+          reason: "removed_offer",
+          action: safeToArchive ? "provider_archive_if_supported" : "skip_external_or_unknown"
+        }
+        addArchiveCandidate(archiveCandidate)
+        yield* archiveProviderObject(archiveCandidate)
+      }
+
+      if (dryRun) {
+        return
+      }
+
+      const now = new Date()
+      const nextProvider = {
+        ...currentProvider,
+        [providerArchivedAtKey(activeProvider)]: now.toISOString()
+      }
+      yield* storage.product
+        .updateFirst({
+          where: [["internalId", row.internalId]],
+          set: {
+            isDefault: false,
+            hash: `archived:${row.hash ?? row.id}`,
+            provider: nextProvider,
+            updatedAt: toStorageUtc(now)
+          }
+        })
+        .pipe(Effect.orDie)
+    })
+
+  const isArchivedForActiveProvider = (row: PurchaseStorageProductRecord) =>
+    Boolean(toRecord(row.provider)[providerArchivedAtKey(activeProvider)])
+
+  const archiveProviderOrphans = Effect.fnUntraced(function* () {
+    const providerProducts = yield* provider.products.stream({ status: ["active"], perPage: 100 }).pipe(
+      Stream.runCollect,
+      Effect.map(Chunk.toReadonlyArray),
+      Effect.catchAll(() => Effect.succeed([] as const))
+    )
+    const sdkProductIds = new Set(
+      providerProducts
+        .filter((product) => metadataString(product.metadata, "workflow") === "catalog.sync")
+        .map((product) => product.id)
+    )
+
+    yield* Effect.forEach(
+      providerProducts,
+      (providerProduct) =>
+        Effect.gen(function* () {
+          const metadata = providerProduct.metadata ?? {}
+          const ownerId = metadataString(metadata, "commercialProductId")
+          const sdkOwned = metadataString(metadata, "workflow") === "catalog.sync" && Boolean(ownerId)
 
           yield* Effect.forEach(
-            commercialCatalog.products,
-            (product) =>
+            providerProduct.prices,
+            (providerPrice) =>
               Effect.gen(function* () {
-                const resolvedProduct = productMap.get(product.id)
+                const priceMetadata = providerPrice.metadata ?? {}
+                const priceOwnerId = metadataString(priceMetadata, "commercialOfferId")
+                const priceProductOwnerId = metadataString(priceMetadata, "commercialProductId") ?? ownerId
+                const priceSdkOwned =
+                  Boolean(priceOwnerId) &&
+                  (metadataString(priceMetadata, "workflow") === "catalog.sync" ||
+                    sdkProductIds.has(providerPrice.productId))
 
-                if (!resolvedProduct) {
-                  return yield* new CommercialCatalogIssue({
-                    message: `Missing commercial product for "${product.id}"`
-                  })
+                if (!providerPrice.active || !priceSdkOwned || localProviderOfferRefs.has(providerPrice.id)) {
+                  return
                 }
 
-                yield* Effect.forEach(
-                  product.offers,
-                  (offer) =>
-                    Effect.gen(function* () {
-                      const normalizedOffer = normalizedOfferMap.get(offer.id)
-
-                      if (!normalizedOffer) {
-                        return yield* new CommercialCatalogIssue({
-                          message: `Missing normalized offer for "${offer.id}"`
-                        })
-                      }
-
-                      const normalizedPlan = normalizedPlans.planMap.get(offer.sourcePlanId)
-
-                      if (!normalizedPlan) {
-                        return yield* new CommercialCatalogIssue({
-                          message: `Missing normalized plan for offer "${offer.id}"`
-                        })
-                      }
-
-                      yield* upsertOfferProjection(offer, resolvedProduct, normalizedOffer, normalizedPlan)
-                    }),
-                  { concurrency: 1, discard: true }
-                )
+                const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
+                  ownerType: "offer",
+                  ownerId: priceOwnerId ?? providerPrice.id,
+                  provider: activeProvider,
+                  providerId: providerPrice.id,
+                  kind: "offer",
+                  safeToArchive: true,
+                  ownership: "sdk",
+                  reason: "provider_orphan",
+                  action: "provider_archive_if_supported"
+                }
+                addArchiveCandidate(archiveCandidate)
+                yield* archiveProviderObject(archiveCandidate)
               }),
             { concurrency: 1, discard: true }
           )
 
-          yield* Effect.forEach(
-            existingRows.filter((row) => !desiredOfferIds.has(row.id) && !isArchivedForActiveProvider(row)),
-            archiveStaleRow,
-            { concurrency: 1, discard: true }
-          )
+          if (!providerProduct.active || !sdkOwned || localProviderProductRefs.has(providerProduct.id)) {
+            return
+          }
 
-          yield* archiveProviderOrphans()
-
-          return {
+          const archiveCandidate: CommercialCatalogSyncPlanArchiveCandidate = {
+            ownerType: "product",
+            ownerId: ownerId ?? providerProduct.id,
             provider: activeProvider,
-            offers: normalizedCatalog.offers.length,
-            features: normalizedPlans.features.length,
-            dryRun,
-            plan
-          } as const
-        })
-
-        return CommercialCatalogSyncService.of({
-          sync
-        })
-      })
+            providerId: providerProduct.id,
+            kind: "product",
+            safeToArchive: true,
+            ownership: "sdk",
+            reason: "provider_orphan",
+            action: "provider_archive_if_supported"
+          }
+          addArchiveCandidate(archiveCandidate)
+          yield* archiveProviderObject(archiveCandidate)
+        }),
+      { concurrency: 1, discard: true }
     )
-}
-export declare namespace CommercialCatalogSyncService {
-  export type Methods = Context.Tag.Service<CommercialCatalogSyncService>
-  export type Returns<key extends keyof Methods, R = never> = ServicesReturns<Methods[key], R>
-}
+  })
+
+  yield* Effect.forEach(
+    commercialCatalog.products,
+    (product) =>
+      Effect.gen(function* () {
+        const resolvedProduct = productMap.get(product.id)
+
+        if (!resolvedProduct) {
+          return yield* new CommercialCatalogIssue({
+            message: `Missing commercial product for "${product.id}"`
+          })
+        }
+
+        yield* Effect.forEach(
+          product.offers,
+          (offer) =>
+            Effect.gen(function* () {
+              const normalizedOffer = normalizedOfferMap.get(offer.id)
+
+              if (!normalizedOffer) {
+                return yield* new CommercialCatalogIssue({
+                  message: `Missing normalized offer for "${offer.id}"`
+                })
+              }
+
+              const normalizedPlan = normalizedPlans.planMap.get(offer.sourcePlanId)
+
+              if (!normalizedPlan) {
+                return yield* new CommercialCatalogIssue({
+                  message: `Missing normalized plan for offer "${offer.id}"`
+                })
+              }
+
+              yield* upsertOfferProjection(offer, resolvedProduct, normalizedOffer, normalizedPlan)
+            }),
+          { concurrency: 1, discard: true }
+        )
+      }),
+    { concurrency: 1, discard: true }
+  )
+
+  yield* Effect.forEach(
+    existingRows.filter((row) => !desiredOfferIds.has(row.id) && !isArchivedForActiveProvider(row)),
+    archiveStaleRow,
+    { concurrency: 1, discard: true }
+  )
+
+  yield* archiveProviderOrphans()
+
+  return {
+    provider: activeProvider,
+    offers: normalizedCatalog.offers.length,
+    features: normalizedPlans.features.length,
+    dryRun,
+    plan
+  } as const
+})
 
 const toRecord = (value: unknown): Record<string, string> => {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -781,14 +748,6 @@ export interface CommercialCatalogSyncPlan {
   readonly providerRefsToUpdate: ReadonlyArray<CommercialCatalogSyncPlanProviderRef>
   readonly staleRows: ReadonlyArray<CommercialCatalogSyncPlanStaleRow>
   readonly archiveCandidates: ReadonlyArray<CommercialCatalogSyncPlanArchiveCandidate>
-}
-
-export interface CommercialCatalogSyncInput {
-  /**
-   * Builds the same sync plan without creating provider objects, writing provider refs,
-   * inserting or updating local rows, or archiving provider objects.
-   */
-  readonly dryRun?: boolean | undefined
 }
 
 export interface CommercialCatalogSyncResult {

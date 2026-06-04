@@ -49,7 +49,7 @@ export const SubscriptionChangePreviewCharge = Schema.Struct({
  * Provider-normalized preview of a subscription change.
  */
 export class SubscriptionChangePreview extends Schema.Class<SubscriptionChangePreview>(
-  "@pay/core/SubscriptionChangePreview"
+  "@effect-x/purchase/core/SubscriptionChangePreview"
 )({
   subscriptionId: Schema.String,
   currencyCode: Schema.String,
@@ -64,7 +64,9 @@ export class SubscriptionChangePreview extends Schema.Class<SubscriptionChangePr
 /**
  * Hosted billing portal session returned by a provider.
  */
-export class BillingPortalSession extends Schema.Class<BillingPortalSession>("@pay/core/BillingPortalSession")({
+export class BillingPortalSession extends Schema.Class<BillingPortalSession>(
+  "@effect-x/purchase/core/BillingPortalSession"
+)({
   id: Schema.String,
   flow: BillingPortalFlow,
   provider: PaymentProviderTag,

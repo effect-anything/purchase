@@ -594,7 +594,7 @@ export class TransactionPreviewResult extends Schema.Class<TransactionPreviewRes
 export const CheckoutMode = Schema.Literal("redirect", "bootstrap-redirect", "inline-sdk")
 export type CheckoutMode = typeof CheckoutMode.Type
 
-export class CheckoutSession extends Schema.Class<CheckoutSession>("@pay:checkout-session")({
+export class CheckoutSession extends Schema.Class<CheckoutSession>("@effect-x/purchase/provider/CheckoutSession")({
   mode: CheckoutMode,
   provider: PaymentProviderTag,
   environment: PaymentEnvironmentTag,

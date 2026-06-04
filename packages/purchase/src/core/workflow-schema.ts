@@ -61,7 +61,7 @@ export const WorkflowStage = Schema.Literal(
 export type WorkflowStage = typeof WorkflowStage.Type
 
 export class CommercialReconciliationTrigger extends Schema.Class<CommercialReconciliationTrigger>(
-  "@pay/core/CommercialReconciliationTrigger"
+  "@effect-x/purchase/core/CommercialReconciliationTrigger"
 )({
   /**
    * Why the read-side needs reconciliation.
@@ -91,7 +91,7 @@ export class CommercialReconciliationTrigger extends Schema.Class<CommercialReco
   sourceEventId: Schema.optional(CommercialEventId)
 }) {}
 
-export class StartCheckoutInput extends Schema.Class<StartCheckoutInput>("@pay/core/StartCheckoutInput")({
+export class StartCheckoutInput extends Schema.Class<StartCheckoutInput>("@effect-x/purchase/core/StartCheckoutInput")({
   /**
    * Local customer starting the checkout flow.
    */
@@ -119,7 +119,9 @@ export class StartCheckoutInput extends Schema.Class<StartCheckoutInput>("@pay/c
  * Customer identity and internal metadata are supplied by the application
  * runtime, not by browser clients.
  */
-export class PrepareCheckoutInput extends Schema.Class<PrepareCheckoutInput>("@pay/core/PrepareCheckoutInput")({
+export class PrepareCheckoutInput extends Schema.Class<PrepareCheckoutInput>(
+  "@effect-x/purchase/core/PrepareCheckoutInput"
+)({
   /**
    * Stable commercial offer selected by app code.
    */
@@ -134,7 +136,9 @@ export class PrepareCheckoutInput extends Schema.Class<PrepareCheckoutInput>("@p
   cancelUrl: Schema.optional(Schema.String)
 }) {}
 
-export class StartCheckoutResult extends Schema.Class<StartCheckoutResult>("@pay/core/StartCheckoutResult")({
+export class StartCheckoutResult extends Schema.Class<StartCheckoutResult>(
+  "@effect-x/purchase/core/StartCheckoutResult"
+)({
   /**
    * Command-side correlation id for the checkout workflow.
    */
@@ -159,45 +163,47 @@ export class StartCheckoutResult extends Schema.Class<StartCheckoutResult>("@pay
   checkoutUrl: Schema.optional(Schema.String)
 }) {}
 
-export class CancelSubscriptionInput extends Schema.Class<CancelSubscriptionInput>("@pay/core/CancelSubscriptionInput")(
-  {
-    /**
-     * Local customer requesting the mutation.
-     */
-    customerId: CustomerId,
-    /**
-     * Existing agreement to mutate.
-     */
-    agreementId: CommercialAgreementId,
-    /**
-     * Desired cancel timing relative to the provider billing cycle.
-     */
-    effectiveAt: SubscriptionCancelTiming
-  }
-) {}
+export class CancelSubscriptionInput extends Schema.Class<CancelSubscriptionInput>(
+  "@effect-x/purchase/core/CancelSubscriptionInput"
+)({
+  /**
+   * Local customer requesting the mutation.
+   */
+  customerId: CustomerId,
+  /**
+   * Existing agreement to mutate.
+   */
+  agreementId: CommercialAgreementId,
+  /**
+   * Desired cancel timing relative to the provider billing cycle.
+   */
+  effectiveAt: SubscriptionCancelTiming
+}) {}
 
-export class ChangeSubscriptionInput extends Schema.Class<ChangeSubscriptionInput>("@pay/core/ChangeSubscriptionInput")(
-  {
-    /**
-     * Local customer requesting the mutation.
-     */
-    customerId: CustomerId,
-    /**
-     * Existing agreement to mutate.
-     */
-    agreementId: CommercialAgreementId,
-    /**
-     * The next commercial offer requested for this agreement.
-     */
-    targetOfferId: CommercialOfferId,
-    /**
-     * Billing-change application mode relative to the current cycle.
-     */
-    prorationMode: Schema.optional(SubscriptionChangeProrationMode)
-  }
-) {}
+export class ChangeSubscriptionInput extends Schema.Class<ChangeSubscriptionInput>(
+  "@effect-x/purchase/core/ChangeSubscriptionInput"
+)({
+  /**
+   * Local customer requesting the mutation.
+   */
+  customerId: CustomerId,
+  /**
+   * Existing agreement to mutate.
+   */
+  agreementId: CommercialAgreementId,
+  /**
+   * The next commercial offer requested for this agreement.
+   */
+  targetOfferId: CommercialOfferId,
+  /**
+   * Billing-change application mode relative to the current cycle.
+   */
+  prorationMode: Schema.optional(SubscriptionChangeProrationMode)
+}) {}
 
-export class PauseSubscriptionInput extends Schema.Class<PauseSubscriptionInput>("@pay/core/PauseSubscriptionInput")({
+export class PauseSubscriptionInput extends Schema.Class<PauseSubscriptionInput>(
+  "@effect-x/purchase/core/PauseSubscriptionInput"
+)({
   customerId: CustomerId,
   agreementId: CommercialAgreementId,
   /**
@@ -209,21 +215,21 @@ export class PauseSubscriptionInput extends Schema.Class<PauseSubscriptionInput>
   resumeAt: Schema.optional(Schema.String)
 }) {}
 
-export class ResumeSubscriptionInput extends Schema.Class<ResumeSubscriptionInput>("@pay/core/ResumeSubscriptionInput")(
-  {
-    customerId: CustomerId,
-    agreementId: CommercialAgreementId,
-    /**
-     * Advanced provider-mode override. Normal app code should omit this and let
-     * the workflow choose the provider-safe implementation.
-     */
-    mode: Schema.optional(SubscriptionMutationMode),
-    effectiveAt: Schema.optional(Schema.String)
-  }
-) {}
+export class ResumeSubscriptionInput extends Schema.Class<ResumeSubscriptionInput>(
+  "@effect-x/purchase/core/ResumeSubscriptionInput"
+)({
+  customerId: CustomerId,
+  agreementId: CommercialAgreementId,
+  /**
+   * Advanced provider-mode override. Normal app code should omit this and let
+   * the workflow choose the provider-safe implementation.
+   */
+  mode: Schema.optional(SubscriptionMutationMode),
+  effectiveAt: Schema.optional(Schema.String)
+}) {}
 
 export class PreviewSubscriptionChangeInput extends Schema.Class<PreviewSubscriptionChangeInput>(
-  "@pay/core/PreviewSubscriptionChangeInput"
+  "@effect-x/purchase/core/PreviewSubscriptionChangeInput"
 )({
   customerId: CustomerId,
   agreementId: CommercialAgreementId,
@@ -231,7 +237,9 @@ export class PreviewSubscriptionChangeInput extends Schema.Class<PreviewSubscrip
   prorationMode: Schema.optional(SubscriptionPreviewProrationMode)
 }) {}
 
-export class RefundPurchaseInput extends Schema.Class<RefundPurchaseInput>("@pay/core/RefundPurchaseInput")({
+export class RefundPurchaseInput extends Schema.Class<RefundPurchaseInput>(
+  "@effect-x/purchase/core/RefundPurchaseInput"
+)({
   /**
    * Local customer requesting the refund.
    */
@@ -250,7 +258,7 @@ export class RefundPurchaseInput extends Schema.Class<RefundPurchaseInput>("@pay
   reason: Schema.optional(Schema.String)
 }) {}
 
-export class CreditGrantInput extends Schema.Class<CreditGrantInput>("@pay/core/CreditGrantInput")({
+export class CreditGrantInput extends Schema.Class<CreditGrantInput>("@effect-x/purchase/core/CreditGrantInput")({
   customerId: CustomerId,
   creditKey: Schema.NonEmptyString,
   offerId: CommercialOfferId,
@@ -260,7 +268,7 @@ export class CreditGrantInput extends Schema.Class<CreditGrantInput>("@pay/core/
   reason: Schema.optional(Schema.String)
 }) {}
 
-export class CreditConsumeInput extends Schema.Class<CreditConsumeInput>("@pay/core/CreditConsumeInput")({
+export class CreditConsumeInput extends Schema.Class<CreditConsumeInput>("@effect-x/purchase/core/CreditConsumeInput")({
   customerId: CustomerId,
   creditKey: Schema.NonEmptyString,
   amount: Schema.Int,
@@ -268,7 +276,7 @@ export class CreditConsumeInput extends Schema.Class<CreditConsumeInput>("@pay/c
   reason: Schema.optional(Schema.String)
 }) {}
 
-export class CreditWalletResult extends Schema.Class<CreditWalletResult>("@pay/core/CreditWalletResult")({
+export class CreditWalletResult extends Schema.Class<CreditWalletResult>("@effect-x/purchase/core/CreditWalletResult")({
   customerId: CustomerId,
   creditKey: Schema.NonEmptyString,
   available: Schema.Int,
@@ -279,7 +287,7 @@ export class CreditWalletResult extends Schema.Class<CreditWalletResult>("@pay/c
 }) {}
 
 export class CreatePortalSessionInput extends Schema.Class<CreatePortalSessionInput>(
-  "@pay/core/CreatePortalSessionInput"
+  "@effect-x/purchase/core/CreatePortalSessionInput"
 )({
   customerId: CustomerId,
   agreementId: Schema.optional(CommercialAgreementId),
@@ -287,12 +295,14 @@ export class CreatePortalSessionInput extends Schema.Class<CreatePortalSessionIn
   returnUrl: Schema.optional(Schema.String)
 }) {}
 
-export class ReplayWebhookInput extends Schema.Class<ReplayWebhookInput>("@pay/core/ReplayWebhookInput")({
+export class ReplayWebhookInput extends Schema.Class<ReplayWebhookInput>("@effect-x/purchase/core/ReplayWebhookInput")({
   provider: PaymentProviderTag,
   providerEventId: ProviderEventId
 }) {}
 
-export class ReceiveWebhookInput extends Schema.Class<ReceiveWebhookInput>("@pay/core/ReceiveWebhookInput")({
+export class ReceiveWebhookInput extends Schema.Class<ReceiveWebhookInput>(
+  "@effect-x/purchase/core/ReceiveWebhookInput"
+)({
   /**
    * Provider that produced the webhook request.
    */
@@ -308,7 +318,9 @@ export class ReceiveWebhookInput extends Schema.Class<ReceiveWebhookInput>("@pay
   headers: Schema.Record({ key: Schema.String, value: Schema.String })
 }) {}
 
-export class ReceiveWebhookResult extends Schema.Class<ReceiveWebhookResult>("@pay/core/ReceiveWebhookResult")({
+export class ReceiveWebhookResult extends Schema.Class<ReceiveWebhookResult>(
+  "@effect-x/purchase/core/ReceiveWebhookResult"
+)({
   /**
    * Fixed workflow name for webhook processing.
    */
@@ -336,7 +348,7 @@ export class ReceiveWebhookResult extends Schema.Class<ReceiveWebhookResult>("@p
 }) {}
 
 export class RefreshCustomerSnapshotInput extends Schema.Class<RefreshCustomerSnapshotInput>(
-  "@pay/core/RefreshCustomerSnapshotInput"
+  "@effect-x/purchase/core/RefreshCustomerSnapshotInput"
 )({
   /**
    * Customer whose read-side snapshot should be recomputed.
@@ -354,7 +366,7 @@ export class RefreshCustomerSnapshotInput extends Schema.Class<RefreshCustomerSn
   )
 }) {}
 
-export class WorkflowReceipt extends Schema.Class<WorkflowReceipt>("@pay/core/WorkflowReceipt")({
+export class WorkflowReceipt extends Schema.Class<WorkflowReceipt>("@effect-x/purchase/core/WorkflowReceipt")({
   /**
    * Workflow that produced the receipt.
    */

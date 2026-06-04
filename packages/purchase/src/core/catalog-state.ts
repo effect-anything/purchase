@@ -1,14 +1,17 @@
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
 
 import {
   normalizeCatalog,
   normalizeSchema,
+  type NormalizedCatalog,
   type NormalizedOffer,
   type NormalizedProduct,
   type NormalizedPurchasePlan,
   type NormalizedPurchasePlanFeature,
+  type NormalizedPurchaseSchema,
   type ProductsModule,
   type PurchasePlansModule
 } from "../dsl.ts"
@@ -98,48 +101,63 @@ const mapProduct = (input: { readonly product: NormalizedProduct; readonly offer
     metadata: input.product.metadata
   })
 
-export const buildCommercialCatalog = Effect.fn("buildCommercialCatalog")(
-  function* (input: {
-    readonly plans: PurchasePlansModule | undefined
-    readonly products: ProductsModule | undefined
-  }) {
-    const normalizedPlans = yield* Effect.try({
-      try: () => normalizeSchema(input.plans, input.products),
-      catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize plans: ${String(cause)}` })
-    })
-    const normalizedCatalog = yield* Effect.try({
-      try: () => normalizeCatalog(input.products),
-      catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize products: ${String(cause)}` })
-    })
-    const products = yield* Effect.forEach(normalizedCatalog.products, (product) =>
-      Effect.gen(function* () {
-        const offers = yield* Effect.forEach(product.offerIds, (offerId) =>
-          Effect.gen(function* () {
-            const offer = normalizedCatalog.offerMap.get(offerId)
-            const plan = offer ? normalizedPlans.planMap.get(offer.planId) : undefined
-            if (!offer || !plan) {
-              return yield* new CommercialCatalogIssue({ message: `Missing normalized offer or plan for "${offerId}"` })
-            }
-            return mapOffer({ offer, plan })
-          })
-        )
-        return mapProduct({ product, offers })
-      })
-    )
-    return yield* decodeCommercialCatalog({ products }).pipe(
-      Effect.mapError(
-        (cause) => new CommercialCatalogIssue({ message: `Invalid commercial catalog: ${String(cause)}` })
-      )
-    )
-  },
-  Effect.catchTag("CommercialCatalogIssue", Effect.fail)
-)
-
-export const decodeCommercialCatalog = Schema.decodeUnknown(CommercialCatalog)
+const decodeCommercialCatalog = Schema.decodeUnknown(CommercialCatalog)
 
 export class CatalogState extends Context.Tag("@effect-x/purchase/core/CatalogState")<
   CatalogState,
   {
-    catalog: CommercialCatalog
+    readonly catalog: CommercialCatalog
+    readonly plans: PurchasePlansModule
+    readonly products: ProductsModule
+    readonly normalizedPlans: NormalizedPurchaseSchema
+    readonly normalizedCatalog: NormalizedCatalog
   }
->() {}
+>() {
+  static make = (input: { readonly plans: PurchasePlansModule; readonly products: ProductsModule }) =>
+    Layer.effect(
+      CatalogState,
+      Effect.gen(function* () {
+        const normalizedPlans = yield* Effect.try({
+          try: () => normalizeSchema(input.plans, input.products),
+          catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize plans: ${String(cause)}` })
+        })
+        const normalizedCatalog = yield* Effect.try({
+          try: () => normalizeCatalog(input.products),
+          catch: (cause) => new CommercialCatalogIssue({ message: `Failed to normalize products: ${String(cause)}` })
+        })
+        const products = yield* Effect.forEach(
+          normalizedCatalog.products,
+          Effect.fn(function* (product) {
+            const offers = yield* Effect.forEach(
+              product.offerIds,
+              Effect.fn(function* (offerId) {
+                const offer = normalizedCatalog.offerMap.get(offerId)
+                const plan = offer ? normalizedPlans.planMap.get(offer.planId) : undefined
+                if (!offer || !plan) {
+                  return yield* new CommercialCatalogIssue({
+                    message: `Missing normalized offer or plan for "${offerId}"`
+                  })
+                }
+                return mapOffer({ offer, plan })
+              })
+            )
+            return mapProduct({ product, offers })
+          })
+        )
+
+        const catalog = yield* decodeCommercialCatalog({ products }).pipe(
+          Effect.mapError(
+            (cause) => new CommercialCatalogIssue({ message: `Invalid commercial catalog: ${String(cause)}` })
+          )
+        )
+
+        return {
+          catalog,
+          plans: input.plans,
+          products: input.products,
+          normalizedPlans,
+          normalizedCatalog
+        }
+      })
+    )
+}

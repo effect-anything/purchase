@@ -3,9 +3,9 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 
-import type { ProductsModule, PurchasePlansModule } from "../dsl.ts"
+import type { ProductsModule, PurchasePlan, PurchasePlansModule } from "../dsl.ts"
 
-import { buildCommercialCatalog, CatalogState } from "../core/catalog-builder.ts"
+import { buildCommercialCatalog, CatalogState } from "../core/catalog-state.ts"
 import { PurchaseStorageAdapter, type PurchaseStorageOverrides } from "../db.ts"
 import { PaddleVendorPrepareServiceLayer } from "../paddle/internal/paddle-vendor-prepare.ts"
 import {
@@ -17,9 +17,7 @@ import {
 export class PurchaseConfigService extends Context.Tag("@effect-x/purchase/sync/PurchaseConfigService")<
   PurchaseConfigService,
   {
-    readonly syncCatalog: (
-      input?: CommercialCatalogSyncInput | undefined
-    ) => Effect.Effect<CommercialCatalogSyncResult, unknown>
+    readonly syncCatalog: (input?: CommercialCatalogSyncInput | undefined) => Effect.Effect<CommercialCatalogSyncResult>
   }
 >() {
   static Default = Layer.effect(
@@ -35,27 +33,18 @@ export class PurchaseConfigService extends Context.Tag("@effect-x/purchase/sync/
 }
 
 export const PurchaseConfigLayer = (input: {
-  readonly plans: PurchasePlansModule | undefined
+  readonly plans: ReadonlyArray<PurchasePlan>
   readonly products: ProductsModule | undefined
   readonly storageOverrides?: PurchaseStorageOverrides | undefined
 }) => {
-  const catalogStateLive = Layer.effect(
-    CatalogState,
-    buildCommercialCatalog({
-      plans: input.plans,
-      products: input.products
-    }).pipe(Effect.map((catalog) => ({ catalog })))
-  )
-
   const catalogSyncLive = CommercialCatalogSyncService.make(input).pipe(
-    Layer.provide(catalogStateLive),
     Layer.provideMerge(PurchaseStorageAdapter.make(input.storageOverrides))
   )
 
   return PurchaseConfigService.Default.pipe(
-    Layer.provide(catalogSyncLive),
-    Layer.provideMerge(PaddleVendorPrepareServiceLayer),
-    Layer.provide(FetchHttpClient.layer)
+    Layer.provide(catalogSyncLive)
+    // Layer.provideMerge(PaddleVendorPrepareServiceLayer),
+    // Layer.provide(FetchHttpClient.layer)
   )
 }
 

@@ -39,7 +39,7 @@ const nullableDate = Schema.Date.pipe(
   Schema.optionalWith({ nullable: true })
 )
 
-export class Customer extends Database.Class<Customer>("@pay-web/db/customer")({
+export class Customer extends Database.Class<Customer>("@effect-x/purchase/db/Customer")({
   id: Database.id.string,
   email: nullableString,
   name: nullableString,
@@ -52,7 +52,7 @@ export class Customer extends Database.Class<Customer>("@pay-web/db/customer")({
   static table = TABLES.customer
 }
 
-export class CheckoutIntent extends Database.Class<CheckoutIntent>("@pay-web/db/checkout-intent")({
+export class CheckoutIntent extends Database.Class<CheckoutIntent>("@effect-x/purchase/db/CheckoutIntent")({
   id: Database.id.string,
   customerId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_checkout_intent_customer_idx" })),
   offerId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_checkout_intent_offer_idx" })),
@@ -72,7 +72,7 @@ export class CheckoutIntent extends Database.Class<CheckoutIntent>("@pay-web/db/
   static table = TABLES.checkoutIntent
 }
 
-export class CommercialEvent extends Database.Class<CommercialEvent>("@pay-web/db/commercial-event")({
+export class CommercialEvent extends Database.Class<CommercialEvent>("@effect-x/purchase/db/CommercialEvent")({
   id: Database.id.string,
   provider: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_commercial_event_provider_idx" })),
   providerEventId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_commercial_event_provider_idx" })),
@@ -87,7 +87,7 @@ export class CommercialEvent extends Database.Class<CommercialEvent>("@pay-web/d
   static table = TABLES.commercialEvent
 }
 
-export class CreditLedger extends Database.Class<CreditLedger>("@pay-web/db/credit-ledger")({
+export class CreditLedger extends Database.Class<CreditLedger>("@effect-x/purchase/db/CreditLedger")({
   id: Database.id.string,
   customerId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_credit_ledger_customer_product_idx" })),
   productId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_credit_ledger_customer_product_idx" })),
@@ -102,7 +102,7 @@ export class CreditLedger extends Database.Class<CreditLedger>("@pay-web/db/cred
   static table = TABLES.creditLedger
 }
 
-export class Entitlement extends Database.Class<Entitlement>("@pay-web/db/entitlement")(
+export class Entitlement extends Database.Class<Entitlement>("@effect-x/purchase/db/Entitlement")(
   {
     id: Database.id.string,
     subscriptionId: Schema.String.pipe(
@@ -160,7 +160,7 @@ export class Entitlement extends Database.Class<Entitlement>("@pay-web/db/entitl
   static table = TABLES.entitlement
 }
 
-export class Feature extends Database.Class<Feature>("@pay-web/db/feature")({
+export class Feature extends Database.Class<Feature>("@effect-x/purchase/db/Feature")({
   id: Database.id.string,
   type: Schema.String,
   createdAt: Database.DateTimeInsert,
@@ -169,7 +169,7 @@ export class Feature extends Database.Class<Feature>("@pay-web/db/feature")({
   static table = TABLES.feature
 }
 
-export class Invoice extends Database.Class<Invoice>("@pay-web/db/invoice")(
+export class Invoice extends Database.Class<Invoice>("@effect-x/purchase/db/Invoice")(
   {
     id: Database.id.string,
     customerId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_invoice_customer_idx" })),
@@ -219,7 +219,7 @@ export class Invoice extends Database.Class<Invoice>("@pay-web/db/invoice")(
   static table = TABLES.invoice
 }
 
-export class Metadata extends Database.Class<Metadata>("@pay-web/db/metadata")({
+export class Metadata extends Database.Class<Metadata>("@effect-x/purchase/db/Metadata")({
   id: Database.id.string,
   providerId: Schema.String.pipe(Database.ColumnConfig({ unique: "paykit_metadata_checkout_session_unique" })),
   type: Schema.String,
@@ -237,7 +237,7 @@ export class Metadata extends Database.Class<Metadata>("@pay-web/db/metadata")({
   static table = TABLES.metadata
 }
 
-export class PaymentMethod extends Database.Class<PaymentMethod>("@pay-web/db/payment-method")(
+export class PaymentMethod extends Database.Class<PaymentMethod>("@effect-x/purchase/db/PaymentMethod")(
   {
     id: Database.id.string,
     customerId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_payment_method_customer_idx" })),
@@ -272,7 +272,7 @@ export class PaymentMethod extends Database.Class<PaymentMethod>("@pay-web/db/pa
   static table = TABLES.paymentMethod
 }
 
-export class Product extends Database.Class<Product>("@pay-web/db/product")({
+export class Product extends Database.Class<Product>("@effect-x/purchase/db/Product")({
   internalId: Database.id.string,
   id: Schema.String.pipe(Database.ColumnConfig({ unique: "paykit_product_id_version_unique" })),
   version: Schema.Int.pipe(
@@ -294,7 +294,7 @@ export class Product extends Database.Class<Product>("@pay-web/db/product")({
   static table = TABLES.product
 }
 
-export class ProductFeature extends Database.Class<ProductFeature>("@pay-web/db/product-feature")(
+export class ProductFeature extends Database.Class<ProductFeature>("@effect-x/purchase/db/ProductFeature")(
   {
     productInternalId: Schema.String,
     featureId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_product_feature_feature_idx" })),
@@ -334,7 +334,7 @@ export class ProductFeature extends Database.Class<ProductFeature>("@pay-web/db/
   static table = TABLES.productFeature
 }
 
-export class ProviderRef extends Database.Class<ProviderRef>("@pay-web/db/provider-ref")({
+export class ProviderRef extends Database.Class<ProviderRef>("@effect-x/purchase/db/ProviderRef")({
   id: Database.id.string,
   provider: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_provider_ref_provider_idx" })),
   ownerType: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_provider_ref_owner_idx" })),
@@ -347,7 +347,7 @@ export class ProviderRef extends Database.Class<ProviderRef>("@pay-web/db/provid
   static table = TABLES.providerRef
 }
 
-export class Subscription extends Database.Class<Subscription>("@pay-web/db/subscription")(
+export class Subscription extends Database.Class<Subscription>("@effect-x/purchase/db/Subscription")(
   {
     id: Database.id.string,
     customerId: Schema.String.pipe(Database.ColumnConfig({ index: "paykit_subscription_customer_status_idx" })),
@@ -409,7 +409,7 @@ export class Subscription extends Database.Class<Subscription>("@pay-web/db/subs
   static table = TABLES.subscription
 }
 
-export class WebhookEvent extends Database.Class<WebhookEvent>("@pay-web/db/webhook-event")({
+export class WebhookEvent extends Database.Class<WebhookEvent>("@effect-x/purchase/db/WebhookEvent")({
   id: Database.id.string,
   providerId: Schema.String.pipe(
     Database.ColumnConfig({

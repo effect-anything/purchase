@@ -8,7 +8,13 @@ export interface ProviderPrepareInput extends PurchaseProviderSettings {
    * Builds the provider settings plan without mutating provider configuration.
    */
   readonly dryRun?: boolean | undefined
+  /**
+   *
+   */
   readonly current?: PurchaseProviderSettings | undefined
+  /**
+   *
+   */
   readonly environment: PaymentEnvironmentTag
 }
 

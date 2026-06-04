@@ -132,7 +132,7 @@ export const WalletBalancePolicy = Schema.Literal("project_managed", "sdk_manage
 export type WalletBalancePolicy = typeof WalletBalancePolicy.Type
 
 export class CommercialCustomerProfile extends Schema.Class<CommercialCustomerProfile>(
-  "@pay/core/CommercialCustomerProfile"
+  "@effect-x/purchase/core/CommercialCustomerProfile"
 )({
   /**
    * App-owned customer identity.
@@ -154,7 +154,7 @@ export class CommercialCustomerProfile extends Schema.Class<CommercialCustomerPr
   updatedAt: Schema.Date
 }) {}
 
-export class FeatureFlagBenefit extends Schema.Class<FeatureFlagBenefit>("@pay/core/FeatureFlagBenefit")({
+export class FeatureFlagBenefit extends Schema.Class<FeatureFlagBenefit>("@effect-x/purchase/core/FeatureFlagBenefit")({
   id: CommercialBenefitId,
   type: Schema.Literal("feature_flag"),
   /**
@@ -164,7 +164,7 @@ export class FeatureFlagBenefit extends Schema.Class<FeatureFlagBenefit>("@pay/c
   enabled: Schema.Boolean
 }) {}
 
-export class QuotaLimitBenefit extends Schema.Class<QuotaLimitBenefit>("@pay/core/QuotaLimitBenefit")({
+export class QuotaLimitBenefit extends Schema.Class<QuotaLimitBenefit>("@effect-x/purchase/core/QuotaLimitBenefit")({
   id: CommercialBenefitId,
   type: Schema.Literal("quota_limit"),
   /**
@@ -175,7 +175,9 @@ export class QuotaLimitBenefit extends Schema.Class<QuotaLimitBenefit>("@pay/cor
   resetInterval: BenefitResetInterval
 }) {}
 
-export class CreditBalanceBenefit extends Schema.Class<CreditBalanceBenefit>("@pay/core/CreditBalanceBenefit")({
+export class CreditBalanceBenefit extends Schema.Class<CreditBalanceBenefit>(
+  "@effect-x/purchase/core/CreditBalanceBenefit"
+)({
   id: CommercialBenefitId,
   type: Schema.Literal("credit_balance"),
   /**
@@ -190,7 +192,9 @@ export class CreditBalanceBenefit extends Schema.Class<CreditBalanceBenefit>("@p
   expiresInDays: Schema.optional(Schema.Int)
 }) {}
 
-export class LicenseGrantBenefit extends Schema.Class<LicenseGrantBenefit>("@pay/core/LicenseGrantBenefit")({
+export class LicenseGrantBenefit extends Schema.Class<LicenseGrantBenefit>(
+  "@effect-x/purchase/core/LicenseGrantBenefit"
+)({
   id: CommercialBenefitId,
   type: Schema.Literal("license_grant"),
   /**
@@ -212,7 +216,7 @@ export const CommercialBenefit = Schema.Union(
 )
 export type CommercialBenefit = typeof CommercialBenefit.Type
 
-export class CommercialOffer extends Schema.Class<CommercialOffer>("@pay/core/CommercialOffer")({
+export class CommercialOffer extends Schema.Class<CommercialOffer>("@effect-x/purchase/core/CommercialOffer")({
   /**
    * Stable offer id used by SDK entrypoints, workflow receipts, and read models.
    */
@@ -268,7 +272,7 @@ export class CommercialOffer extends Schema.Class<CommercialOffer>("@pay/core/Co
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown })
 }) {}
 
-export class CommercialProduct extends Schema.Class<CommercialProduct>("@pay/core/CommercialProduct")({
+export class CommercialProduct extends Schema.Class<CommercialProduct>("@effect-x/purchase/core/CommercialProduct")({
   /**
    * Stable product-family id used to group offers.
    */
@@ -299,7 +303,7 @@ export class CommercialProduct extends Schema.Class<CommercialProduct>("@pay/cor
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown })
 }) {}
 
-export class CommercialCatalog extends Schema.Class<CommercialCatalog>("@pay/core/CommercialCatalog")({
+export class CommercialCatalog extends Schema.Class<CommercialCatalog>("@effect-x/purchase/core/CommercialCatalog")({
   /**
    * Entire commercial catalog grouped by product family.
    */
@@ -307,7 +311,7 @@ export class CommercialCatalog extends Schema.Class<CommercialCatalog>("@pay/cor
 }) {}
 
 export class CommercialCheckoutTarget extends Schema.Class<CommercialCheckoutTarget>(
-  "@pay/core/CommercialCheckoutTarget"
+  "@effect-x/purchase/core/CommercialCheckoutTarget"
 )({
   /**
    * Active provider for this runtime.
@@ -333,7 +337,7 @@ export class CommercialCheckoutTarget extends Schema.Class<CommercialCheckoutTar
   providerOfferId: Schema.optional(Schema.String)
 }) {}
 
-export class CommercialIntent extends Schema.Class<CommercialIntent>("@pay/core/CommercialIntent")({
+export class CommercialIntent extends Schema.Class<CommercialIntent>("@effect-x/purchase/core/CommercialIntent")({
   /**
    * Stable intent id for the command-side workflow record.
    */
@@ -365,7 +369,7 @@ export class CommercialIntent extends Schema.Class<CommercialIntent>("@pay/core/
   metadata: Schema.Record({ key: Schema.String, value: Schema.Unknown })
 }) {}
 
-export class CommercialEvent extends Schema.Class<CommercialEvent>("@pay/core/CommercialEvent")({
+export class CommercialEvent extends Schema.Class<CommercialEvent>("@effect-x/purchase/core/CommercialEvent")({
   /**
    * Stable normalized event id inside the commercial runtime.
    */
@@ -402,7 +406,7 @@ export class CommercialEvent extends Schema.Class<CommercialEvent>("@pay/core/Co
 }) {}
 
 export class SubscriptionAgreementState extends Schema.Class<SubscriptionAgreementState>(
-  "@pay/core/SubscriptionAgreementState"
+  "@effect-x/purchase/core/SubscriptionAgreementState"
 )({
   /**
    * Stable agreement id for the customer's subscription relationship.
@@ -451,7 +455,7 @@ export class SubscriptionAgreementState extends Schema.Class<SubscriptionAgreeme
   trialEndsAt: Schema.optional(Schema.Date)
 }) {}
 
-export class PurchaseGrantState extends Schema.Class<PurchaseGrantState>("@pay/core/PurchaseGrantState")({
+export class PurchaseGrantState extends Schema.Class<PurchaseGrantState>("@effect-x/purchase/core/PurchaseGrantState")({
   /**
    * Stable agreement id for a one-time purchase grant.
    */
@@ -470,7 +474,7 @@ export class PurchaseGrantState extends Schema.Class<PurchaseGrantState>("@pay/c
   revokedAt: Schema.optional(Schema.Date)
 }) {}
 
-export class CreditsWalletState extends Schema.Class<CreditsWalletState>("@pay/core/CreditsWalletState")({
+export class CreditsWalletState extends Schema.Class<CreditsWalletState>("@effect-x/purchase/core/CreditsWalletState")({
   /**
    * Stable agreement id for a wallet balance projection.
    */
@@ -501,7 +505,7 @@ export class CreditsWalletState extends Schema.Class<CreditsWalletState>("@pay/c
 }) {}
 
 export class CustomerCommercialSnapshot extends Schema.Class<CustomerCommercialSnapshot>(
-  "@pay/core/CustomerCommercialSnapshot"
+  "@effect-x/purchase/core/CustomerCommercialSnapshot"
 )({
   /**
    * Snapshot owner.
@@ -527,7 +531,7 @@ export class CustomerCommercialSnapshot extends Schema.Class<CustomerCommercialS
 }) {}
 
 export class CustomerEntitlementSnapshot extends Schema.Class<CustomerEntitlementSnapshot>(
-  "@pay/core/CustomerEntitlementSnapshot"
+  "@effect-x/purchase/core/CustomerEntitlementSnapshot"
 )({
   /**
    * Snapshot owner.

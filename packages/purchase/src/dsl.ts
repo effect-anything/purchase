@@ -1,13 +1,12 @@
 import * as Hash from "effect/Hash"
 import * as Schema from "effect/Schema"
 
-const ProductSymbol = Symbol.for("@pay:product")
-
 const ENTITY_ID_PATTERN = /^[a-z0-9_-]+$/
 
-const purchaseFeatureSymbol = Symbol.for("@pay:kit-feature")
-const purchaseFeatureIncludeSymbol = Symbol.for("@pay:kit-feature-include")
-const purchasePlanSymbol = Symbol.for("@pay:kit-plan")
+const ProductTypeId = "~@effect-x/purchase:product" as const
+const purchaseFeatureTypeId = "~@effect-x/purchase:feature" as const
+const purchaseFeatureIncludeTypeId = "~@effect-x/purchase:feature-include" as const
+const purchasePlanTypeId = "~@effect-x/purchase/plan" as const
 
 export const ProductMode = Schema.Literal("one_time", "subscription", "credits")
 export type ProductMode = typeof ProductMode.Type
@@ -187,8 +186,8 @@ type ExtractFeatureIds<TPlan> = TPlan extends {
 
 export type FeatureIdFromPlans<TPlans> = TPlans extends ReadonlyArray<infer TItem> ? ExtractFeatureIds<TItem> : never
 
-const defineHiddenBrand = (target: object, symbol: symbol) => {
-  Object.defineProperty(target, symbol, {
+const defineHiddenBrand = (target: object, typeId: string) => {
+  Object.defineProperty(target, typeId, {
     configurable: false,
     enumerable: false,
     value: true,
@@ -220,15 +219,15 @@ const deriveNameFromId = (id: string) =>
     .join(" ")
 
 export const isPurchaseFeature = (value: unknown): value is PurchaseFeature =>
-  typeof value === "function" && (value as unknown as Record<PropertyKey, unknown>)[purchaseFeatureSymbol] === true
+  typeof value === "function" && (value as unknown as Record<PropertyKey, unknown>)[purchaseFeatureTypeId] === true
 
 export const isPurchaseFeatureInclude = (value: unknown): value is PurchaseFeatureInclude =>
   value !== null &&
   typeof value === "object" &&
-  (value as Record<PropertyKey, unknown>)[purchaseFeatureIncludeSymbol] === true
+  (value as Record<PropertyKey, unknown>)[purchaseFeatureIncludeTypeId] === true
 
 export const isPurchasePlan = (value: unknown): value is PurchasePlan =>
-  value !== null && typeof value === "object" && (value as Record<PropertyKey, unknown>)[purchasePlanSymbol] === true
+  value !== null && typeof value === "object" && (value as Record<PropertyKey, unknown>)[purchasePlanTypeId] === true
 
 const defineFeatureProperties = (target: object, definition: PurchaseFeatureDefinition) => {
   Object.defineProperties(target, {
@@ -255,7 +254,7 @@ const defineFeatureProperties = (target: object, definition: PurchaseFeatureDefi
         }
       : {})
   })
-  defineHiddenBrand(target, purchaseFeatureSymbol)
+  defineHiddenBrand(target, purchaseFeatureTypeId)
 }
 
 export function featureFlag<const TId extends string>(definition: {
@@ -277,7 +276,7 @@ export function featureFlag<const TId extends string>(definition: {
       config: undefined,
       feature: featureDefinition
     } as FeatureFlagInclude<FeatureFlagDefinition<TId>>
-    defineHiddenBrand(include, purchaseFeatureIncludeSymbol)
+    defineHiddenBrand(include, purchaseFeatureIncludeTypeId)
     return Object.freeze(include)
   }) as PurchaseFeature<FeatureFlagDefinition<TId>>
 
@@ -310,7 +309,7 @@ export function quotaFeature<const TId extends string>(definition: {
       config: parsedConfig,
       feature: featureDefinition
     } as QuotaFeatureInclude<QuotaFeatureDefinition<TId>>
-    defineHiddenBrand(include, purchaseFeatureIncludeSymbol)
+    defineHiddenBrand(include, purchaseFeatureIncludeTypeId)
     return Object.freeze(include)
   }) as PurchaseFeature<QuotaFeatureDefinition<TId>>
 
@@ -351,7 +350,7 @@ export function creditUnit<const TId extends string>(definition: {
       config: parsedConfig,
       feature: featureDefinition
     } as CreditUnitInclude<CreditUnitDefinition<TId>>
-    defineHiddenBrand(include, purchaseFeatureIncludeSymbol)
+    defineHiddenBrand(include, purchaseFeatureIncludeTypeId)
     return Object.freeze(include)
   }) as PurchaseFeature<CreditUnitDefinition<TId>>
 
@@ -381,7 +380,7 @@ export function plan<const TConfig extends PurchasePlanConfig>(config: TConfig):
     ...parsed,
     includes: includes as ReadonlyArray<PurchaseFeatureInclude>
   } as PurchasePlan<TConfig>
-  defineHiddenBrand(builtPlan, purchasePlanSymbol)
+  defineHiddenBrand(builtPlan, purchasePlanTypeId)
 
   return Object.freeze(builtPlan)
 }
@@ -576,7 +575,7 @@ export type ProductIdFromProducts<TProducts> =
     : never
 
 export const isProduct = (value: unknown): value is Product =>
-  value !== null && typeof value === "object" && (value as Record<PropertyKey, unknown>)[ProductSymbol] === true
+  value !== null && typeof value === "object" && (value as Record<PropertyKey, unknown>)[ProductTypeId] === true
 
 export function product<const TConfig extends ProductConfig>(
   id: TConfig["id"],
@@ -603,7 +602,7 @@ export function product<const TConfig extends ProductConfig>(
     plans: parsed.plans as unknown as PurchasePlansModule
   } as unknown as Product<TConfig>
 
-  defineHiddenBrand(builtProduct, ProductSymbol)
+  defineHiddenBrand(builtProduct, ProductTypeId)
 
   return Object.freeze(builtProduct)
 }

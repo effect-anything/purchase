@@ -1,8 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
 import * as Option from "effect/Option"
 
-import { formatHumanResult, parseCatalogSyncOptions, parseDatabaseTarget } from "../src/cli/catalog-sync.ts"
-import { formatPrepareResult, parsePrepareOptions } from "../src/cli/provider-prepare.ts"
+import { parseCatalogSyncOptions } from "../src/cli/catalog-sync.ts"
+import { parseDatabaseTarget } from "../src/cli/db.ts"
+import { parsePrepareOptions } from "../src/cli/provider-prepare.ts"
+import { formatCatalogSyncResult } from "../src/cli/utils.ts"
+import { formatPrepareResult } from "../src/provider/provider-prepare.ts"
 
 describe("purchase cli options", () => {
   it("parses sqlite database urls", () => {
@@ -93,7 +96,7 @@ describe("purchase cli options", () => {
   })
 
   it("formats cloudflare d1 result labels", () => {
-    const output = formatHumanResult(
+    const output = formatCatalogSyncResult(
       {
         command: "catalog.sync",
         modulePath: "catalog.ts",

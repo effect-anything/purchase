@@ -1,39 +1,26 @@
-import type * as Layer from "effect/Layer"
-
 import * as Command from "@effect/cli/Command"
 import * as Options from "@effect/cli/Options"
-import * as PgClient from "@effect/sql-pg/PgClient"
-import * as SqlClient from "@effect/sql/SqlClient"
 import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import * as Redacted from "effect/Redacted"
-import * as Schema from "effect/Schema"
-import * as EffectString from "effect/String"
 
 import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/types.ts"
 
-import { PurchaseConfigLayer, syncCatalog } from "../catalog/config-service.ts"
-import type { CommercialCatalogSyncPlan, CommercialCatalogSyncResult } from "../catalog/sync.ts"
-import * as CloudflareD1HttpClient from "../internal/cloudflare-d1-http-client.ts"
-import * as SQLite from "../internal/node-sqlite-client.ts"
-import { Paddle } from "../paddle.ts"
-import { Stripe } from "../stripe.ts"
-import { loadPurchaseConfigModule, type PurchaseConfigModule } from "./config-loader.ts"
+import { sync } from "../catalog/sync.ts"
+import { CatalogState } from "../core/catalog-state.ts"
+import { PurchaseStorageAdapter } from "../db.ts"
+import { makeProviderLayer } from "../provider/utils.ts"
+import { loadPurchaseConfigModule } from "./config-loader.ts"
+import {
+  checkCatalogSchema,
+  makeDatabaseLayer,
+  parseDatabaseTarget,
+  type DatabaseKind,
+  type DatabaseTarget
+} from "./db.ts"
+import { formatCatalogSyncResult } from "./utils.ts"
 
 type CliCommand = "catalog.sync"
-
-type DatabaseKind = "cloudflare-d1" | "postgres" | "sqlite"
-
-type DatabaseTarget =
-  | { readonly _tag: "postgres"; readonly url: string }
-  | { readonly _tag: "sqlite"; readonly filename: string; readonly label: string }
-  | {
-      readonly _tag: "cloudflare-d1"
-      readonly accountId: string
-      readonly databaseId: string
-      readonly apiToken: string
-      readonly baseUrl?: string | undefined
-    }
 
 interface CliOptions {
   readonly command: CliCommand
@@ -51,283 +38,8 @@ interface CliOptions {
   readonly paddleWebhookToken?: string | undefined
 }
 
-class PayCatalogCliSchemaNotReady extends Schema.TaggedError<PayCatalogCliSchemaNotReady>()(
-  "PayCatalogCliSchemaNotReady",
-  {
-    message: Schema.String,
-    cause: Schema.String
-  }
-) {}
-
-class PayCatalogCliInvalidDatabase extends Schema.TaggedError<PayCatalogCliInvalidDatabase>()(
-  "PayCatalogCliInvalidDatabase",
-  {
-    message: Schema.String
-  }
-) {}
-
-const makeProviderLayer = (options: CliOptions): Layer.Layer<any, unknown> => {
-  if (options.provider === "stripe") {
-    return Stripe.layerConfig({
-      apiKey: Redacted.make(options.stripeApiKey ?? ""),
-      webhookSecret: Redacted.make(options.stripeWebhookSecret ?? ""),
-      environment: options.environment
-    })
-  }
-
-  return Paddle.layerConfig({
-    apiToken: Redacted.make(options.paddleApiToken ?? ""),
-    webhookToken: Redacted.make(options.paddleWebhookToken ?? ""),
-    environment: options.environment,
-    checkoutUrl: Option.none()
-  })
-}
-
-const sqliteFilenameFromUrl = (databaseUrl: string) => {
-  if (databaseUrl === "sqlite::memory:" || databaseUrl === "sqlite://:memory:") {
-    return ":memory:"
-  }
-
-  if (databaseUrl.startsWith("sqlite://")) {
-    return databaseUrl.slice("sqlite://".length)
-  }
-
-  if (databaseUrl.startsWith("sqlite:")) {
-    return databaseUrl.slice("sqlite:".length)
-  }
-
-  return databaseUrl
-}
-
-const makeDatabaseLayer = (options: CliOptions): Layer.Layer<SqlClient.SqlClient, unknown> => {
-  if (options.database._tag === "postgres") {
-    return PgClient.layer({
-      url: Redacted.make(options.database.url),
-      transformQueryNames: EffectString.camelToSnake,
-      transformResultNames: EffectString.snakeToCamel
-    }) as Layer.Layer<SqlClient.SqlClient, unknown>
-  }
-
-  if (options.database._tag === "cloudflare-d1") {
-    return CloudflareD1HttpClient.layer({
-      accountId: options.database.accountId,
-      databaseId: options.database.databaseId,
-      apiToken: Redacted.make(options.database.apiToken),
-      baseUrl: options.database.baseUrl,
-      transformQueryNames: EffectString.camelToSnake,
-      transformResultNames: EffectString.snakeToCamel
-    }) as Layer.Layer<SqlClient.SqlClient, unknown>
-  }
-
-  return SQLite.layer({
-    filename: options.database.filename,
-    disableWAL: true,
-    transformQueryNames: EffectString.camelToSnake,
-    transformResultNames: EffectString.snakeToCamel
-  }) as Layer.Layer<SqlClient.SqlClient, unknown>
-}
-
-const databaseLabel = (database: DatabaseTarget) => {
-  switch (database._tag) {
-    case "postgres":
-      return database.url
-    case "sqlite":
-      return database.label
-    case "cloudflare-d1":
-      return `cloudflare-d1:${database.databaseId}`
-  }
-}
-
-const catalogSchemaTables = ["paykit_product", "paykit_provider_ref"] as const
-
-const checkCatalogSchema = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient
-
-  yield* Effect.forEach(
-    catalogSchemaTables,
-    (table) =>
-      sql.unsafe(`SELECT 1 FROM ${table} LIMIT 1`).withoutTransform.pipe(
-        Effect.mapError(
-          (cause) =>
-            new PayCatalogCliSchemaNotReady({
-              message: `Pay catalog schema is not ready: missing or unreadable table "${table}". Run pay migrations before catalog sync.`,
-              cause: String(cause)
-            })
-        )
-      ),
-    { concurrency: 1, discard: true }
-  )
-})
-
-const countPlanChanges = (plan: CommercialCatalogSyncPlan) =>
-  plan.productsToCreate.length +
-  plan.pricesToCreate.length +
-  plan.localRowsToInsert.length +
-  plan.localRowsToUpdate.length +
-  plan.providerRefsToInsert.length +
-  plan.providerRefsToUpdate.length +
-  plan.staleRows.length +
-  plan.archiveCandidates.length
-
-const appendRows = (lines: Array<string>, title: string, rows: ReadonlyArray<string>) => {
-  if (rows.length === 0) {
-    return
-  }
-
-  lines.push("", title)
-  for (const row of rows) {
-    lines.push(`  ${row}`)
-  }
-}
-
-export const formatHumanResult = (options: CliOptions, result: CommercialCatalogSyncResult) => {
-  const lines = [
-    "Connected",
-    `  Database · ${databaseLabel(options.database)}`,
-    `  Provider · ${result.provider} (${options.environment})`,
-    `  Mode     · ${result.dryRun ? "dry-run" : "apply"}`,
-    "",
-    "Schema",
-    "  Up to date"
-  ]
-
-  const plan = result.plan
-  const changes = countPlanChanges(plan)
-  lines.push("", "Plan changes")
-  if (changes === 0) {
-    lines.push("  No changes")
-  } else {
-    appendRows(
-      lines,
-      "  Products to create",
-      plan.productsToCreate.map((entry) => `+ ${entry.productId} -> ${entry.providerProductId} (${entry.ownership})`)
-    )
-    appendRows(
-      lines,
-      "  Prices to create",
-      plan.pricesToCreate.map(
-        (entry) => `+ ${entry.offerId} -> ${entry.providerOfferId} (${entry.reason}, ${entry.ownership})`
-      )
-    )
-    appendRows(lines, "  Local rows", [
-      ...plan.localRowsToInsert.map((entry) => `+ ${entry.offerId} (${entry.reason})`),
-      ...plan.localRowsToUpdate.map((entry) => `~ ${entry.offerId} (${entry.reason})`)
-    ])
-    appendRows(lines, "  Provider refs", [
-      ...plan.providerRefsToInsert.map((entry) => `+ ${entry.ownerType}:${entry.ownerId} -> ${entry.providerId}`),
-      ...plan.providerRefsToUpdate.map((entry) => `~ ${entry.ownerType}:${entry.ownerId} -> ${entry.providerId}`)
-    ])
-    appendRows(
-      lines,
-      "  Stale rows",
-      plan.staleRows.map((entry) => `- ${entry.offerId} (${entry.reason})`)
-    )
-    appendRows(
-      lines,
-      "  Archive candidates",
-      plan.archiveCandidates.map(
-        (entry) =>
-          `${entry.safeToArchive ? "~" : "!"} ${entry.ownerType}:${entry.ownerId} -> ${entry.providerId} (${entry.action})`
-      )
-    )
-  }
-
-  lines.push("", `Done · ${result.offers} offers ${result.dryRun ? "planned" : "synced"}`)
-  return lines.join("\n")
-}
-
-export const printHumanResult = (options: CliOptions, result: CommercialCatalogSyncResult) => {
-  console.log(formatHumanResult(options, result))
-}
-
-const runCatalogSync = (
-  options: CliOptions,
-  catalog: PurchaseConfigModule
-): Effect.Effect<CommercialCatalogSyncResult, unknown> =>
-  Effect.gen(function* () {
-    yield* checkCatalogSchema
-    return yield* syncCatalog({ dryRun: options.dryRun })
-  }).pipe(
-    Effect.provide(
-      PurchaseConfigLayer({
-        plans: catalog.plans as never,
-        products: catalog.products as never
-      })
-    ),
-    Effect.provide(makeProviderLayer(options)),
-    Effect.provide(makeDatabaseLayer(options))
-  ) as Effect.Effect<CommercialCatalogSyncResult, unknown>
-
-const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(option)
-
-const envFallback = (value: Option.Option<string>, envName: string) => optionalValue(value) ?? process.env[envName]
-
-export const parseDatabaseTarget = (config: {
-  readonly database: DatabaseKind
-  readonly databaseUrl: Option.Option<string>
-  readonly cloudflareAccountId: Option.Option<string>
-  readonly cloudflareApiToken: Option.Option<string>
-  readonly cloudflareD1DatabaseId: Option.Option<string>
-  readonly cloudflareApiBaseUrl: Option.Option<string>
-}): DatabaseTarget => {
-  if (config.database === "cloudflare-d1") {
-    const accountId = optionalValue(config.cloudflareAccountId) ?? process.env.CLOUDFLARE_ACCOUNT_ID
-    const databaseId =
-      optionalValue(config.cloudflareD1DatabaseId) ??
-      process.env.CLOUDFLARE_D1_DATABASE_ID ??
-      process.env.CLOUDFLARE_DATABASE_ID
-    const apiToken = optionalValue(config.cloudflareApiToken) ?? process.env.CLOUDFLARE_API_TOKEN
-
-    if (!accountId) {
-      throw new PayCatalogCliInvalidDatabase({
-        message: "Missing --cloudflare-account-id or CLOUDFLARE_ACCOUNT_ID."
-      })
-    }
-    if (!databaseId) {
-      throw new PayCatalogCliInvalidDatabase({
-        message: "Missing --cloudflare-d1-database-id or CLOUDFLARE_D1_DATABASE_ID."
-      })
-    }
-    if (!apiToken) {
-      throw new PayCatalogCliInvalidDatabase({
-        message: "Missing --cloudflare-api-token or CLOUDFLARE_API_TOKEN."
-      })
-    }
-
-    return {
-      _tag: "cloudflare-d1",
-      accountId,
-      databaseId,
-      apiToken,
-      baseUrl: optionalValue(config.cloudflareApiBaseUrl) ?? process.env.CLOUDFLARE_API_BASE_URL
-    }
-  }
-
-  const databaseUrl = optionalValue(config.databaseUrl) ?? process.env.DATABASE_URL
-  if (!databaseUrl) {
-    throw new PayCatalogCliInvalidDatabase({
-      message:
-        config.database === "postgres"
-          ? "Missing --database-url <postgres-url> or DATABASE_URL."
-          : "Missing --database-url <sqlite-url> or DATABASE_URL."
-    })
-  }
-
-  if (config.database === "postgres") {
-    if (!databaseUrl.startsWith("postgres:") && !databaseUrl.startsWith("postgresql:")) {
-      throw new PayCatalogCliInvalidDatabase({
-        message: `Invalid postgres database URL "${databaseUrl}". Expected postgresql://...`
-      })
-    }
-    return { _tag: "postgres", url: databaseUrl }
-  }
-
-  return {
-    _tag: "sqlite",
-    filename: sqliteFilenameFromUrl(databaseUrl),
-    label: databaseUrl
-  }
-}
+const envFallback = (value: Option.Option<string>, envName: string) =>
+  Option.getOrElse(value, () => process.env[envName])
 
 export const parseCatalogSyncOptions = (config: {
   readonly module: string
@@ -355,7 +67,7 @@ export const parseCatalogSyncOptions = (config: {
   const options: CliOptions = {
     command: "catalog.sync",
     modulePath: config.module,
-    exportName: optionalValue(config.exportName),
+    exportName: Option.getOrUndefined(config.exportName),
     provider: config.provider,
     environment: config.environment,
     database: parseDatabaseTarget(config),
@@ -437,29 +149,29 @@ const catalogSyncOptions = {
     Options.optional,
     Options.withDescription("Paddle webhook token. Defaults to PADDLE_WEBHOOK_TOKEN.")
   )
-} as const
+}
 
-export const catalogSyncCommand = Command.make("sync", catalogSyncOptions, (config) =>
-  Effect.tryPromise({
-    try: async () => {
-      const options = parseCatalogSyncOptions(config)
-      const catalog = await loadPurchaseConfigModule(options)
-      return {
-        options,
-        result: await Effect.runPromise(runCatalogSync(options, catalog))
-      }
-    },
-    catch: (error) => error
-  }).pipe(
-    Effect.tap(({ options, result }) =>
-      Effect.sync(() => {
-        if (options.json) {
-          console.log(JSON.stringify(result, null, 2))
-        } else {
-          printHumanResult(options, result)
-        }
-      })
-    ),
-    Effect.asVoid
-  )
+export const catalogSyncCommand = Command.make(
+  "sync",
+  catalogSyncOptions,
+  Effect.fn(function* (config) {
+    const options = parseCatalogSyncOptions(config)
+    const catalog = yield* Effect.promise(() => loadPurchaseConfigModule(options))
+
+    yield* checkCatalogSchema
+
+    const layer = Layer.mergeAll(
+      CatalogState.make({ plans: catalog.plans, products: catalog.products }),
+      PurchaseStorageAdapter.make().pipe(Layer.provide(makeDatabaseLayer(options.database))),
+      makeProviderLayer(options.provider)
+    )
+
+    const result = yield* sync({ dryRun: options.dryRun }).pipe(Effect.provide(layer))
+
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2))
+    } else {
+      console.log(formatCatalogSyncResult(options, result))
+    }
+  })
 ).pipe(Command.withDescription("Plan or apply catalog changes to a payment provider and local projection store."))

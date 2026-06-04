@@ -12,20 +12,12 @@ import type { PaymentEnvironmentTag, PaymentProviderTag } from "../provider/type
 
 import { Paddle } from "../paddle.ts"
 import { prepare } from "../provider/prepare.ts"
+import { formatPrepareResult } from "../provider/provider-prepare.ts"
 import { Stripe } from "../stripe.ts"
-import { formatPrepareResult as formatPrepareResultDetails } from "../provider/provider-prepare.ts"
 import { loadPurchaseConfigModule } from "./config-loader.ts"
 
-export const formatPrepareResult = <
-  TOptions extends { readonly environment: PaymentEnvironmentTag; readonly showSecrets: boolean }
->(
-  options: TOptions,
-  result: Parameters<typeof formatPrepareResultDetails>[1]
-) => formatPrepareResultDetails(options, result).string
-
-const optionalValue = <A>(option: Option.Option<A>) => Option.getOrUndefined(option)
-
-const envFallback = (value: Option.Option<string>, envName: string) => optionalValue(value) ?? process.env[envName]
+const envFallback = (value: Option.Option<string>, envName: string) =>
+  Option.getOrElse(value, () => process.env[envName])
 
 const makeProviderLayer = (options: PrepareOptions): Layer.Layer<PaymentProvider, unknown> => {
   if (options.provider === "stripe") {
@@ -83,11 +75,11 @@ export const parsePrepareOptions = (config: {
 
   const options: PrepareOptions = {
     modulePath: config.module,
-    exportName: optionalValue(config.exportName),
+    exportName: Option.getOrUndefined(config.exportName),
     provider: config.provider,
     environment: config.environment,
-    approvedCheckoutUrl: optionalValue(config.approvedCheckoutUrl),
-    webhookUrl: optionalValue(config.webhookUrl),
+    approvedCheckoutUrl: Option.getOrUndefined(config.approvedCheckoutUrl),
+    webhookUrl: Option.getOrUndefined(config.webhookUrl),
     apply: config.apply,
     dryRun: !config.apply,
     json: config.json,
@@ -154,41 +146,32 @@ const prepareOptions = {
     Options.optional,
     Options.withDescription("Paddle webhook token. Defaults to PADDLE_WEBHOOK_TOKEN.")
   )
-} as const
+}
 
-export const prepareCommand = Command.make("prepare", prepareOptions, (config) =>
-  Effect.tryPromise({
-    try: async () => {
-      const options = parsePrepareOptions(config)
-      const purchase = await loadPurchaseConfigModule(options)
-      const providerConfig = providerConfigFrom(purchase.config, options.provider)
-      return { options, purchase, providerConfig }
-    },
-    catch: (error) => error
-  }).pipe(
-    Effect.flatMap(({ options, purchase, providerConfig }) =>
-      prepare({
-        dryRun: options.dryRun,
-        environment: options.environment,
-        approvedCheckoutUrl: options.approvedCheckoutUrl ?? providerConfig?.approvedCheckoutUrl,
-        webhookUrl: options.webhookUrl ?? providerConfig?.webhookUrl,
-        checkout: providerConfig?.checkout
-      }).pipe(
-        Effect.provide(makeProviderLayer(options)),
-        Effect.map((result) => ({ options, result }))
-      )
-    ),
-    Effect.tap(({ options, result }) =>
-      Effect.sync(() => {
-        if (options.json) {
-          console.log(JSON.stringify(result, null, 2))
-        } else {
-          console.log(formatPrepareResultDetails(options, result).string)
-        }
-      })
-    ),
-    Effect.asVoid
-  )
+export const prepareCommand = Command.make(
+  "prepare",
+  prepareOptions,
+  Effect.fn(function* (config) {
+    const options = parsePrepareOptions(config)
+    const purchase = yield* Effect.promise(() => loadPurchaseConfigModule(options))
+    const providerConfig = providerConfigFrom(purchase.config, options.provider)
+
+    const layer = makeProviderLayer(options)
+
+    const result = yield* prepare({
+      dryRun: options.dryRun,
+      environment: options.environment,
+      approvedCheckoutUrl: options.approvedCheckoutUrl ?? providerConfig?.approvedCheckoutUrl,
+      webhookUrl: options.webhookUrl ?? providerConfig?.webhookUrl,
+      checkout: providerConfig?.checkout
+    }).pipe(Effect.provide(layer))
+
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2))
+    } else {
+      console.log(formatPrepareResult(options, result).string)
+    }
+  })
 ).pipe(Command.withDescription("Plan or apply provider setup such as checkout and webhook settings."))
 
 const providerConfigFrom = (config: PurchaseConfig, provider: "paddle" | "stripe") =>

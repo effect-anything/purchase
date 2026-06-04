@@ -24,18 +24,18 @@ import type {
   PreviewSubscriptionChangeInput,
   ReceiveWebhookInput,
   ReceiveWebhookResult,
+  RefreshCustomerSnapshotInput,
   RefundPurchaseInput,
   ReplayWebhookInput,
   ResumeSubscriptionInput,
-  RefreshCustomerSnapshotInput,
   WorkflowReceipt
 } from "./core/workflow-schema.ts"
-import type { InferOfferId, InferProductId, ProductsModule, PurchasePlansModule } from "./dsl.ts"
+import type { InferOfferId, InferProductId, Product, PurchasePlan } from "./dsl.ts"
 import type { PaymentProviderTag } from "./provider.ts"
 import type { BillingPortalSession, CheckoutMode, SubscriptionChangePreview } from "./schema.ts"
 
-import { buildCommercialCatalog, CatalogState } from "./core/catalog-builder.ts"
 import { CommercialCatalogService, CommercialCatalogServiceLayer } from "./core/catalog-service.ts"
+import { CatalogState } from "./core/catalog-state.ts"
 import { CommercialProjectionService, CommercialProjectionServiceLayer } from "./core/projection-service.ts"
 import { CommercialWorkflowService, CommercialWorkflowServiceLayer } from "./core/workflow-service.ts"
 import { CommercialWorkflowStore, CommercialWorkflowStoreLayer } from "./core/workflow-store.ts"
@@ -203,8 +203,8 @@ export class Purchase extends Context.Tag("@effect-x/purchase/Purchase")<
 export function PurchaseSDK<
   Self,
   Shape,
-  TPlans extends ReadonlyArray<unknown>,
-  TProducts extends ReadonlyArray<unknown>
+  TPlans extends ReadonlyArray<PurchasePlan>,
+  TProducts extends ReadonlyArray<Product>
 >({ plans, products, storageOverrides }: PurchaseSDKOptions<TPlans, TProducts>) {
   type Service = Shape & PurchaseSDKContract<TPlans, TProducts>
 
@@ -222,13 +222,10 @@ export function PurchaseSDK<
     ) => Layer.Layer<Self, E, Exclude<R, Purchase> | PaymentProvider | SqlClient.SqlClient>
   }
 
-  const catalogStateLive = Layer.effect(
-    CatalogState,
-    buildCommercialCatalog({
-      plans: plans as PurchasePlansModule,
-      products: products as ProductsModule
-    }).pipe(Effect.map((catalog) => ({ catalog })))
-  )
+  const catalogStateLive = CatalogState.make({
+    plans,
+    products
+  })
 
   const catalogServiceLive = CommercialCatalogServiceLayer.pipe(Layer.provide(catalogStateLive))
 

@@ -6,7 +6,6 @@ import * as Option from "effect/Option"
 import type { ServicesReturns } from "../internal/types.ts"
 import type { PaymentProviderTag } from "../provider/types.ts"
 
-import { CatalogState } from "../core/catalog-builder.ts"
 import {
   CommercialCheckoutTarget,
   CommercialOfferNotFound,
@@ -16,6 +15,7 @@ import {
   type CommercialProduct
 } from "../core/commercial-schema.ts"
 import { PurchaseStorageAdapter } from "../db.ts"
+import { CatalogState } from "./catalog-state.ts"
 
 /**
  * Read-side service for resolved commercial catalog data.

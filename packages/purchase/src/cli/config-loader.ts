@@ -1,17 +1,20 @@
+import type * as SqlClient from "@effect/sql/SqlClient"
 import type * as Layer from "effect/Layer"
 
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
 import type { PurchaseConfig } from "../core/config.ts"
+import type { Product, ProductsModule, PurchasePlan, PurchasePlansModule } from "../dsl.ts"
+import type { PaymentProvider } from "../provider.ts"
 
 import { PurchaseSDK } from "../sdk.ts"
 
 export interface PurchaseConfigModule {
   readonly config: PurchaseConfig
-  readonly plans: ReadonlyArray<unknown> | undefined
-  readonly products: ReadonlyArray<unknown> | undefined
-  readonly layer: Layer.Layer<any, unknown, unknown>
+  readonly plans: PurchasePlansModule
+  readonly products: ProductsModule
+  readonly layer: Layer.Layer<never, never, PaymentProvider | SqlClient.SqlClient>
 }
 
 const resolveModulePath = (modulePath: string) =>
@@ -58,25 +61,19 @@ export const loadPurchaseConfigModule = async (options: {
   }
 
   const candidate = selected as PurchaseConfig & {
-    readonly plans?: ReadonlyArray<unknown> | undefined
-    readonly products?: ReadonlyArray<unknown> | undefined
+    readonly plans?: ReadonlyArray<any>
+    readonly products?: ReadonlyArray<any>
   }
 
-  const plans =
-    candidate.plans ??
-    (loaded.plans as ReadonlyArray<unknown> | undefined) ??
-    (loaded.CommercialPlans as ReadonlyArray<unknown> | undefined)
-
-  const products =
-    candidate.products ??
-    (loaded.products as ReadonlyArray<unknown> | undefined) ??
-    (loaded.CommercialProducts as ReadonlyArray<unknown> | undefined)
+  // TODO: schema decode
+  const plans: ReadonlyArray<PurchasePlan> = candidate.plans ?? (loaded.plans as any) ?? []
+  const products: ReadonlyArray<Product> = candidate.products ?? (loaded.products as any) ?? []
 
   if (!plans || !products) {
     throw new Error(`Purchase config ${options.modulePath} must provide both plans and products.`)
   }
 
-  class CliPay extends PurchaseSDK<CliPay, Record<string, never>, ReadonlyArray<unknown>, ReadonlyArray<unknown>>({
+  class CliPay extends PurchaseSDK<CliPay, Record<string, never>, ReadonlyArray<any>, ReadonlyArray<any>>({
     plans,
     products
   }) {}
