@@ -1,39 +1,16 @@
 import { PlatformConfigProvider } from "@effect/platform"
-import { NodeContext } from "@effect/platform-node"
-import { String as EffectString, Layer, Logger, LogLevel } from "effect"
+import { NodeFileSystem } from "@effect/platform-node"
+import { Layer } from "effect"
+import * as path from "node:path"
 
-import { PurchaseConfigLayer } from "../../src/catalog/config-service.ts"
-import * as SQLite from "../../src/internal/node-sqlite-client.ts"
-import { Paddle } from "../../src/paddle.ts"
-import { CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
-import { BrokerLive } from "./webhook-broker.ts"
-
-function resolveRepoPath(file: string) {
-  return new URL(`../../../../${file}`, import.meta.url).pathname
-}
+const repoRoot = new URL("../../../../", import.meta.url).pathname
 
 export const EnvLayer = Layer.mergeAll(
-  PlatformConfigProvider.layerDotEnv(resolveRepoPath(".env")),
-  PlatformConfigProvider.layerDotEnvAdd(resolveRepoPath(".env.local"))
-)
-
-const PaddleLive = Paddle.layer.pipe(Layer.provide(EnvLayer), Layer.provide(NodeContext.layer), Layer.orDie)
-
-const DBLive = SQLite.layer({
-  filename: ":memory:",
-  disableWAL: true,
-  transformQueryNames: EffectString.camelToSnake,
-  transformResultNames: EffectString.snakeToCamel
-})
-
-const PurchaseLive = PurchaseConfigLayer({
-  plans: CommercialPlans,
-  products: CommercialProducts
-}).pipe(Layer.provideMerge(PaddleLive), Layer.provide(DBLive))
-
-export const Live = BrokerLive.pipe(
-  Layer.provideMerge(PurchaseLive),
-  Layer.provide(Logger.pretty),
-  Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
-  Layer.orDie
+  PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),
+  PlatformConfigProvider.layerDotEnvAdd(path.join(repoRoot, ".env.local"))
+).pipe(
+  Layer.provide(NodeFileSystem.layer),
+  Layer.catchAll((error) =>
+    error._tag === "SystemError" && error.reason === "NotFound" ? Layer.empty : Layer.fail(error)
+  )
 )

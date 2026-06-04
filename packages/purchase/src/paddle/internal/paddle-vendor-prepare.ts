@@ -4,10 +4,8 @@ import * as HttpClientError from "@effect/platform/HttpClientError"
 import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Config from "effect/Config"
-import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
-import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import fs from "node:fs"
@@ -21,7 +19,7 @@ import { failUnexpectedStatus, withProviderTransientRetry } from "../../internal
 import {
   collectPrepareChanges,
   determineUnsupportedAction,
-  type ProviderPrepareInput,
+  type ProviderPrepareOptions,
   type ProviderPreparePlan,
   type ProviderPrepareResult
 } from "../../provider/provider-prepare.ts"
@@ -62,20 +60,8 @@ interface PaddleDomainReviewState {
   readonly status: string
 }
 
-export class PaddleVendorPrepareService extends Context.Tag(
-  "@effect-x/purchase/provider/Paddle/PaddleVendorPrepareService"
-)<
-  PaddleVendorPrepareService,
-  {
-    readonly prepare: (
-      input: ProviderPrepareInput
-    ) => Effect.Effect<ProviderPrepareResult, HttpClientError.HttpClientError>
-  }
->() {}
-
-export const PaddleVendorPrepareServiceLayer = Layer.effect(
-  PaddleVendorPrepareService,
-  Effect.gen(function* () {
+export const prepare = Effect.fn(
+  function* (options: ProviderPrepareOptions) {
     const environment = yield* Config.string("PADDLE_ENVIRONMENT").pipe(Config.map((_) => _ as PaymentEnvironmentTag))
     const vendorHttpConfig = yield* readPaddleVendorHttpConfig
 
@@ -395,7 +381,7 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
     })
 
     const applyPaddleProviderChanges = Effect.fn(function* (
-      input: ProviderPrepareInput,
+      input: ProviderPrepareOptions,
       plan: ProviderPreparePlan,
       notificationSetting: PaddleNotificationSettingState | undefined,
       approvedDomains: ReadonlyArray<PaddleDomainReviewState>
@@ -460,12 +446,12 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
     })
 
     const createPaddlePreparePlan = (
-      input: ProviderPrepareInput,
+      options: ProviderPrepareOptions,
       notificationSetting: PaddleNotificationSettingState | undefined
     ): ProviderPreparePlan => {
-      const changes = [...collectPrepareChanges(input)]
+      const changes = [...collectPrepareChanges(options)]
 
-      if (input.webhookUrl) {
+      if (options.webhookUrl) {
         changes.push({
           path: "webhook.active",
           current: notificationSetting?.active,
@@ -487,23 +473,23 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
       return {
         status: "ready",
         changes,
-        ...(input.approvedCheckoutUrl
+        ...(options.approvedCheckoutUrl
           ? {
               approvedCheckoutUrl: {
-                current: input.current?.approvedCheckoutUrl,
-                desired: input.approvedCheckoutUrl,
-                action: determineUnsupportedAction(input.current?.approvedCheckoutUrl, input.approvedCheckoutUrl)
+                current: options.current?.approvedCheckoutUrl,
+                desired: options.approvedCheckoutUrl,
+                action: determineUnsupportedAction(options.current?.approvedCheckoutUrl, options.approvedCheckoutUrl)
               }
             }
           : {}),
-        ...(input.webhookUrl
+        ...(options.webhookUrl
           ? {
               webhookUrl: {
-                current: notificationSetting?.destination ?? input.current?.webhookUrl,
-                desired: input.webhookUrl,
+                current: notificationSetting?.destination ?? options.current?.webhookUrl,
+                desired: options.webhookUrl,
                 action: determineUnsupportedAction(
-                  notificationSetting?.destination ?? input.current?.webhookUrl,
-                  input.webhookUrl
+                  notificationSetting?.destination ?? options.current?.webhookUrl,
+                  options.webhookUrl
                 )
               }
             }
@@ -511,86 +497,80 @@ export const PaddleVendorPrepareServiceLayer = Layer.effect(
       }
     }
 
-    const prepare = Effect.fn(
-      function* (input: ProviderPrepareInput) {
-        const normalizedInput = normalizePaddlePrepareInput(input)
-        const includeCheckoutDetails = normalizedInput.checkout !== undefined
+    const normalizedOptions = normalizePaddlePrepareOptions(options)
+    const includeCheckoutDetails = normalizedOptions.checkout !== undefined
 
-        yield* ensurePaddleVendorSession
+    yield* ensurePaddleVendorSession
 
-        const currentStateResult = yield* Effect.exit(fetchPaddleCurrentState({ includeCheckoutDetails }))
+    const currentStateResult = yield* Effect.exit(fetchPaddleCurrentState({ includeCheckoutDetails }))
 
-        const notificationSetting = yield* Exit.match(currentStateResult, {
-          onFailure: () => fetchPaddleNotificationSetting,
-          onSuccess: (_) => Effect.succeed(_.notificationSetting)
-        })
-        const approvedDomains = Exit.match(currentStateResult, {
-          onFailure: () => [] as ReadonlyArray<PaddleDomainReviewState>,
-          onSuccess: (_) => _.approvedDomains
-        })
+    const notificationSetting = yield* Exit.match(currentStateResult, {
+      onFailure: () => fetchPaddleNotificationSetting,
+      onSuccess: (_) => Effect.succeed(_.notificationSetting)
+    })
+    const approvedDomains = Exit.match(currentStateResult, {
+      onFailure: () => [] as ReadonlyArray<PaddleDomainReviewState>,
+      onSuccess: (_) => _.approvedDomains
+    })
 
-        const current =
-          normalizedInput.current ??
-          Exit.match(currentStateResult, {
-            onFailure: () =>
-              ({
-                approvedCheckoutUrl: normalizedInput.approvedCheckoutUrl,
-                webhookUrl: notificationSetting?.destination
-              }) satisfies PurchaseProviderSettings as PurchaseProviderSettings,
-            onSuccess: (_) => _.providerSettings
-          })
+    const current =
+      normalizedOptions.current ??
+      Exit.match(currentStateResult, {
+        onFailure: () =>
+          ({
+            approvedCheckoutUrl: normalizedOptions.approvedCheckoutUrl,
+            webhookUrl: notificationSetting?.destination
+          }) satisfies PurchaseProviderSettings as PurchaseProviderSettings,
+        onSuccess: (_) => _.providerSettings
+      })
 
-        const plan = createPaddlePreparePlan({ ...normalizedInput, current }, notificationSetting)
-        const hasChanges = plan.changes.some((change) => change.action !== "none")
+    const plan = createPaddlePreparePlan({ ...normalizedOptions, current }, notificationSetting)
+    const hasChanges = plan.changes.some((change) => change.action !== "none")
 
-        if (hasChanges && normalizedInput.dryRun !== true && plan.status === "ready") {
-          yield* applyPaddleProviderChanges(normalizedInput, plan, notificationSetting, approvedDomains)
+    if (hasChanges && normalizedOptions.dryRun !== true && plan.status === "ready") {
+      yield* applyPaddleProviderChanges(normalizedOptions, plan, notificationSetting, approvedDomains)
 
-          const verifiedState = yield* fetchPaddleCurrentState({ includeCheckoutDetails }).pipe(
-            Effect.catchAll(() =>
-              fetchPaddleNotificationSetting.pipe(
-                Effect.map((verifiedNotificationSetting) => ({
-                  providerSettings: {
-                    approvedCheckoutUrl: normalizedInput.approvedCheckoutUrl,
-                    webhookUrl: verifiedNotificationSetting?.destination
-                  } satisfies PurchaseProviderSettings,
-                  notificationSetting: verifiedNotificationSetting
-                }))
-              )
-            )
+      const verifiedState = yield* fetchPaddleCurrentState({ includeCheckoutDetails }).pipe(
+        Effect.catchAll(() =>
+          fetchPaddleNotificationSetting.pipe(
+            Effect.map((verifiedNotificationSetting) => ({
+              providerSettings: {
+                approvedCheckoutUrl: normalizedOptions.approvedCheckoutUrl,
+                webhookUrl: verifiedNotificationSetting?.destination
+              } satisfies PurchaseProviderSettings,
+              notificationSetting: verifiedNotificationSetting
+            }))
           )
+        )
+      )
 
-          const verificationPlan = createPaddlePreparePlan(
-            { ...normalizedInput, current: verifiedState.providerSettings },
-            verifiedState.notificationSetting
-          )
+      const verificationPlan = createPaddlePreparePlan(
+        { ...normalizedOptions, current: verifiedState.providerSettings },
+        verifiedState.notificationSetting
+      )
 
-          if (verificationPlan.changes.some((change) => change.action !== "none")) {
-            return {
-              provider: "paddle" as const,
-              dryRun: false,
-              secrets: formatPaddleSecrets(verifiedState.notificationSetting),
-              plan: {
-                ...plan,
-                status: "unsupported" as const,
-                reason: "Paddle vendor settings were updated but verification still found differences."
-              }
-            } satisfies ProviderPrepareResult
-          }
-        }
-
+      if (verificationPlan.changes.some((change) => change.action !== "none")) {
         return {
           provider: "paddle" as const,
-          dryRun: normalizedInput.dryRun === true,
-          secrets: formatPaddleSecrets(notificationSetting),
-          plan
+          dryRun: false,
+          secrets: formatPaddleSecrets(verifiedState.notificationSetting),
+          plan: {
+            ...plan,
+            status: "unsupported" as const,
+            reason: "Paddle vendor settings were updated but verification still found differences."
+          }
         } satisfies ProviderPrepareResult
-      },
-      Effect.catchTag("ParseError", Effect.die)
-    )
+      }
+    }
 
-    return PaddleVendorPrepareService.of({ prepare })
-  })
+    return {
+      provider: "paddle" as const,
+      dryRun: normalizedOptions.dryRun === true,
+      secrets: formatPaddleSecrets(notificationSetting),
+      plan
+    } satisfies ProviderPrepareResult
+  },
+  Effect.catchTag("ParseError", Effect.die)
 )
 
 const unexpectedStatus = (response: HttpClientResponse.HttpClientResponse) =>
@@ -621,14 +601,14 @@ const expectJsonBody = HttpClientResponse.matchStatus({
   orElse: unexpectedStatus
 })
 
-const normalizePaddlePrepareInput = (input: ProviderPrepareInput): ProviderPrepareInput => {
-  if (!input.approvedCheckoutUrl) {
-    return input
+const normalizePaddlePrepareOptions = (options: ProviderPrepareOptions): ProviderPrepareOptions => {
+  if (!options.approvedCheckoutUrl) {
+    return options
   }
 
   return {
-    ...input,
-    approvedCheckoutUrl: new URL(input.approvedCheckoutUrl).origin
+    ...options,
+    approvedCheckoutUrl: new URL(options.approvedCheckoutUrl).origin
   }
 }
 

@@ -3,7 +3,7 @@ import * as Redacted from "effect/Redacted"
 import type { PurchaseProviderSettings } from "../core/config.ts"
 import type { PaymentEnvironmentTag, PaymentProviderTag } from "./types.ts"
 
-export interface ProviderPrepareInput extends PurchaseProviderSettings {
+export interface ProviderPrepareOptions extends PurchaseProviderSettings {
   /**
    * Builds the provider settings plan without mutating provider configuration.
    */
@@ -62,7 +62,7 @@ export interface ProviderPrepareResult {
 
 export const buildUnsupportedPrepareResult = (
   provider: PaymentProviderTag,
-  input: ProviderPrepareInput
+  input: ProviderPrepareOptions
 ): ProviderPrepareResult => ({
   provider,
   dryRun: input.dryRun === true,
@@ -91,7 +91,7 @@ export const buildUnsupportedPrepareResult = (
   }
 })
 
-export const collectPrepareChanges = (input: ProviderPrepareInput): ReadonlyArray<ProviderPreparePlanChange> => {
+export const collectPrepareChanges = (input: ProviderPrepareOptions): ReadonlyArray<ProviderPreparePlanChange> => {
   const changes: Array<ProviderPreparePlanChange> = []
 
   if (input.approvedCheckoutUrl) {

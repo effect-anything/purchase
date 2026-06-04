@@ -1,24 +1,9 @@
 import type { ProvidedContext } from "vitest"
 
-import { PlatformConfigProvider } from "@effect/platform"
-import { NodeFileSystem } from "@effect/platform-node"
-import { Effect, Layer, ManagedRuntime } from "effect"
-import * as path from "node:path"
+import { Effect, Layer, ManagedRuntime, Logger, LogLevel } from "effect"
 
-import { Live } from "./internal/runtime.ts"
-import { BrokerServer } from "./internal/webhook-broker.ts"
-
-const repoRoot = new URL("../../../", import.meta.url).pathname
-
-const EnvFileLayer = Layer.mergeAll(
-  PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),
-  PlatformConfigProvider.layerDotEnvAdd(path.join(repoRoot, ".env.local"))
-).pipe(
-  Layer.provide(NodeFileSystem.layer),
-  Layer.catchAll((error) =>
-    error._tag === "SystemError" && error.reason === "NotFound" ? Layer.empty : Layer.fail(error)
-  )
-)
+import { EnvLayer } from "./internal/runtime.ts"
+import { BrokerLive, BrokerServer } from "./internal/webhook-broker.ts"
 
 /**
  * Vitest global setup for provider E2E tests.
@@ -39,7 +24,14 @@ export default async function setup(project: {
     return broker
   })
 
-  const runtime = ManagedRuntime.make(Live.pipe(Layer.provide(EnvFileLayer)))
+  const Live = BrokerLive.pipe(
+    Layer.provide(Logger.pretty),
+    Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
+    Layer.provide(EnvLayer),
+    Layer.orDie
+  )
+
+  const runtime = ManagedRuntime.make(Live)
 
   const brokerServerInfo = await runtime.runPromise(program)
 

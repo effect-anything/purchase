@@ -5,11 +5,12 @@ import {
   HttpApiEndpoint,
   HttpApiError,
   HttpApiGroup,
+  HttpApiSchema,
   HttpClient,
   HttpLayerRouter,
   HttpServer,
   HttpServerResponse,
-  HttpApiSchema
+  FetchHttpClient
 } from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
 import {
@@ -27,17 +28,12 @@ import {
 } from "effect"
 import { createServer } from "node:http"
 
-import type { PurchaseConfigService } from "../../src/catalog/config-service.ts"
-import type { PaymentProvider } from "../../src/provider.ts"
 import type { BrokerEndpoint } from "./types.ts"
 
 import { prepare } from "../../src/provider/prepare.ts"
-import {
-  formatPrepareResult,
-  type ProviderPrepareInput,
-  type ProviderPrepareResult
-} from "../../src/provider/provider-prepare.ts"
+import { formatPrepareResult, type ProviderPrepareResult } from "../../src/provider/provider-prepare.ts"
 import { PaymentProviderTag } from "../../src/provider/types.ts"
+import { makeProviderLayer } from "../../src/provider/utils.ts"
 import { CloudflareTunnel } from "./cloudflare-tunnel.ts"
 
 interface WebhookBrokerRegistration {
@@ -204,26 +200,38 @@ export class BrokerState extends Context.Tag("@E2E/BrokerState")<
 export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
   BrokerProvider,
   {
-    prepare: (input: ProviderPrepareInput) => Effect.Effect<ProviderPrepareResult, WebhookBrokerError>
+    prepare: (options: {
+      provider: PaymentProviderTag
+      approvedCheckoutUrl: string
+      webhookUrl: string
+    }) => Effect.Effect<ProviderPrepareResult, WebhookBrokerError>
   }
 >() {
   static Default = Layer.effect(
     BrokerProvider,
     Effect.gen(function* () {
-      const ctx = yield* Effect.context<PurchaseConfigService | PaymentProvider>()
+      const ctx = yield* Effect.context<HttpClient.HttpClient>()
 
       const prepare_ = Effect.fn(
-        function* (input: ProviderPrepareInput) {
-          const prepareResult = yield* prepare(input)
+        function* (options: { provider: PaymentProviderTag; approvedCheckoutUrl: string; webhookUrl: string }) {
+          const environment = "sandbox"
+
+          const prepareResult = yield* prepare({
+            environment,
+            approvedCheckoutUrl: options.approvedCheckoutUrl,
+            webhookUrl: options.webhookUrl
+          }).pipe(Effect.provide(makeProviderLayer(options.provider)))
 
           const { string: providerPrepareChanges, secrets } = formatPrepareResult(
-            { environment: input.environment, showSecrets: false },
+            { environment, showSecrets: false },
             prepareResult
           )
 
           yield* Console.log(providerPrepareChanges)
 
-          yield* Effect.logInfo("Webhook secrets").pipe(Effect.annotateLogs(secrets))
+          if (secrets.webhook) {
+            yield* Effect.logInfo("Webhook secrets").pipe(Effect.annotateLogs(secrets))
+          }
 
           return prepareResult
         },
@@ -236,9 +244,9 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
         prepare_,
         Equivalence.make(
           (self, that) =>
-            self.environment === that.environment &&
-            self.webhookUrl === that.webhookUrl &&
-            self.approvedCheckoutUrl === that.approvedCheckoutUrl
+            self.provider === that.provider &&
+            self.approvedCheckoutUrl === that.approvedCheckoutUrl &&
+            self.webhookUrl === that.webhookUrl
         )
       )
 
@@ -246,7 +254,7 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
         prepare: prepareCache
       }
     })
-  )
+  ).pipe(Layer.provide(FetchHttpClient.layer))
 }
 
 const BrokerHttpLive = HttpApiBuilder.group(E2EBrokerApi, "broker", (handlers) =>
@@ -271,7 +279,7 @@ const BrokerHttpLive = HttpApiBuilder.group(E2EBrokerApi, "broker", (handlers) =
 
         const prepareResult = yield* brokerProvider
           .prepare({
-            environment: "sandbox",
+            provider: payload.provider,
             approvedCheckoutUrl,
             webhookUrl: brokerWebhookUrl
           })
@@ -359,7 +367,8 @@ const BrokerApiLive = HttpLayerRouter.addHttpApi(E2EBrokerApi).pipe(
 )
 
 const WebhookBrokerRouter = HttpLayerRouter.serve(Layer.mergeAll(BrokerApiLive, FaviconRoute), {
-  disableListenLog: true
+  disableListenLog: true,
+  disableLogger: true
 })
 
 const BrokerTunnelConfig = Config.all({
@@ -416,7 +425,7 @@ const forwardWebhook = (targetUrl: string, requestHeaders: Record<string, string
     catch: (cause) => new WebhookBrokerError({ message: "Failed to forward webhook", cause })
   })
 
-export const registerWebhookTarget = Effect.fn("registerWebhookTarget")(function* (input: {
+export const registerWebhookTarget = Effect.fn("registerWebhookTarget")(function* (options: {
   readonly provider: PaymentProviderTag
   readonly broker: BrokerEndpoint
   readonly runId: string
@@ -426,9 +435,9 @@ export const registerWebhookTarget = Effect.fn("registerWebhookTarget")(function
 
   return yield* brokerApi.broker.register({
     payload: {
-      provider: input.provider,
-      runId: input.runId,
-      targetUrl: `${input.baseURL}/api/webhooks/${input.provider}`
+      provider: options.provider,
+      runId: options.runId,
+      targetUrl: `${options.baseURL}/api/webhooks/${options.provider}`
     }
   })
 })
@@ -445,14 +454,14 @@ const readPaddleRunId = (body: Buffer) => {
   }
 }
 
-const renderPaddleCheckoutPage = (input: {
+const renderPaddleCheckoutPage = (options: {
   readonly provider: "paddle"
   readonly token: Redacted.Redacted<string>
 }) => `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Purchase SDK ${input.provider} Checkout</title>
+    <title>Purchase SDK ${options.provider} Checkout</title>
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   </head>
   <body>
@@ -464,7 +473,7 @@ const renderPaddleCheckoutPage = (input: {
       const country = params.get("country") || "US";
       const postal = params.get("postal") || "10001";
       Paddle.Environment.set(${JSON.stringify("sandbox")});
-      Paddle.Initialize({ token: ${JSON.stringify(Redacted.value(input.token))} });
+      Paddle.Initialize({ token: ${JSON.stringify(Redacted.value(options.token))} });
       if (transactionId) {
         Paddle.Checkout.open({
           transactionId,

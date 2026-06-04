@@ -347,4 +347,7 @@ const PublicApiRoutes = HttpLayerRouter.addHttpApi(AppApi, { openapiPath: "/api/
   )
 )
 
-export const HttpRouterLive = HttpLayerRouter.serve(PublicApiRoutes).pipe(Layer.provideMerge(SessionStore.Live))
+export const HttpRouterLive = HttpLayerRouter.serve(PublicApiRoutes, {
+  disableListenLog: true,
+  disableLogger: true
+}).pipe(Layer.provideMerge(SessionStore.Live))

@@ -7,10 +7,9 @@ import { createServer } from "node:http"
 import type { PaymentProvider, PaymentProviderTag } from "../../src/provider.ts"
 import type { BrokerEndpoint } from "../internal/types.ts"
 
-import { PurchaseConfigLayer } from "../../src/catalog/config-service.ts"
 import * as SQLite from "../../src/internal/node-sqlite-client.ts"
 import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
-import { CommercialPay, CommercialPlans, CommercialProducts } from "../commercial-catalog.ts"
+import { CommercialPay } from "../commercial-catalog.ts"
 import { TestConfig } from "../http-api/config.ts"
 import { HttpRouterLive } from "../http-api/handler.ts"
 import { EnvLayer } from "../internal/runtime.ts"
@@ -43,15 +42,9 @@ const ApplyMigrationAndSeed = ApplyMigration
 
 const DBLive = ApplyMigrationAndSeed.pipe(Layer.provideMerge(DBMemory))
 
-export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
-  const PayLive = Layer.mergeAll(
-    CommercialPay.Layer,
-    PurchaseConfigLayer({
-      plans: CommercialPlans,
-      products: CommercialProducts
-    })
-  )
+const PayLive = Layer.mergeAll(CommercialPay.Layer)
 
+export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
   return HttpRouterLive.pipe(
     Layer.provideMerge(
       Layer.unwrapEffect(
@@ -89,7 +82,7 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
             baseURL: localBaseUrl
           }).pipe(Effect.provide(webhookBrokerApiClient))
 
-          const testConfig = Layer.succeed(
+          const testConfigLayer = Layer.succeed(
             TestConfig,
             TestConfig.of({
               runId,
@@ -101,9 +94,9 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
           const publicCheckoutUrl = `${registerTarget.publicBaseURL}/${options.paymentProvider._tag}/checkout`
 
           const payLayer = PayLive.pipe(
-            Layer.provideMerge(Harness.make({})),
+            Layer.provideMerge(Harness.make({ browser: options.browser, cleanup: options.cleanup })),
             Layer.provideMerge(options.paymentProvider.layer),
-            Layer.provide(testConfig),
+            Layer.provide(testConfigLayer),
             Layer.provide(
               Layer.unwrapEffect(
                 Effect.configProviderWith((currentProvider) =>
@@ -125,7 +118,7 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
           return Layer.mergeAll(
             Layer.succeed(HttpClient.HttpClient, client),
             payLayer,
-            testConfig,
+            testConfigLayer,
             webhookBrokerApiClient
           )
         })
@@ -133,10 +126,10 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
     ),
     Layer.provideMerge(DBLive),
     Layer.provide(NodeHttpServer.layer(createServer, { port: 0, host: "127.0.0.1" })),
-    Layer.provide(EnvLayer),
     Layer.provide(NodeContext.layer),
     Layer.provide(Logger.pretty),
     Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
+    Layer.provide(EnvLayer),
     Layer.orDie
   )
 }

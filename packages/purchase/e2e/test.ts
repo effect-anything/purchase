@@ -1,24 +1,10 @@
 import { Paddle } from "@effect-x/purchase/paddle"
-import { PlatformConfigProvider } from "@effect/platform"
-import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
-import { Layer, Effect } from "effect"
-import * as path from "node:path"
+import { NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer, Logger, LogLevel } from "effect"
 
-import { Live } from "./internal/runtime.ts"
-import { BrokerServer } from "./internal/webhook-broker.ts"
+import { EnvLayer } from "./internal/runtime.ts"
+import { BrokerLive, BrokerServer } from "./internal/webhook-broker.ts"
 import { makeHttpApiTesting } from "./utils/api.ts"
-
-const repoRoot = new URL("../../../", import.meta.url).pathname
-
-const EnvFileLayer = Layer.mergeAll(
-  PlatformConfigProvider.layerDotEnv(path.join(repoRoot, ".env")),
-  PlatformConfigProvider.layerDotEnvAdd(path.join(repoRoot, ".env.local"))
-).pipe(
-  Layer.provide(NodeFileSystem.layer),
-  Layer.catchAll((error) =>
-    error._tag === "SystemError" && error.reason === "NotFound" ? Layer.empty : Layer.fail(error)
-  )
-)
 
 /**
  * Standalone broker runner for manual testing outside vitest.
@@ -27,6 +13,13 @@ const EnvFileLayer = Layer.mergeAll(
  * terminated. Useful for debugging webhook delivery without running the full
  * test suite.
  */
+
+const Live = BrokerLive.pipe(
+  Layer.provide(Logger.pretty),
+  Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
+  Layer.provide(EnvLayer),
+  Layer.orDie
+)
 
 const TestLayer = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -44,6 +37,6 @@ const TestLayer = Layer.scopedDiscard(
 
     // console.log(ctx)
   })
-)
+).pipe(Layer.provide(Live))
 
-NodeRuntime.runMain(Layer.launch(TestLayer.pipe(Layer.provideMerge(Live), Layer.provide(EnvFileLayer))))
+NodeRuntime.runMain(Layer.launch(TestLayer))
