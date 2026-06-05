@@ -12,7 +12,7 @@ import { setupPayTables } from "../../test/support/sqlite-pay-harness.ts"
 import { CommercialPay } from "../commercial-catalog.ts"
 import { TestConfig } from "../http-api/config.ts"
 import { HttpRouterLive } from "../http-api/handler.ts"
-import { EnvLayer } from "../internal/runtime.ts"
+import { DotEnvLive, makeTracingLayer } from "../internal/shared.ts"
 import { E2EBrokerApiClient, registerWebhookTarget } from "../internal/webhook-broker.ts"
 import { Harness, type HarnessOptions } from "./harness.ts"
 
@@ -34,8 +34,9 @@ const DBMemory = SQLite.layer({
 export const ApplyMigration = Layer.effectDiscard(
   Effect.gen(function* () {
     yield* SqlClient.SqlClient
+
     yield* setupPayTables
-  })
+  }).pipe(Effect.withSpan("E2E.ApplyMigration"))
 ).pipe(Layer.provide(NodeFileSystem.layer))
 
 const ApplyMigrationAndSeed = ApplyMigration
@@ -129,7 +130,8 @@ export const makeHttpApiTesting = (options: HttpApiTestingOptions) => {
     Layer.provide(NodeContext.layer),
     Layer.provide(Logger.pretty),
     Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
-    Layer.provide(EnvLayer),
+    Layer.provide(DotEnvLive),
+    Layer.provide(makeTracingLayer("testing")),
     Layer.orDie
   )
 }

@@ -25,8 +25,7 @@ export class PaddleVendorSessionState extends Schema.Class<PaddleVendorSessionSt
     })
   )
 }) {
-  static decode = Schema.decodeUnknown(PaddleVendorSessionState)
-  static decodeSync = Schema.decodeUnknownSync(PaddleVendorSessionState)
+  static JSON = Schema.parseJson(PaddleVendorSessionState)
 }
 
 const NullableString = Schema.NullOr(Schema.String)

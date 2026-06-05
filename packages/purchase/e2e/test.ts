@@ -2,7 +2,7 @@ import { Paddle } from "@effect-x/purchase/paddle"
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer, Logger, LogLevel } from "effect"
 
-import { EnvLayer } from "./internal/runtime.ts"
+import { DotEnvLive, makeTracingLayer } from "./internal/shared.ts"
 import { BrokerLive, BrokerServer } from "./internal/webhook-broker.ts"
 import { makeHttpApiTesting } from "./utils/api.ts"
 
@@ -17,7 +17,8 @@ import { makeHttpApiTesting } from "./utils/api.ts"
 const Live = BrokerLive.pipe(
   Layer.provide(Logger.pretty),
   Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
-  Layer.provide(EnvLayer),
+  Layer.provide(DotEnvLive),
+  Layer.provide(makeTracingLayer("e2e-broker")),
   Layer.orDie
 )
 

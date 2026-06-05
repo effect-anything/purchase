@@ -1,7 +1,7 @@
-import { describe, expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { describe, expect, it } from "@effect/vitest"
+import { Effect } from "effect"
 
-import { BillingPortalSession, SubscriptionChangePreview } from "../../src/core/session-schema.ts";
+import { BillingPortalSession, SubscriptionChangePreview } from "../../src/core/session-schema.ts"
 
 describe("core session schema", () => {
   it.effect("decodes a billing portal session", () =>

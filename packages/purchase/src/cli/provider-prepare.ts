@@ -2,6 +2,7 @@ import type * as Layer from "effect/Layer"
 
 import * as Command from "@effect/cli/Command"
 import * as Options from "@effect/cli/Options"
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
@@ -175,7 +176,8 @@ export const prepareCommand = Command.make(
   })
 ).pipe(
   Command.withDescription("Plan or apply provider setup such as checkout and webhook settings."),
-  Command.provide(FetchHttpClient.layer)
+  Command.provide(FetchHttpClient.layer),
+  Command.provide(NodeFileSystem.layer)
 )
 
 const providerConfigFrom = (config: PurchaseConfig, provider: "paddle" | "stripe") =>

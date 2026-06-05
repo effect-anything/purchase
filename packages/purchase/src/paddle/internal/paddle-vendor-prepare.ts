@@ -6,15 +6,13 @@ import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import * as Config from "effect/Config"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
+import { identity } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
-import fs from "node:fs"
-import path from "node:path"
 
 import type { PurchaseProviderSettings } from "../../core/config.ts"
 import type { PaymentEnvironmentTag } from "../../provider/types.ts"
 
-import { captureVendorSession } from "../../harness/paddle/session-capture.ts"
 import { failUnexpectedStatus, withProviderTransientRetry } from "../../internal/provider-http-retry.ts"
 import {
   collectPrepareChanges,
@@ -41,9 +39,9 @@ import {
   PaddleVendorOverlaySettingsData,
   PaddleVendorSaveCheckoutSettingsResponse,
   PaddleVendorSaveOverlaySettingsResponse,
-  PaddleVendorSaveStylesResponse,
-  PaddleVendorSessionState
+  PaddleVendorSaveStylesResponse
 } from "./paddle-vendor-schema.ts"
+import { PaddleVendorSession, paddleVendorUrl } from "./paddle-vendor-session.ts"
 
 interface PaddleNotificationSettingState {
   readonly id: string
@@ -60,81 +58,62 @@ interface PaddleDomainReviewState {
   readonly status: string
 }
 
-export const prepare = Effect.fn(
+export const prepare = Effect.fn("Paddle.vendorPrepare")(
   function* (options: ProviderPrepareOptions) {
     const environment = yield* Config.string("PADDLE_ENVIRONMENT").pipe(Config.map((_) => _ as PaymentEnvironmentTag))
-    const vendorHttpConfig = yield* readPaddleVendorHttpConfig
 
-    const sessionCaptureSemaphore = yield* Effect.makeSemaphore(1)
+    yield* Effect.annotateCurrentSpan({
+      provider: "paddle",
+      environment: environment
+    })
 
-    const hasConfiguredPaddleVendorSession = () =>
-      Option.isSome(vendorHttpConfig.cookie) || loadPaddleVendorSession(environment) !== undefined
+    const paddleVendorSession = yield* PaddleVendorSession
 
-    const ensurePaddleVendorSession = sessionCaptureSemaphore.withPermits(1)(
-      Effect.gen(function* () {
-        if (hasConfiguredPaddleVendorSession()) {
-          return
-        }
+    const baseClient = (yield* HttpClient.HttpClient).pipe(withProviderTransientRetry)
 
-        const config = yield* readPaddleVendorCaptureConfig(environment)
-
-        yield* captureVendorSession({
-          environment,
-          headless: config.headless,
-          credentials: config.credentials,
-          outputPath: config.outputPath
-        }).pipe(Effect.orDie)
-      })
-    )
-
-    const baseHttpClient = (yield* HttpClient.HttpClient).pipe(withProviderTransientRetry)
-
-    const vendorHttpClient = baseHttpClient.pipe(
+    const vendorClient = baseClient.pipe(
       HttpClient.mapRequestEffect(
-        Effect.fn(function* (request) {
-          const session = loadPaddleVendorSession(environment)
-          const endpoint = `${session?.vendorUrl ?? paddleVendorUrl(environment)}/graphql`
-
-          const origin = Option.getOrElse(
-            vendorHttpConfig.origin,
-            () => session?.vendorUrl ?? endpoint.replace(/\/graphql$/, "")
+        Effect.fnUntraced(function* (request) {
+          const session = yield* paddleVendorSession.load(environment)
+          const vendorBaseUrl = Option.flatMap(session, (_) => Option.fromNullable(_.vendorUrl))
+          const baseUrl = vendorBaseUrl.pipe(
+            Option.map((_) => new URL(_)),
+            Option.getOrElse(() => new URL(paddleVendorUrl(environment)))
           )
-          const referer = Option.getOrElse(vendorHttpConfig.referer, () => `${origin}/checkout-settings`)
-          const cookie = Option.getOrElse(vendorHttpConfig.cookie, () => session?.cookieHeader)
-          const xsrfToken = Option.getOrElse(vendorHttpConfig.xsrfToken, () => session?.xsrfToken)
+          const endpoint = `${baseUrl.origin}/graphql`
+          const referer = `${baseUrl.origin}/checkout-settings`
+          const cookie = Option.map(session, (_) => _.cookieHeader).pipe(Option.getOrUndefined)
+          const xsrfToken = Option.map(session, (_) => _.xsrfToken).pipe(Option.getOrUndefined)
 
           if (!cookie) {
-            return yield* Effect.dieMessage("Missing PADDLE_VENDOR_COOKIE for paddle vendor GraphQL access.")
+            return yield* Effect.dieMessage("Missing paddle vendor session for paddle vendor GraphQL access.")
           }
 
-          const mapped = request.pipe(
+          const httpClientRequest = request.pipe(
             HttpClientRequest.prependUrl(endpoint),
             HttpClientRequest.setHeader("Accept", "*/*"),
             HttpClientRequest.setHeader("Content-Type", "application/json"),
-            HttpClientRequest.setHeader("Cookie", cookie),
-            HttpClientRequest.setHeader("Origin", origin),
+            cookie ? HttpClientRequest.setHeader("Cookie", cookie) : identity,
+            HttpClientRequest.setHeader("Origin", baseUrl.origin),
             HttpClientRequest.setHeader("Referer", referer),
             HttpClientRequest.setHeader(
               "User-Agent",
-              Option.getOrElse(
-                vendorHttpConfig.userAgent,
-                () =>
-                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
-              )
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
             ),
             HttpClientRequest.setHeader("Sec-Fetch-Dest", "empty"),
             HttpClientRequest.setHeader("Sec-Fetch-Mode", "cors"),
-            HttpClientRequest.setHeader("Sec-Fetch-Site", "same-origin")
+            HttpClientRequest.setHeader("Sec-Fetch-Site", "same-origin"),
+            xsrfToken ? HttpClientRequest.setHeader("X-XSRF-Token", xsrfToken) : identity
           )
 
-          return xsrfToken ? mapped.pipe(HttpClientRequest.setHeader("X-XSRF-Token", xsrfToken)) : mapped
+          return httpClientRequest
         })
       )
     )
 
-    const restClient = baseHttpClient.pipe(
+    const restClient = baseClient.pipe(
       HttpClient.mapRequestEffect(
-        Effect.fn(function* (request) {
+        Effect.fnUntraced(function* (request) {
           const apiToken = yield* Config.string("PADDLE_API_TOKEN").pipe(Effect.orDie)
 
           return request.pipe(
@@ -146,7 +125,7 @@ export const prepare = Effect.fn(
       )
     )
 
-    const restRequest = Effect.fn(function* (request: {
+    const restRequest = Effect.fn("Paddle.restRequest")(function* (request: {
       readonly method: "GET" | "POST" | "PATCH"
       readonly path: string
       readonly body?: unknown
@@ -179,30 +158,42 @@ export const prepare = Effect.fn(
       )
     })
 
-    const vendorRequest = Effect.fn(function* (operation: {
+    const vendorRequest = (operation: {
       readonly operationName: string
       readonly variables: Record<string, unknown>
       readonly query: string
-    }) {
-      const response = yield* vendorHttpClient.post("", {
-        body: HttpBody.unsafeJson(operation)
-      })
-      const json = yield* expectJsonBody(response)
-
-      if (isRecord(json) && Array.isArray(json.errors) && json.errors.length > 0) {
-        return yield* new HttpClientError.ResponseError({
-          reason: "Decode",
-          request: response.request,
-          response,
-          description: json.errors
-            .map((error) => (isRecord(error) && typeof error.message === "string" ? error.message : String(error)))
-            .join("; ")
-            .concat(` (${operation.operationName})`)
+    }) =>
+      Effect.gen(function* () {
+        const response = yield* vendorClient.post("", {
+          body: HttpBody.unsafeJson(operation)
         })
-      }
+        const json = yield* expectJsonBody(response)
 
-      return json as { data: any; errors?: ReadonlyArray<{ message: string }> }
-    })
+        yield* Effect.annotateCurrentSpan({
+          "graphql.errors.count": isRecord(json) && Array.isArray(json.errors) ? json.errors.length : 0
+        })
+
+        if (isRecord(json) && Array.isArray(json.errors) && json.errors.length > 0) {
+          return yield* new HttpClientError.ResponseError({
+            reason: "Decode",
+            request: response.request,
+            response,
+            description: json.errors
+              .map((error) => (isRecord(error) && typeof error.message === "string" ? error.message : String(error)))
+              .join("; ")
+              .concat(` (${operation.operationName})`)
+          })
+        }
+
+        return json as { data: any; errors?: ReadonlyArray<{ message: string }> }
+      }).pipe(
+        Effect.withSpan(`Paddle.graphql.${operation.operationName}`, {
+          attributes: {
+            "graphql.operation.name": operation.operationName,
+            "graphql.variables.keys": Object.keys(operation.variables).sort().join(",")
+          }
+        })
+      )
 
     const fetchPaddleNotificationSetting = Effect.gen(function* () {
       const response = yield* restRequest({
@@ -212,12 +203,13 @@ export const prepare = Effect.fn(
 
       const entries = Array.isArray(response.data) ? response.data : []
       const settings = entries.map(decodePaddleNotificationSetting)
+
       return (
         settings.find((entry) => entry.description === paddleWebhookDescription(environment)) ??
         settings.find((entry) => entry.description.startsWith(PADDLE_WEBHOOK_DESCRIPTION_PREFIX)) ??
         settings.find((entry) => entry.description === "Purchase SDK local e2e")
       )
-    })
+    }).pipe(Effect.withSpan("Paddle.fetch-notification-setting"))
 
     const fetchPaddleApprovedDomains = Effect.gen(function* () {
       const response = yield* vendorRequest({
@@ -229,9 +221,11 @@ export const prepare = Effect.fn(
       return Array.isArray(response.data.getDomainReviews)
         ? response.data.getDomainReviews.map(decodePaddleDomainReview)
         : []
-    })
+    }).pipe(Effect.withSpan("Paddle.fetch-approved-domains"))
 
-    const submitPaddleDomainApprovalRequest = Effect.fn(function* (domain: string) {
+    const submitDomainApprovalRequest = Effect.fn("Paddle.submitDomainApprovalRequest")(function* (domain: string) {
+      yield* Effect.annotateCurrentSpan({ "checkout.domain": domain })
+
       const response = yield* vendorRequest({
         operationName: "SubmitDomainApprovalRequest",
         variables: { domain },
@@ -241,18 +235,27 @@ export const prepare = Effect.fn(
       return decodePaddleDomainReview(response.data.submitDomainApprovalRequest)
     })
 
-    const ensurePaddleApprovedCheckoutDomain = Effect.fn(function* (
+    const ensureApprovedCheckoutDomain = Effect.fn("Paddle.ensureApprovedCheckoutDomain")(function* (
       checkoutUrl: string,
       knownDomains?: ReadonlyArray<PaddleDomainReviewState> | undefined
     ) {
-      const domain = new URL(checkoutUrl).hostname
+      const url = new URL(checkoutUrl)
+      const domain = url.host
+      const origin = url.origin
+
       const current = knownDomains ?? (yield* fetchPaddleApprovedDomains)
+
+      yield* Effect.annotateCurrentSpan({
+        "checkout.url": origin,
+        "checkout.domain": domain,
+        knownDomains
+      })
 
       if (current.some((entry: PaddleDomainReviewState) => isPaddleDomainReviewApproved(entry, domain))) {
         return
       }
 
-      const submitted = yield* submitPaddleDomainApprovalRequest(domain).pipe(
+      const submitted = yield* submitDomainApprovalRequest(domain).pipe(
         Effect.catchAll((cause) =>
           fetchPaddleApprovedDomains.pipe(
             Effect.catchAll(() => Effect.fail(cause)),
@@ -264,6 +267,7 @@ export const prepare = Effect.fn(
           )
         )
       )
+
       if (isPaddleDomainReviewApproved(submitted, domain)) {
         return
       }
@@ -277,11 +281,17 @@ export const prepare = Effect.fn(
       )
     })
 
-    const upsertPaddleNotificationSetting = Effect.fn(function* (
+    const upsertNotificationSetting = Effect.fn("Paddle.upsertNotificationSetting")(function* (
       environment: PaymentEnvironmentTag,
       current: PaddleNotificationSettingState | undefined,
       webhookUrl: string
     ) {
+      yield* Effect.annotateCurrentSpan({
+        "webhook.action": current ? "update" : "create",
+        "webhook.destination.host": safeUrlHostname(webhookUrl),
+        "webhook.subscribed_events.count": PADDLE_WEBHOOK_SUBSCRIBED_EVENTS.length
+      })
+
       const body = {
         description: paddleWebhookDescription(environment),
         type: "url",
@@ -302,14 +312,20 @@ export const prepare = Effect.fn(
         return
       }
 
-      yield* restRequest({
+      return yield* restRequest({
         method: "POST",
         path: "/notification-settings",
         body
       })
     })
 
-    const fetchPaddleCurrentState = Effect.fn(function* (options: { readonly includeCheckoutDetails: boolean }) {
+    const fetchCurrentState = Effect.fn("Paddle.fetchCurrentState")(function* (options: {
+      readonly includeCheckoutDetails: boolean
+    }) {
+      yield* Effect.annotateCurrentSpan({
+        "checkout.details.include": options.includeCheckoutDetails
+      })
+
       const checkoutSettingsResponse = yield* vendorRequest({
         operationName: "GetCheckoutSettings",
         variables: {},
@@ -380,7 +396,7 @@ export const prepare = Effect.fn(
       }
     })
 
-    const applyPaddleProviderChanges = Effect.fn(function* (
+    const applyProviderChanges = Effect.fn("Paddle.applyProviderChanges")(function* (
       input: ProviderPrepareOptions,
       plan: ProviderPreparePlan,
       notificationSetting: PaddleNotificationSettingState | undefined,
@@ -388,6 +404,8 @@ export const prepare = Effect.fn(
     ) {
       const hasActionableChange = (predicate: (path: string) => boolean) =>
         plan.changes.some((change) => change.action !== "none" && predicate(change.path))
+
+      yield* Effect.annotateCurrentSpan(preparePlanSpanAttributes(plan))
 
       if (
         hasActionableChange(
@@ -398,7 +416,7 @@ export const prepare = Effect.fn(
         )
       ) {
         if (input.approvedCheckoutUrl) {
-          yield* ensurePaddleApprovedCheckoutDomain(input.approvedCheckoutUrl, approvedDomains)
+          yield* ensureApprovedCheckoutDomain(input.approvedCheckoutUrl, approvedDomains)
         }
 
         yield* Effect.gen(function* () {
@@ -441,7 +459,7 @@ export const prepare = Effect.fn(
       }
 
       if (input.webhookUrl && hasActionableChange((path) => path.startsWith("webhook."))) {
-        yield* upsertPaddleNotificationSetting(input.environment, notificationSetting, input.webhookUrl)
+        yield* upsertNotificationSetting(input.environment, notificationSetting, input.webhookUrl)
       }
     })
 
@@ -500,9 +518,18 @@ export const prepare = Effect.fn(
     const normalizedOptions = normalizePaddlePrepareOptions(options)
     const includeCheckoutDetails = normalizedOptions.checkout !== undefined
 
-    yield* ensurePaddleVendorSession
+    yield* Effect.annotateCurrentSpan({
+      dry_run: normalizedOptions.dryRun === true,
+      "checkout.details.include": includeCheckoutDetails,
+      "checkout.url.origin": normalizedOptions.approvedCheckoutUrl,
+      "webhook.destination.host": safeUrlHostname(normalizedOptions.webhookUrl)
+    })
 
-    const currentStateResult = yield* Effect.exit(fetchPaddleCurrentState({ includeCheckoutDetails }))
+    yield* paddleVendorSession.ensure(environment, { headless: false, force: true })
+
+    const currentStateResult = yield* Effect.exit(fetchCurrentState({ includeCheckoutDetails })).pipe(
+      Effect.withSpan("Paddle.load-current-state")
+    )
 
     const notificationSetting = yield* Exit.match(currentStateResult, {
       onFailure: () => fetchPaddleNotificationSetting,
@@ -527,10 +554,15 @@ export const prepare = Effect.fn(
     const plan = createPaddlePreparePlan({ ...normalizedOptions, current }, notificationSetting)
     const hasChanges = plan.changes.some((change) => change.action !== "none")
 
-    if (hasChanges && normalizedOptions.dryRun !== true && plan.status === "ready") {
-      yield* applyPaddleProviderChanges(normalizedOptions, plan, notificationSetting, approvedDomains)
+    yield* Effect.annotateCurrentSpan({
+      ...preparePlanSpanAttributes(plan),
+      has_changes: hasChanges
+    })
 
-      const verifiedState = yield* fetchPaddleCurrentState({ includeCheckoutDetails }).pipe(
+    if (hasChanges && normalizedOptions.dryRun !== true && plan.status === "ready") {
+      yield* applyProviderChanges(normalizedOptions, plan, notificationSetting, approvedDomains)
+
+      const verifiedState = yield* fetchCurrentState({ includeCheckoutDetails }).pipe(
         Effect.catchAll(() =>
           fetchPaddleNotificationSetting.pipe(
             Effect.map((verifiedNotificationSetting) => ({
@@ -541,7 +573,8 @@ export const prepare = Effect.fn(
               notificationSetting: verifiedNotificationSetting
             }))
           )
-        )
+        ),
+        Effect.withSpan("Paddle.verify-changes")
       )
 
       const verificationPlan = createPaddlePreparePlan(
@@ -570,6 +603,7 @@ export const prepare = Effect.fn(
       plan
     } satisfies ProviderPrepareResult
   },
+  Effect.provide(PaddleVendorSession.Default),
   Effect.catchTag("ParseError", Effect.die)
 )
 
@@ -676,6 +710,32 @@ const formatPaddleSecrets = (notificationSetting: PaddleNotificationSettingState
       }
     : undefined
 
+const preparePlanSpanAttributes = (plan: ProviderPreparePlan): Record<string, unknown> => {
+  const actionableChanges = plan.changes.filter((change) => change.action !== "none")
+
+  return {
+    "plan.status": plan.status,
+    "changes.total": plan.changes.length,
+    "changes.actionable": actionableChanges.length,
+    "changes.create": actionableChanges.filter((change) => change.action === "create").length,
+    "changes.update": actionableChanges.filter((change) => change.action === "update").length,
+    "changes.unsupported": actionableChanges.filter((change) => change.action === "unsupported").length,
+    "changes.paths": actionableChanges.map((change) => change.path).join(",")
+  }
+}
+
+const safeUrlHostname = (url: string | undefined) => {
+  if (!url) {
+    return undefined
+  }
+
+  try {
+    return new URL(url).hostname
+  } catch {
+    return undefined
+  }
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value)
 
@@ -692,104 +752,4 @@ const decodePaddleDomainReview = (input: unknown): PaddleDomainReviewState => {
     domain: String(input.domain),
     status: String(input.status).toLowerCase()
   }
-}
-
-export const paddleVendorUrl = (environment: PaymentEnvironmentTag) =>
-  environment === "production" ? "https://vendors.paddle.com" : "https://sandbox-vendors.paddle.com"
-
-const loadPaddleVendorSession = (environment: PaymentEnvironmentTag) => {
-  const configuredPath = process.env.PADDLE_VENDOR_SESSION_FILE
-  const filePath = configuredPath
-    ? path.resolve(process.cwd(), configuredPath)
-    : path.resolve(process.cwd(), ".purchase", `paddle-vendor-${environment}-session.json`)
-
-  if (!fs.existsSync(filePath)) {
-    return undefined
-  }
-
-  const json = JSON.parse(fs.readFileSync(filePath, "utf8"))
-  return PaddleVendorSessionState.decodeSync(json)
-}
-
-export interface PaddleVendorCaptureConfig {
-  readonly environment: "sandbox" | "production"
-  readonly headless: boolean
-  readonly outputPath: string
-  readonly credentials: {
-    readonly email: string
-    readonly password: string
-  }
-}
-
-const readPaddleVendorHttpConfig = Config.all({
-  cookie: Config.option(Config.string("PADDLE_VENDOR_COOKIE")),
-  xsrfToken: Config.option(Config.string("PADDLE_VENDOR_XSRF_TOKEN")),
-  origin: Config.option(Config.string("PADDLE_VENDOR_ORIGIN")),
-  referer: Config.option(Config.string("PADDLE_VENDOR_REFERER")),
-  userAgent: Config.option(Config.string("PADDLE_VENDOR_USER_AGENT"))
-}).pipe(Effect.orDie)
-
-export const readPaddleVendorCaptureConfig = (environment: PaymentEnvironmentTag) =>
-  Effect.gen(function* () {
-    const [vendorEmail, vendorPassword, fallbackEmail, fallbackEmailTypo, fallbackPassword, headless, sessionFile] =
-      yield* Config.all([
-        Config.option(Config.string("PADDLE_VENDOR_EMAIL")),
-        Config.option(Config.string("PADDLE_VENDOR_PASSWORD")),
-        Config.option(Config.string(environment === "production" ? "PADDLE_PRODUCTION_EMAIL" : "PADDLE_SANDBOX_EMAIL")),
-        Config.option(Config.string("PADDLE_SANBOX_EMAIL")),
-        Config.option(
-          Config.string(environment === "production" ? "PADDLE_PRODUCTION_PASSWORD" : "PADDLE_SANDBOX_PASSWORD")
-        ),
-        Config.string("PADDLE_VENDOR_HEADLESS").pipe(Config.withDefault("0")),
-        Config.option(Config.string("PADDLE_VENDOR_SESSION_FILE"))
-      ])
-
-    const email = Option.getOrElse(
-      Option.orElse(vendorEmail, () =>
-        environment === "production" ? fallbackEmail : Option.orElse(fallbackEmail, () => fallbackEmailTypo)
-      ),
-      () => ""
-    )
-    const password = Option.getOrElse(
-      Option.orElse(vendorPassword, () => fallbackPassword),
-      () => ""
-    )
-
-    if (!email || !password) {
-      return yield* Effect.dieMessage(
-        environment === "production"
-          ? "Missing Paddle vendor credentials. Set PADDLE_VENDOR_EMAIL/PADDLE_VENDOR_PASSWORD or PADDLE_PRODUCTION_EMAIL/PADDLE_PRODUCTION_PASSWORD."
-          : "Missing Paddle vendor credentials. Set PADDLE_SANDBOX_EMAIL/PADDLE_SANDBOX_PASSWORD in .env.local. PADDLE_SANBOX_EMAIL is also accepted for the email typo."
-      )
-    }
-
-    return {
-      environment,
-      headless: headless === "1",
-      outputPath: path.resolve(
-        process.cwd(),
-        Option.getOrElse(sessionFile, () => `.purchase/paddle-vendor-${environment}-session.json`)
-      ),
-      credentials: { email, password }
-    }
-  }).pipe(Effect.orDie)
-
-export const writePaddleVendorCaptureSession = (session: PaddleVendorSessionState, outputPath: string) => {
-  const sessionPath = outputPath
-
-  fs.mkdirSync(path.dirname(sessionPath), { recursive: true })
-  fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2))
-  console.log(
-    JSON.stringify(
-      {
-        saved: sessionPath,
-        environment: session.environment,
-        vendorUrl: session.vendorUrl,
-        capturedAt: session.capturedAt,
-        cookieNames: session.cookies.map((cookie) => cookie.name)
-      },
-      null,
-      2
-    )
-  )
 }

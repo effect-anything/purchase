@@ -699,6 +699,8 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const startCheckout: CommercialWorkflowService.Methods["startCheckout"] = Effect.fn(
       "CommercialWorkflowService.startCheckout"
     )(function* (input): CommercialWorkflowService.Returns<"startCheckout"> {
+      yield* Effect.annotateCurrentSpan({ customerId: input.customerId, offerId: input.offerId, provider: providerTag })
+
       const target = yield* catalogService.resolveCheckoutTarget({
         offerId: input.offerId,
         provider: providerTag
@@ -814,6 +816,8 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const cancelSubscription: CommercialWorkflowService.Methods["cancelSubscription"] = Effect.fn(
       "CommercialWorkflowService.cancelSubscription"
     )(function* (input) {
+      yield* Effect.annotateCurrentSpan({ customerId: input.customerId, agreementId: input.agreementId })
+
       const agreement = yield* requireSubscriptionAgreement({
         customerId: input.customerId,
         agreementId: input.agreementId,
@@ -1095,6 +1099,8 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const refundPurchase: (typeof CommercialWorkflowService.Service)["refundPurchase"] = Effect.fn(
       "CommercialWorkflowService.refundPurchase"
     )(function* (input) {
+      yield* Effect.annotateCurrentSpan({ agreementId: input.agreementId, customerId: input.customerId })
+
       const purchase = yield* storage.invoice
         .findFirst({
           where: [
@@ -1229,6 +1235,12 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const grantCredits: (typeof CommercialWorkflowService.Service)["grantCredits"] = Effect.fn(
       "CommercialWorkflowService.grantCredits"
     )(function* (input) {
+      yield* Effect.annotateCurrentSpan({
+        customerId: input.customerId,
+        creditKey: input.creditKey,
+        amount: input.amount
+      })
+
       if (input.amount <= 0) {
         return yield* new CommercialWorkflowConflict({
           workflow: "credits.grant",
@@ -1255,6 +1267,12 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
     const consumeCredits: CommercialWorkflowService.Methods["consumeCredits"] = Effect.fn(
       "CommercialWorkflowService.consumeCredits"
     )(function* (input): CommercialWorkflowService.Returns<"consumeCredits"> {
+      yield* Effect.annotateCurrentSpan({
+        customerId: input.customerId,
+        creditKey: input.creditKey,
+        amount: input.amount
+      })
+
       if (input.amount <= 0) {
         return yield* new CommercialWorkflowConflict({
           workflow: "credits.consume",
@@ -1363,6 +1381,8 @@ export const CommercialWorkflowServiceLayer = Layer.effect(
       const normalizedEvent = yield* payment.webhooksNormalize(rawEvent)
       const providerEventId = normalizedEvent.providerEventId
       const eventType = normalizedEvent.eventType
+
+      yield* Effect.annotateCurrentSpan({ provider: input.provider, providerEventId, eventType })
 
       const persisted = yield* workflowStore.persistWebhookReceipt({
         provider: input.provider,

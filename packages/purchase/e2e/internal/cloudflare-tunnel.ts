@@ -1,7 +1,7 @@
 /** @effect-diagnostics preferSchemaOverJson:off */
 import type { Readable } from "node:stream"
 
-import { Config, Context, Data, Effect, Layer, Option, Redacted } from "effect"
+import { Config, Context, Data, Effect, Layer, Option, Redacted, type Tracer, identity } from "effect"
 import { execFileSync, execSync, spawn, type ChildProcessByStdio } from "node:child_process"
 import { createWriteStream, existsSync, mkdirSync, readdirSync } from "node:fs"
 import { chmod } from "node:fs/promises"
@@ -30,17 +30,13 @@ interface CloudflareTunnelState {
   }
   readonly managedProcesses: Array<ManagedTunnelProcess>
   brokerEndpoint?: BrokerTunnelEndpoint | undefined
+  span?: Tracer.AnySpan | undefined
 }
 
 interface CloudflareTunnelService {
-  readonly listTunnels: () => Effect.Effect<ReadonlyArray<CloudflareTunnelSummary>, CloudflareTunnelError>
   readonly resolveBrokerEndpoint: (input: {
     readonly localBaseURL: string
   }) => Effect.Effect<BrokerTunnelEndpoint, CloudflareTunnelError>
-}
-
-interface CloudflareTunnelRuntime extends CloudflareTunnelService {
-  readonly managedProcesses: Array<ManagedTunnelProcess>
 }
 
 export class CloudflareTunnelError extends Data.TaggedError("CloudflareTunnelError")<{
@@ -49,100 +45,100 @@ export class CloudflareTunnelError extends Data.TaggedError("CloudflareTunnelErr
 }> {}
 
 const CloudflareTunnelConfig = Config.all({
-  accountId: Config.option(Config.string("CLOUDFLARE_ACCOUNT_ID")).pipe(Config.map((_) => Option.getOrUndefined(_))),
-  apiToken: Config.option(Config.redacted("CLOUDFLARE_API_TOKEN")).pipe(Config.map((_) => Option.getOrUndefined(_))),
-  devTunnelDomain: Config.option(Config.url("DEV_TUNNEL_DOMAIN")).pipe(Config.map((_) => Option.getOrUndefined(_)))
+  accountId: Config.string("CLOUDFLARE_ACCOUNT_ID").pipe(Config.withDefault(undefined)),
+  apiToken: Config.redacted("CLOUDFLARE_API_TOKEN").pipe(Config.withDefault(undefined)),
+  devTunnelDomain: Config.url("DEV_TUNNEL_DOMAIN").pipe(Config.withDefault(undefined)),
+  devTunnelName: Config.string("DEV_TUNNEL_NAME").pipe(Config.withDefault("dev-purchase-broker"))
 })
-
-const tunnelName = "dev-purchase-broker"
 
 export class CloudflareTunnel extends Context.Tag("CloudflareTunnel")<CloudflareTunnel, CloudflareTunnelService>() {
   static Default = Layer.scoped(
     CloudflareTunnel,
-    Effect.acquireRelease(
-      Effect.gen(function* () {
-        const config = yield* CloudflareTunnelConfig
+    Effect.gen(function* () {
+      const config = yield* CloudflareTunnelConfig
+      const tunnelName = config.devTunnelName
+
+      const state: CloudflareTunnelState = {
+        config,
+        managedProcesses: []
+      }
+
+      yield* Effect.addFinalizer(() =>
+        Effect.forEach(state.managedProcesses, (process) => stopProcess(process.child), {
+          discard: true,
+          concurrency: "unbounded"
+        }).pipe(Effect.withSpan("Cloudflare.cleanup"), state.span ? Effect.linkSpans(state.span) : identity)
+      )
+
+      const resolveBrokerEndpoint = Effect.fn("Cloudflare.resolveBrokerEndpoint")(function* (input: {
+        readonly localBaseURL: string
+      }) {
+        const currentSpan = yield* Effect.currentSpan.pipe(Effect.option)
 
         // Ensure cloudflared is available before spawning wrangler tunnels
         yield* ensureCloudflared
 
-        const state: CloudflareTunnelState = {
-          config,
-          managedProcesses: []
+        const existing = state.brokerEndpoint
+        if (existing) {
+          return existing
         }
 
-        const listTunnels = () =>
-          canUseManagedTunnel(state.config)
-            ? listCloudflareTunnels(state.config)
-            : Effect.succeed<ReadonlyArray<CloudflareTunnelSummary>>([])
+        state.span = Option.getOrUndefined(currentSpan)
 
-        const resolveBrokerEndpoint = Effect.fn(function* (input: { readonly localBaseURL: string }) {
-          const existing = state.brokerEndpoint
-          if (existing) {
-            return existing
-          }
-          if (!canUseManagedTunnel(state.config) || !state.config.devTunnelDomain) {
-            yield* Effect.logWarning(
-              "Managed Cloudflare tunnel requested but DEV_TUNNEL_DOMAIN is missing; falling back to Wrangler quick-start"
-            )
-            const child = yield* spawnWranglerQuickTunnel({
-              env: toWranglerEnv(state.config),
-              localBaseURL: input.localBaseURL
-            })
-            state.managedProcesses.push({ child })
-            const publicBaseURL = yield* waitForWranglerQuickTunnelPublicUrl(child)
-            yield* logQuickTunnel({
-              localBaseURL: input.localBaseURL,
-              publicBaseURL
-            })
-            const endpoint = { publicBaseURL }
-            state.brokerEndpoint = endpoint
-            return endpoint
-          }
-          const tunnel = yield* ensureCloudflareTunnel(state.config, tunnelName)
-          const publicBaseURL = toBrokerPublicBaseURL(tunnelName, state.config.devTunnelDomain)
-          const hostname = new URL(publicBaseURL).hostname
-          const localService = toWranglerTunnelTarget(input.localBaseURL)
-          yield* updateCloudflareTunnelConfiguration(state.config, {
-            tunnelId: tunnel.id,
-            hostname,
-            service: localService
-          })
-          yield* ensureCloudflareTunnelDnsRecord(state.config, {
-            tunnelId: tunnel.id,
-            hostname
-          })
-          yield* deleteCloudflareTunnelHostnameRoutes(state.config, {
-            hostname
-          })
-          const child = yield* spawnWranglerNamedTunnel({
+        if (!canUseManagedTunnel(state.config) || !state.config.devTunnelDomain) {
+          yield* Effect.logWarning(
+            "Managed Cloudflare tunnel requested but DEV_TUNNEL_DOMAIN is missing; falling back to Wrangler quick-start"
+          )
+          const child = yield* spawnWranglerQuickTunnel({
             env: toWranglerEnv(state.config),
-            tunnelId: tunnel.id
+            localBaseURL: input.localBaseURL
           })
           state.managedProcesses.push({ child })
-          yield* waitForWranglerNamedTunnelReady(child)
-          yield* logManagedTunnel({
-            tunnelId: tunnel.id,
+          const publicBaseURL = yield* waitForWranglerQuickTunnelPublicUrl(child)
+          yield* logQuickTunnel({
             localBaseURL: input.localBaseURL,
             publicBaseURL
           })
           const endpoint = { publicBaseURL }
           state.brokerEndpoint = endpoint
           return endpoint
+        }
+        const tunnel = yield* ensureTunnel(state.config, tunnelName)
+        const publicBaseURL = toBrokerPublicBaseURL(tunnelName, state.config.devTunnelDomain)
+        const hostname = new URL(publicBaseURL).hostname
+        const localService = toWranglerTunnelTarget(input.localBaseURL)
+        yield* updateTunnelConfiguration(state.config, {
+          tunnelId: tunnel.id,
+          hostname,
+          service: localService
         })
+        yield* ensureTunnelDnsRecord(state.config, {
+          tunnelId: tunnel.id,
+          hostname
+        })
+        yield* deleteTunnelHostnameRoutes(state.config, {
+          hostname
+        })
+        const child = yield* spawnWranglerNamedTunnel({
+          env: toWranglerEnv(state.config),
+          tunnelId: tunnel.id
+        })
+        state.managedProcesses.push({ child })
+        yield* waitForWranglerNamedTunnelReady(child)
+        yield* logManagedTunnel({
+          tunnelId: tunnel.id,
+          localBaseURL: input.localBaseURL,
+          publicBaseURL
+        })
+        const endpoint = { publicBaseURL }
+        state.brokerEndpoint = endpoint
+        return endpoint
+      })
 
-        return {
-          managedProcesses: state.managedProcesses,
-          listTunnels,
-          resolveBrokerEndpoint
-        } satisfies CloudflareTunnelRuntime
-      }),
-      ({ managedProcesses }) =>
-        Effect.forEach(managedProcesses, (process) => stopProcess(process.child), {
-          discard: true,
-          concurrency: "unbounded"
-        })
-    )
+      return {
+        resolveBrokerEndpoint
+      }
+    })
   )
 }
 
@@ -151,73 +147,76 @@ const canUseManagedTunnel = (config: {
   readonly apiToken?: Redacted.Redacted<string> | undefined
 }) => Boolean(config.accountId && config.apiToken)
 
-const listCloudflareTunnels = (config: {
+const listTunnels = Effect.fn("Cloudflare.listTunnels")(function* (config: {
   readonly accountId?: string | undefined
   readonly apiToken?: Redacted.Redacted<string> | undefined
-}) =>
-  cloudflareApiRequest<{
+}) {
+  const response = yield* cloudflareApiRequest<{
     readonly result?: ReadonlyArray<{
       readonly id?: string
       readonly name?: string
     }>
-  }>(config, `/accounts/${config.accountId}/cfd_tunnel`).pipe(
-    Effect.map((response) =>
-      (response.result ?? []).flatMap((tunnel) =>
-        typeof tunnel.id === "string" && typeof tunnel.name === "string"
-          ? [
-              {
-                id: tunnel.id,
-                name: tunnel.name
-              } satisfies CloudflareTunnelSummary
-            ]
-          : []
-      )
-    )
+  }>(config, `/accounts/${config.accountId}/cfd_tunnel`)
+
+  return (response.result ?? []).flatMap((tunnel) =>
+    typeof tunnel.id === "string" && typeof tunnel.name === "string"
+      ? [
+          {
+            id: tunnel.id,
+            name: tunnel.name
+          } satisfies CloudflareTunnelSummary
+        ]
+      : []
   )
+})
 
-const ensureCloudflareTunnel = (
-  config: { readonly accountId?: string | undefined; readonly apiToken?: Redacted.Redacted<string> | undefined },
+const ensureTunnel = Effect.fn("Cloudflare.ensureTunnel")(function* (
+  config: {
+    readonly accountId?: string | undefined
+    readonly apiToken?: Redacted.Redacted<string> | undefined
+  },
   name: string
-) =>
-  Effect.gen(function* () {
-    const tunnels = yield* listCloudflareTunnels(config)
-    const existing = tunnels.find((tunnel) => tunnel.name === name)
-    if (existing) {
-      return existing
+) {
+  const tunnels = yield* listTunnels(config)
+  const existing = tunnels.find((tunnel) => tunnel.name === name)
+  if (existing) {
+    return existing
+  }
+  const created = yield* cloudflareApiRequest<{
+    readonly result?: {
+      readonly id?: string
+      readonly name?: string
     }
-
-    const created = yield* cloudflareApiRequest<{
-      readonly result?: {
-        readonly id?: string
-        readonly name?: string
-      }
-    }>(config, `/accounts/${config.accountId}/cfd_tunnel`, {
-      method: "POST",
-      body: JSON.stringify({
-        config_src: "cloudflare",
-        name
-      })
+  }>(config, `/accounts/${config.accountId}/cfd_tunnel`, {
+    method: "POST",
+    body: JSON.stringify({
+      config_src: "cloudflare",
+      name
     })
-
-    if (typeof created.result?.id !== "string" || typeof created.result?.name !== "string") {
-      return yield* new CloudflareTunnelError({ message: `Cloudflare did not return a valid tunnel for ${name}` })
-    }
-
-    return {
-      id: created.result.id,
-      name: created.result.name
-    } satisfies CloudflareTunnelSummary
   })
+  if (typeof created.result?.id !== "string" || typeof created.result?.name !== "string") {
+    return yield* new CloudflareTunnelError({ message: `Cloudflare did not return a valid tunnel for ${name}` })
+  }
+  return {
+    id: created.result.id,
+    name: created.result.name
+  } satisfies CloudflareTunnelSummary
+})
 
-const updateCloudflareTunnelConfiguration = (
-  config: { readonly accountId?: string | undefined; readonly apiToken?: Redacted.Redacted<string> | undefined },
+const updateTunnelConfiguration = Effect.fn("Cloudflare.updateTunnelConfiguration")(function* (
+  config: {
+    readonly accountId?: string | undefined
+    readonly apiToken?: Redacted.Redacted<string> | undefined
+  },
   input: {
     readonly tunnelId: string
     readonly hostname: string
     readonly service: string
   }
-) =>
-  cloudflareApiRequest(config, `/accounts/${config.accountId}/cfd_tunnel/${input.tunnelId}/configurations`, {
+) {
+  yield* Effect.annotateCurrentSpan(input)
+
+  yield* cloudflareApiRequest(config, `/accounts/${config.accountId}/cfd_tunnel/${input.tunnelId}/configurations`, {
     method: "PUT",
     body: JSON.stringify({
       config: {
@@ -232,279 +231,295 @@ const updateCloudflareTunnelConfiguration = (
         ]
       }
     })
-  }).pipe(Effect.asVoid)
+  })
+})
 
-const deleteCloudflareTunnelHostnameRoutes = (
-  config: { readonly accountId?: string | undefined; readonly apiToken?: Redacted.Redacted<string> | undefined },
+const deleteTunnelHostnameRoutes = Effect.fn("Cloudflare.deleteTunnelHostnameRoutes")(function* (
+  config: {
+    readonly accountId?: string | undefined
+    readonly apiToken?: Redacted.Redacted<string> | undefined
+  },
   input: {
     readonly hostname: string
   }
-) =>
-  Effect.gen(function* () {
-    const routes = yield* cloudflareApiRequest<{
-      readonly result?: ReadonlyArray<{
-        readonly id?: string
-        readonly hostname?: string
-        readonly tunnel_id?: string
-      }>
-    }>(config, `/accounts/${config.accountId}/zerotrust/routes/hostname`)
+) {
+  yield* Effect.annotateCurrentSpan(input)
 
-    const matchingRoutes = (routes.result ?? []).filter(
-      (route) => route.hostname === input.hostname && typeof route.id === "string"
-    )
+  const routes = yield* cloudflareApiRequest<{
+    readonly result?: ReadonlyArray<{
+      readonly id?: string
+      readonly hostname?: string
+      readonly tunnel_id?: string
+    }>
+  }>(config, `/accounts/${config.accountId}/zerotrust/routes/hostname`)
+  const matchingRoutes = (routes.result ?? []).filter(
+    (route) => route.hostname === input.hostname && typeof route.id === "string"
+  )
+  yield* Effect.forEach(
+    matchingRoutes,
+    (route) =>
+      cloudflareApiRequest(config, `/accounts/${config.accountId}/zerotrust/routes/hostname/${route.id}`, {
+        method: "DELETE"
+      }).pipe(Effect.asVoid),
+    {
+      discard: true,
+      concurrency: "unbounded"
+    }
+  )
+})
 
-    yield* Effect.forEach(
-      matchingRoutes,
-      (route) =>
-        cloudflareApiRequest(config, `/accounts/${config.accountId}/zerotrust/routes/hostname/${route.id}`, {
-          method: "DELETE"
-        }).pipe(Effect.asVoid),
-      {
-        discard: true,
-        concurrency: "unbounded"
-      }
-    )
-  })
-
-const ensureCloudflareTunnelDnsRecord = (
-  config: { readonly accountId?: string | undefined; readonly apiToken?: Redacted.Redacted<string> | undefined },
+const ensureTunnelDnsRecord = Effect.fn("Cloudflare.ensureTunnelDnsRecord")(function* (
+  config: {
+    readonly accountId?: string | undefined
+    readonly apiToken?: Redacted.Redacted<string> | undefined
+  },
   input: {
     readonly tunnelId: string
     readonly hostname: string
   }
-) =>
-  Effect.gen(function* () {
-    const zone = yield* resolveZoneForHostname(config, input.hostname)
-    const target = `${input.tunnelId}.cfargotunnel.com`
-    const records = yield* cloudflareApiRequest<{
-      readonly result?: ReadonlyArray<{
-        readonly id?: string
-        readonly type?: string
-        readonly name?: string
-        readonly content?: string
-        readonly proxied?: boolean
-      }>
-    }>(config, `/zones/${zone.id}/dns_records?type=CNAME&name=${encodeURIComponent(input.hostname)}`)
+) {
+  yield* Effect.annotateCurrentSpan(input)
 
-    const existing = (records.result ?? []).find((record) => record.name === input.hostname && record.type === "CNAME")
-
-    if (existing?.content === target && existing.proxied === true) {
-      return
-    }
-
-    const body = JSON.stringify({
-      type: "CNAME",
-      name: input.hostname,
-      content: target,
-      proxied: true,
-      comment: "Dev Purchase broker tunnel"
-    })
-
-    if (typeof existing?.id === "string") {
-      yield* cloudflareApiRequest(config, `/zones/${zone.id}/dns_records/${existing.id}`, {
-        method: "PUT",
-        body
-      }).pipe(Effect.asVoid)
-      return
-    }
-
-    yield* cloudflareApiRequest(config, `/zones/${zone.id}/dns_records`, {
-      method: "POST",
+  const zone = yield* resolveZoneForHostname(config, input.hostname)
+  const target = `${input.tunnelId}.cfargotunnel.com`
+  const records = yield* cloudflareApiRequest<{
+    readonly result?: ReadonlyArray<{
+      readonly id?: string
+      readonly type?: string
+      readonly name?: string
+      readonly content?: string
+      readonly proxied?: boolean
+    }>
+  }>(config, `/zones/${zone.id}/dns_records?type=CNAME&name=${encodeURIComponent(input.hostname)}`)
+  const existing = (records.result ?? []).find((record) => record.name === input.hostname && record.type === "CNAME")
+  if (existing?.content === target && existing.proxied === true) {
+    return
+  }
+  const body = JSON.stringify({
+    type: "CNAME",
+    name: input.hostname,
+    content: target,
+    proxied: true,
+    comment: "Dev Purchase broker tunnel"
+  })
+  if (typeof existing?.id === "string") {
+    yield* cloudflareApiRequest(config, `/zones/${zone.id}/dns_records/${existing.id}`, {
+      method: "PUT",
       body
     }).pipe(Effect.asVoid)
-  })
+    return
+  }
+  yield* cloudflareApiRequest(config, `/zones/${zone.id}/dns_records`, {
+    method: "POST",
+    body
+  }).pipe(Effect.asVoid)
+})
 
-const resolveZoneForHostname = (
-  config: { readonly accountId?: string | undefined; readonly apiToken?: Redacted.Redacted<string> | undefined },
+const resolveZoneForHostname = Effect.fn("Cloudflare.resolveZoneForHostname")(function* (
+  config: {
+    readonly accountId?: string | undefined
+    readonly apiToken?: Redacted.Redacted<string> | undefined
+  },
   hostname: string
-) =>
-  Effect.gen(function* () {
-    const candidates = zoneCandidates(hostname)
+) {
+  yield* Effect.annotateCurrentSpan({ hostname })
 
-    for (const name of candidates) {
-      const zones = yield* cloudflareApiRequest<{
-        readonly result?: ReadonlyArray<{
-          readonly id?: string
-          readonly name?: string
-        }>
-      }>(config, `/zones?name=${encodeURIComponent(name)}`)
-
-      const zone = (zones.result ?? []).find((zone) => zone.name === name && typeof zone.id === "string")
-      if (zone?.id && zone.name) {
-        return { id: zone.id, name: zone.name }
-      }
+  const candidates = zoneCandidates(hostname)
+  for (const name of candidates) {
+    const zones = yield* cloudflareApiRequest<{
+      readonly result?: ReadonlyArray<{
+        readonly id?: string
+        readonly name?: string
+      }>
+    }>(config, `/zones?name=${encodeURIComponent(name)}`)
+    const zone = (zones.result ?? []).find((zone) => zone.name === name && typeof zone.id === "string")
+    if (zone?.id && zone.name) {
+      return { id: zone.id, name: zone.name }
     }
-
-    return yield* new CloudflareTunnelError({ message: `Could not find Cloudflare zone for hostname ${hostname}` })
-  })
+  }
+  return yield* new CloudflareTunnelError({ message: `Could not find Cloudflare zone for hostname ${hostname}` })
+})
 
 const cloudflareApiRequest = <A>(
   config: { readonly accountId?: string | undefined; readonly apiToken?: Redacted.Redacted<string> | undefined },
   path: string,
   init?: RequestInit | undefined
 ) =>
-  Effect.tryPromise({
-    try: async () => {
-      if (!config.accountId || !config.apiToken) {
-        throw new Error("Missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN")
-      }
-
-      const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
-        ...init,
-        headers: {
-          authorization: `Bearer ${Redacted.value(config.apiToken)}`,
-          "content-type": "application/json",
-          ...init?.headers
+  Effect.withSpan("Cloudflare.request", {
+    attributes: { path: path.replace(`/accounts/${config.accountId}`, ""), accountId: config.accountId }
+  })(
+    Effect.tryPromise({
+      try: async () => {
+        if (!config.accountId || !config.apiToken) {
+          throw new Error("Missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN")
         }
-      })
-      const json = (await response.json()) as {
-        readonly success?: boolean
-        readonly errors?: ReadonlyArray<{ readonly message?: string }>
-      } & A
 
-      if (!response.ok || json.success === false) {
-        const message = json.errors
-          ?.map((error) => error.message)
-          .filter(Boolean)
-          .join("; ")
-        throw new Error(message || `Cloudflare API returned ${response.status}`)
-      }
+        const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+          ...init,
+          headers: {
+            authorization: `Bearer ${Redacted.value(config.apiToken)}`,
+            "content-type": "application/json",
+            ...init?.headers
+          }
+        })
+        const json = (await response.json()) as {
+          readonly success?: boolean
+          readonly errors?: ReadonlyArray<{ readonly message?: string }>
+        } & A
 
-      return json
-    },
-    catch: (cause) => new CloudflareTunnelError({ message: `Cloudflare API request failed for ${path}`, cause })
-  })
+        if (!response.ok || json.success === false) {
+          const message = json.errors
+            ?.map((error) => error.message)
+            .filter(Boolean)
+            .join("; ")
+          throw new Error(message || `Cloudflare API returned ${response.status}`)
+        }
+
+        return json
+      },
+      catch: (cause) => new CloudflareTunnelError({ message: `Cloudflare API request failed for ${path}`, cause })
+    })
+  )
 
 const spawnWranglerQuickTunnel = (input: { readonly env: NodeJS.ProcessEnv; readonly localBaseURL: string }) =>
-  Effect.try({
-    try: () =>
-      spawn("pnpm", ["exec", "wrangler", "tunnel", "quick-start", toWranglerTunnelTarget(input.localBaseURL)], {
-        detached: true,
-        env: input.env,
-        stdio: ["ignore", "pipe", "pipe"]
-      }),
-    catch: (cause) =>
-      new CloudflareTunnelError({ message: "Failed to start Wrangler quick tunnel for webhook broker", cause })
-  })
+  Effect.withSpan("Cloudflare.spawnWranglerQuickTunnel")(
+    Effect.try({
+      try: () =>
+        spawn("pnpm", ["exec", "wrangler", "tunnel", "quick-start", toWranglerTunnelTarget(input.localBaseURL)], {
+          detached: true,
+          env: input.env,
+          stdio: ["ignore", "pipe", "pipe"]
+        }),
+      catch: (cause) =>
+        new CloudflareTunnelError({ message: "Failed to start Wrangler quick tunnel for webhook broker", cause })
+    })
+  )
 
 const spawnWranglerNamedTunnel = (input: { readonly env: NodeJS.ProcessEnv; readonly tunnelId: string }) =>
-  Effect.try({
-    try: () =>
-      spawn("pnpm", ["exec", "wrangler", "tunnel", "run", input.tunnelId], {
-        detached: true,
-        env: input.env,
-        stdio: ["ignore", "pipe", "pipe"]
-      }),
-    catch: (cause) => new CloudflareTunnelError({ message: `Failed to start Wrangler tunnel ${input.tunnelId}`, cause })
-  })
+  Effect.withSpan("Cloudflare.spawnWranglerNamedTunnel")(
+    Effect.try({
+      try: () =>
+        spawn("pnpm", ["exec", "wrangler", "tunnel", "run", input.tunnelId], {
+          detached: true,
+          env: input.env,
+          stdio: ["ignore", "pipe", "pipe"]
+        }),
+      catch: (cause) =>
+        new CloudflareTunnelError({ message: `Failed to start Wrangler tunnel ${input.tunnelId}`, cause })
+    })
+  )
 
 const waitForWranglerQuickTunnelPublicUrl = (
   child: ChildProcessByStdio<null, Readable, Readable>,
   timeoutMs = 120_000
 ) =>
-  Effect.tryPromise({
-    try: () =>
-      new Promise<string>((resolve, reject) => {
-        let combined = ""
-        const timer = setTimeout(() => {
-          cleanup()
-          reject(
-            new Error(
-              `Timed out waiting for webhook broker Wrangler tunnel public URL after ${timeoutMs}ms\n${summarizeOutput(combined)}`
-            )
-          )
-        }, timeoutMs)
-
-        const onChunk = (chunk: Buffer) => {
-          combined += chunk.toString()
-          const url = extractWranglerTunnelUrl(combined)
-          if (url) {
+  Effect.withSpan("Cloudflare.waitForWranglerQuickTunnelPublicUrl")(
+    Effect.tryPromise({
+      try: () =>
+        new Promise<string>((resolve, reject) => {
+          let combined = ""
+          const timer = setTimeout(() => {
             cleanup()
-            resolve(url)
-          }
-        }
-
-        const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-          cleanup()
-          reject(
-            new Error(
-              `Wrangler tunnel exited before exposing a public URL (code: ${String(code)}, signal: ${String(signal)})\n${combined}`
+            reject(
+              new Error(
+                `Timed out waiting for webhook broker Wrangler tunnel public URL after ${timeoutMs}ms\n${summarizeOutput(combined)}`
+              )
             )
-          )
-        }
+          }, timeoutMs)
 
-        const cleanup = () => {
-          clearTimeout(timer)
-          child.stdout.off("data", onChunk)
-          child.stderr.off("data", onChunk)
-          child.off("exit", onExit)
-          child.off("error", onError)
-        }
+          const onChunk = (chunk: Buffer) => {
+            combined += chunk.toString()
+            const url = extractWranglerTunnelUrl(combined)
+            if (url) {
+              cleanup()
+              resolve(url)
+            }
+          }
 
-        const onError = (cause: Error) => {
-          cleanup()
-          reject(cause)
-        }
+          const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+            cleanup()
+            reject(
+              new Error(
+                `Wrangler tunnel exited before exposing a public URL (code: ${String(code)}, signal: ${String(signal)})\n${combined}`
+              )
+            )
+          }
 
-        child.stdout.on("data", onChunk)
-        child.stderr.on("data", onChunk)
-        child.on("exit", onExit)
-        child.on("error", onError)
-      }),
-    catch: (cause) => new CloudflareTunnelError({ message: "Failed to read Wrangler tunnel output", cause })
-  })
+          const cleanup = () => {
+            clearTimeout(timer)
+            child.stdout.off("data", onChunk)
+            child.stderr.off("data", onChunk)
+            child.off("exit", onExit)
+            child.off("error", onError)
+          }
+
+          const onError = (cause: Error) => {
+            cleanup()
+            reject(cause)
+          }
+
+          child.stdout.on("data", onChunk)
+          child.stderr.on("data", onChunk)
+          child.on("exit", onExit)
+          child.on("error", onError)
+        }),
+      catch: (cause) => new CloudflareTunnelError({ message: "Failed to read Wrangler tunnel output", cause })
+    })
+  )
 
 const waitForWranglerNamedTunnelReady = (child: ChildProcessByStdio<null, Readable, Readable>, timeoutMs = 120_000) =>
-  Effect.tryPromise({
-    try: () =>
-      new Promise<void>((resolve, reject) => {
-        let combined = ""
-        const timer = setTimeout(() => {
-          cleanup()
-          reject(
-            new Error(
-              `Timed out waiting for webhook broker named Wrangler tunnel after ${timeoutMs}ms\n${summarizeOutput(combined)}`
-            )
-          )
-        }, timeoutMs)
-
-        const onChunk = (chunk: Buffer) => {
-          combined += chunk.toString()
-          if (isWranglerNamedTunnelReady(combined)) {
+  Effect.withSpan("Cloudflare.waitForWranglerNamedTunnelReady")(
+    Effect.tryPromise({
+      try: () =>
+        new Promise<void>((resolve, reject) => {
+          let combined = ""
+          const timer = setTimeout(() => {
             cleanup()
-            resolve()
-          }
-        }
-
-        const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-          cleanup()
-          reject(
-            new Error(
-              `Wrangler named tunnel exited before it was ready (code: ${String(code)}, signal: ${String(signal)})\n${combined}`
+            reject(
+              new Error(
+                `Timed out waiting for webhook broker named Wrangler tunnel after ${timeoutMs}ms\n${summarizeOutput(combined)}`
+              )
             )
-          )
-        }
+          }, timeoutMs)
 
-        const cleanup = () => {
-          clearTimeout(timer)
-          child.stdout.off("data", onChunk)
-          child.stderr.off("data", onChunk)
-          child.off("exit", onExit)
-          child.off("error", onError)
-        }
+          const onChunk = (chunk: Buffer) => {
+            combined += chunk.toString()
+            if (isWranglerNamedTunnelReady(combined)) {
+              cleanup()
+              resolve()
+            }
+          }
 
-        const onError = (cause: Error) => {
-          cleanup()
-          reject(cause)
-        }
+          const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+            cleanup()
+            reject(
+              new Error(
+                `Wrangler named tunnel exited before it was ready (code: ${String(code)}, signal: ${String(signal)})\n${combined}`
+              )
+            )
+          }
 
-        child.stdout.on("data", onChunk)
-        child.stderr.on("data", onChunk)
-        child.on("exit", onExit)
-        child.on("error", onError)
-      }),
-    catch: (cause) => new CloudflareTunnelError({ message: "Failed to read Wrangler named tunnel output", cause })
-  })
+          const cleanup = () => {
+            clearTimeout(timer)
+            child.stdout.off("data", onChunk)
+            child.stderr.off("data", onChunk)
+            child.off("exit", onExit)
+            child.off("error", onError)
+          }
+
+          const onError = (cause: Error) => {
+            cleanup()
+            reject(cause)
+          }
+
+          child.stdout.on("data", onChunk)
+          child.stderr.on("data", onChunk)
+          child.on("exit", onExit)
+          child.on("error", onError)
+        }),
+      catch: (cause) => new CloudflareTunnelError({ message: "Failed to read Wrangler named tunnel output", cause })
+    })
+  )
 
 const extractWranglerTunnelUrl = (output: string) => {
   const matches = output.matchAll(/https:\/\/([a-z0-9-]+)\.trycloudflare\.com/gi)
@@ -531,7 +546,10 @@ const stopProcess = (child: ChildProcessByStdio<null, Readable, Readable>) =>
     }
     child.stdout.destroy()
     child.stderr.destroy()
-  }).pipe(Effect.catchAllDefect(() => Effect.void))
+  }).pipe(
+    Effect.catchAllDefect(() => Effect.void),
+    Effect.withSpan("Cloudflare.stopProcess")
+  )
 
 const summarizeOutput = (output: string) => output.trim().split("\n").slice(-40).join("\n")
 
@@ -601,53 +619,55 @@ const downloadCloudflaredUrl = (): string => {
   return `https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe`
 }
 
-const ensureCloudflared = Effect.gen(function* () {
-  // 1. Already in PATH?
-  const inPath = findCloudflaredInPath()
-  if (inPath) {
-    yield* Effect.logDebug(`cloudflared found in PATH: ${inPath}`)
-    return
-  }
+const ensureCloudflared = Effect.withSpan("Cloudflare.ensureCloudflared")(
+  Effect.gen(function* () {
+    // 1. Already in PATH?
+    const inPath = findCloudflaredInPath()
+    if (inPath) {
+      yield* Effect.logDebug(`cloudflared found in PATH: ${inPath}`)
+      return
+    }
 
-  // 2. In wrangler cache?
-  const inCache = findCloudflaredInWranglerCache()
-  if (inCache) {
-    resolvedCloudflaredDir = dirname(inCache)
-    yield* Effect.logDebug(`cloudflared found in wrangler cache: ${inCache}`)
-    return
-  }
+    // 2. In wrangler cache?
+    const inCache = findCloudflaredInWranglerCache()
+    if (inCache) {
+      resolvedCloudflaredDir = dirname(inCache)
+      yield* Effect.logDebug(`cloudflared found in wrangler cache: ${inCache}`)
+      return
+    }
 
-  // 3. Download from GitHub releases
-  yield* Effect.logInfo("cloudflared not found; downloading from GitHub releases...")
-  const url = downloadCloudflaredUrl()
-  const destDir = join(tmpdir(), "cloudflared-download")
-  mkdirSync(destDir, { recursive: true })
+    // 3. Download from GitHub releases
+    yield* Effect.logInfo("cloudflared not found; downloading from GitHub releases...")
+    const url = downloadCloudflaredUrl()
+    const destDir = join(tmpdir(), "cloudflared-download")
+    mkdirSync(destDir, { recursive: true })
 
-  yield* Effect.tryPromise({
-    try: async () => {
-      const response = await fetch(url, { redirect: "follow" })
-      if (!response.ok || !response.body) {
-        throw new Error(`Failed to download cloudflared: ${response.status} ${response.statusText}`)
-      }
+    yield* Effect.tryPromise({
+      try: async () => {
+        const response = await fetch(url, { redirect: "follow" })
+        if (!response.ok || !response.body) {
+          throw new Error(`Failed to download cloudflared: ${response.status} ${response.statusText}`)
+        }
 
-      if (url.endsWith(".tgz")) {
-        const tarPath = join(destDir, "cloudflared.tgz")
-        const fileStream = createWriteStream(tarPath)
-        await pipeline(response.body, fileStream)
-        execSync(`tar -xzf ${tarPath} -C ${destDir}`, { stdio: "ignore" })
-      } else {
-        const binPath = join(destDir, cloudflaredBinaryName)
-        const fileStream = createWriteStream(binPath)
-        await pipeline(response.body, fileStream)
-        await chmod(binPath, 0o755)
-      }
-    },
-    catch: (cause) => new CloudflareTunnelError({ message: "Failed to download cloudflared", cause })
+        if (url.endsWith(".tgz")) {
+          const tarPath = join(destDir, "cloudflared.tgz")
+          const fileStream = createWriteStream(tarPath)
+          await pipeline(response.body, fileStream)
+          execSync(`tar -xzf ${tarPath} -C ${destDir}`, { stdio: "ignore" })
+        } else {
+          const binPath = join(destDir, cloudflaredBinaryName)
+          const fileStream = createWriteStream(binPath)
+          await pipeline(response.body, fileStream)
+          await chmod(binPath, 0o755)
+        }
+      },
+      catch: (cause) => new CloudflareTunnelError({ message: "Failed to download cloudflared", cause })
+    }).pipe(Effect.withSpan("Cloudflare.downloadCloudflared", { attributes: { url, destDir } }))
+
+    resolvedCloudflaredDir = destDir
+    yield* Effect.logInfo(`cloudflared downloaded to ${destDir}`)
   })
-
-  resolvedCloudflaredDir = destDir
-  yield* Effect.logInfo(`cloudflared downloaded to ${destDir}`)
-})
+)
 
 const toWranglerEnv = (config: {
   readonly accountId?: string | undefined

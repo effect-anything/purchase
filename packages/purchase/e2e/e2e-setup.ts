@@ -2,7 +2,7 @@ import type { ProvidedContext } from "vitest"
 
 import { Effect, Layer, ManagedRuntime, Logger, LogLevel } from "effect"
 
-import { EnvLayer } from "./internal/runtime.ts"
+import { DotEnvLive, makeTracingLayer } from "./internal/shared.ts"
 import { BrokerLive, BrokerServer } from "./internal/webhook-broker.ts"
 
 /**
@@ -27,7 +27,8 @@ export default async function setup(project: {
   const Live = BrokerLive.pipe(
     Layer.provide(Logger.pretty),
     Layer.provide(Logger.minimumLogLevel(LogLevel.All)),
-    Layer.provide(EnvLayer),
+    Layer.provide(makeTracingLayer("e2e-broker")),
+    Layer.provide(DotEnvLive),
     Layer.orDie
   )
 

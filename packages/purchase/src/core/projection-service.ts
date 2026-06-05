@@ -381,6 +381,8 @@ export const CommercialProjectionServiceLayer = Layer.effect(
     const refreshCustomerSnapshot: CommercialProjectionService.Methods["refreshCustomerSnapshot"] = Effect.fn(
       "CommercialProjectionService.refreshCustomerSnapshot"
     )(function* (input) {
+      yield* Effect.annotateCurrentSpan({ customerId: input.customerId })
+
       const catalog = yield* catalogService.getCatalog()
       const [subscriptions, purchases, wallets] = yield* Effect.all([
         listSubscriptions({ customerId: input.customerId }),
@@ -400,6 +402,8 @@ export const CommercialProjectionServiceLayer = Layer.effect(
     const computeCustomerEntitlements: CommercialProjectionService.Methods["computeCustomerEntitlements"] = Effect.fn(
       "CommercialProjectionService.computeCustomerEntitlements"
     )(function* ({ customerSnapshot }) {
+      yield* Effect.annotateCurrentSpan({ activeOfferIds: customerSnapshot.activeOfferIds.length })
+
       const catalog = yield* catalogService.getCatalog()
 
       return buildCustomerEntitlementSnapshot({

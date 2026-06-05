@@ -244,7 +244,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
         })
 
         return mapCustomer(updated)
-      })
+      }).pipe(Effect.withSpan("WorkflowStore.attachProviderCustomer"))
 
     const findCheckoutIntentByProviderSession = ({
       providerCheckoutSessionId
@@ -282,7 +282,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             updatedAt: toStorageUtc(new Date())
           }
         })
-        .pipe(Effect.asVoid, Effect.orDie)
+        .pipe(Effect.asVoid, Effect.orDie, Effect.withSpan("WorkflowStore.persistCheckoutIntent"))
 
     const markCheckoutIntentStatus = ({
       providerCheckoutSessionId,
@@ -299,7 +299,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             updatedAt: toStorageUtc(new Date())
           }
         })
-        .pipe(Effect.asVoid, Effect.orDie)
+        .pipe(Effect.asVoid, Effect.orDie, Effect.withSpan("WorkflowStore.markCheckoutIntentStatus"))
 
     const persistWebhookReceipt = (input: {
       readonly provider: PaymentProviderTag
@@ -334,7 +334,8 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
               onSome: (): Effect.Effect<{ readonly duplicate: boolean }> => Effect.succeed({ duplicate: true as const })
             })
           ),
-          Effect.orDie
+          Effect.orDie,
+          Effect.withSpan("WorkflowStore.persistWebhookReceipt")
         )
 
     const markWebhookProcessed = ({
@@ -356,7 +357,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             processedAt: new Date()
           }
         })
-        .pipe(Effect.asVoid, Effect.orDie)
+        .pipe(Effect.asVoid, Effect.orDie, Effect.withSpan("WorkflowStore.markWebhookProcessed"))
 
     const markWebhookFailed = ({
       provider,
@@ -379,7 +380,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             processedAt: new Date()
           }
         })
-        .pipe(Effect.asVoid, Effect.orDie)
+        .pipe(Effect.asVoid, Effect.orDie, Effect.withSpan("WorkflowStore.markWebhookFailed"))
 
     const persistCommercialEvents = ({ events }: { readonly events: ReadonlyArray<CommercialEventType> }) =>
       Effect.forEach(
@@ -410,7 +411,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
               .pipe(Effect.orDie)
           }),
         { concurrency: 1, discard: true }
-      )
+      ).pipe(Effect.withSpan("WorkflowStore.persistCommercialEvents"))
 
     const findProviderRef = ({
       provider,
@@ -463,7 +464,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             }
           })
           .pipe(Effect.orDie)
-      })
+      }).pipe(Effect.withSpan("WorkflowStore.upsertProviderRef"))
 
     const upsertSubscriptionProjection = (input: CommercialSubscriptionProjectionInput) =>
       Effect.gen(function* () {
@@ -517,7 +518,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             kind: "subscription"
           })
         }
-      })
+      }).pipe(Effect.withSpan("WorkflowStore.upsertSubscriptionProjection"))
 
     const upsertInvoiceProjection = (input: CommercialInvoiceProjectionInput) =>
       Effect.gen(function* () {
@@ -558,7 +559,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             }
           })
           .pipe(Effect.orDie)
-      })
+      }).pipe(Effect.withSpan("WorkflowStore.upsertInvoiceProjection"))
 
     const recordCreditLedger = (input: CommercialCreditLedgerInput) =>
       Effect.gen(function* () {
@@ -588,7 +589,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
           .pipe(Effect.orDie)
 
         return { duplicate: false as const, row }
-      })
+      }).pipe(Effect.withSpan("WorkflowStore.recordCreditLedger"))
 
     const listCreditLedger = ({
       customerId,
@@ -655,7 +656,7 @@ export const CommercialWorkflowStoreLayer = Layer.effect(
             }),
           { concurrency: 1, discard: true }
         )
-      })
+      }).pipe(Effect.withSpan("WorkflowStore.replaceEntitlements"))
 
     return CommercialWorkflowStore.of({
       getCustomerProfile,

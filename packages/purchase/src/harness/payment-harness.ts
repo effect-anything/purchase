@@ -48,11 +48,10 @@ export class PaymentHarness extends Context.Tag("@effect-x/purchase/PaymentHarne
     Layer.scoped(
       PaymentHarness,
       Effect.gen(function* () {
-        const defaultBrowserOptions: Required<PaymentTestBrowserOptions> = {
-          headless: false,
-          userAgent: undefined
+        const browser: Required<PaymentTestBrowserOptions> = {
+          headless: input.browser?.headless ?? false,
+          userAgent: input.browser?.userAgent ?? ""
         }
-        const browser = { ...defaultBrowserOptions, ...input.browser }
 
         const provider = yield* PaymentProvider
         const trackedPayments = yield* Ref.make<ReadonlyArray<TrackedPayment>>([])
@@ -65,11 +64,17 @@ export class PaymentHarness extends Context.Tag("@effect-x/purchase/PaymentHarne
         })
 
         if (cleanup) {
-          const cleanupPayments = Effect.fn(function* (
+          const cleanupPayments = Effect.fn("PaymentHarness.cleanup-payments")(function* (
             provider: PaymentProvider.Methods,
             payments: ReadonlyArray<TrackedPayment>,
             options: Required<PaymentHarnessCleanupOptions>
           ) {
+            yield* Effect.annotateCurrentSpan({
+              "payments.count": payments.length,
+              cancel_subscriptions: options.cancelSubscriptions,
+              refund_transactions: options.refundTransactions
+            })
+
             if (options.cancelSubscriptions) {
               const emails = [
                 ...new Set(
@@ -133,6 +138,7 @@ export class PaymentHarness extends Context.Tag("@effect-x/purchase/PaymentHarne
 
               yield* cleanupPayments(provider, payments, cleanup)
             }).pipe(
+              Effect.withSpan("PaymentHarness.cleanup-finalizer"),
               Effect.catchAllCause((cause) =>
                 Effect.logWarning("Failed to clean payment harness resources", { provider: provider._tag, cause })
               )
@@ -140,9 +146,19 @@ export class PaymentHarness extends Context.Tag("@effect-x/purchase/PaymentHarne
           )
         }
 
-        const payCheckout = Effect.fn(function* (
+        const payCheckout = Effect.fn("PaymentHarness.payCheckout")(function* (
           args: PayCheckoutInput
         ): Effect.fn.Return<ProviderPaymentResult, PaymentTestError> {
+          yield* Effect.annotateCurrentSpan({
+            provider: driver.provider,
+            "checkout.provider": args.checkout.provider,
+            "checkout.session_id": args.checkout.sessionId,
+            "checkout.mode": args.mode,
+            "checkout.url.host": safeUrlHostname(args.checkout.url),
+            "customer.email.configured": args.customer?.email !== undefined,
+            "payment_method.configured": args.paymentMethod !== undefined
+          })
+
           if (args.checkout.provider && args.checkout.provider !== driver.provider) {
             return yield* new PaymentTestError({
               message: `Checkout provider "${args.checkout.provider}" does not match harness provider "${driver.provider}"`
@@ -154,14 +170,20 @@ export class PaymentHarness extends Context.Tag("@effect-x/purchase/PaymentHarne
             return yield* new PaymentTestError({ message: "Checkout did not include a URL" })
           }
 
-          yield* driver.completeCheckout({
-            checkoutUrl,
-            mode: args.mode,
-            customer: args.customer,
-            paymentMethod: args.paymentMethod
-          })
+          yield* driver
+            .completeCheckout({
+              checkoutUrl,
+              mode: args.mode,
+              customer: args.customer,
+              paymentMethod: args.paymentMethod
+            })
+            .pipe(Effect.withSpan("PaymentHarness.payCheckout.complete-checkout"))
 
-          const transaction = yield* driver.waitForTransaction({ transactionId: args.checkout.sessionId })
+          const transaction = yield* driver.waitForTransaction({ transactionId: args.checkout.sessionId }).pipe(
+            Effect.withSpan("PaymentHarness.payCheckout.wait-for-transaction", {
+              attributes: { "transaction.id": args.checkout.sessionId }
+            })
+          )
 
           yield* Ref.update(trackedPayments, (payments) => [
             ...payments,
@@ -225,3 +247,15 @@ const makeUnsupportedDriver = (provider: PaymentProviderTag): PaymentTestDriver 
 
 const unsupportedProvider = (provider: PaymentProviderTag, operation: string) =>
   new PaymentTestError({ message: `Payment test provider "${provider}" does not support ${operation} yet` })
+
+const safeUrlHostname = (url: string | undefined) => {
+  if (!url) {
+    return undefined
+  }
+
+  try {
+    return new URL(url).hostname
+  } catch {
+    return undefined
+  }
+}

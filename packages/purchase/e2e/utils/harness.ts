@@ -74,10 +74,14 @@ export class Harness extends Context.Tag("@E2E/Harness")<
         const sql = yield* SqlClient.SqlClient
         const { runId } = yield* TestConfig
 
-        const createCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
+        const createCustomerAccount = Effect.fn("Harness.createCustomerAccount")(function* (
+          input?: SignUpInput | undefined
+        ) {
           const email = input?.email ?? `e2e-${Date.now()}@example.com`
           const password = input?.password ?? "password123456"
           const name = input?.name ?? "Purchase SDK E2E User"
+
+          yield* Effect.annotateCurrentSpan({ email, runId })
 
           const [{ user }, response] = yield* apiClient.auth.signUpEmail({
             payload: {
@@ -93,7 +97,9 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           return { id: user.id, email: user.name, name: user.name, password, cookie }
         }, Effect.orDie)
 
-        const getAccount = Effect.fn(function* (session: PublicAuthSession) {
+        const getAccount = Effect.fn("Harness.getAccount")(function* (session: PublicAuthSession) {
+          yield* Effect.annotateCurrentSpan({ customerId: session.id, runId })
+
           return yield* apiClient.account
             .get()
             .pipe(
@@ -101,22 +107,26 @@ export class Harness extends Context.Tag("@E2E/Harness")<
             )
         }, Effect.orDie)
 
-        const openFreshCustomerAccount = Effect.fn(function* (input?: SignUpInput | undefined) {
+        const openFreshCustomerAccount = Effect.fn("Harness.openFreshCustomerAccount")(function* (
+          input?: SignUpInput | undefined
+        ) {
           const session = yield* createCustomerAccount(input)
           const account = yield* getAccount(session)
 
           return { session, account } satisfies CustomerAccount
         })
 
-        const getCatalog = Effect.fn(function* () {
+        const getCatalog = Effect.fn("Harness.getCatalog")(function* () {
           return yield* apiClient.catalog.get()
         })
 
-        const waitForAccount = Effect.fn(function* (input: {
+        const waitForAccount = Effect.fn("Harness.waitForAccount")(function* (input: {
           readonly session: PublicAuthSession
           readonly until: (account: AccountOverview) => boolean
           readonly timeoutMessage: string
         }) {
+          yield* Effect.annotateCurrentSpan({ customerId: input.session.id, runId })
+
           let latest: AccountOverview | undefined
 
           return yield* getAccount(input.session).pipe(
@@ -132,7 +142,6 @@ export class Harness extends Context.Tag("@E2E/Harness")<
                 })
               )
             }),
-            Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
             Effect.mapError(
               (cause) =>
                 new E2EHarnessError({
@@ -143,10 +152,12 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           )
         })
 
-        const waitForActiveSubscription = Effect.fn(function* (input: {
+        const waitForActiveSubscription = Effect.fn("Harness.waitForActiveSubscription")(function* (input: {
           readonly session: PublicAuthSession
           readonly offerId: string
         }) {
+          yield* Effect.annotateCurrentSpan({ offerId: input.offerId, runId })
+
           return yield* waitForAccount({
             session: input.session,
             timeoutMessage: `Account did not expose an active subscription for offer "${input.offerId}"`,
@@ -160,10 +171,12 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           })
         })
 
-        const checkout = Effect.fn(function* (input: {
+        const checkout = Effect.fn("Harness.checkout")(function* (input: {
           readonly session: PublicAuthSession
           readonly offerId: string
         }) {
+          yield* Effect.annotateCurrentSpan({ offerId: input.offerId, runId })
+
           return yield* apiClient.checkout.start({ payload: { offerId: input.offerId, runId } }).pipe(
             Effect.provideService(FetchHttpClient.RequestInit, {
               headers: new Headers({ cookie: input.session.cookie })
@@ -172,7 +185,11 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           )
         })
 
-        const startSubscriptionSignupCheckout = Effect.fn(function* (input: { readonly offerId: string }) {
+        const startSubscriptionSignupCheckout = Effect.fn("Harness.startSubscriptionSignupCheckout")(function* (input: {
+          readonly offerId: string
+        }) {
+          yield* Effect.annotateCurrentSpan({ offerId: input.offerId, runId })
+
           const session = yield* createCustomerAccount()
           const checkoutResult = yield* checkout({
             session,
@@ -188,11 +205,13 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           } satisfies CheckoutAttemptResult
         })
 
-        const consumeCredits = Effect.fn(function* (input: {
+        const consumeCredits = Effect.fn("Harness.consumeCredits")(function* (input: {
           readonly session: PublicAuthSession
           readonly amount: number
           readonly reason?: string | undefined
         }) {
+          yield* Effect.annotateCurrentSpan({ amount: input.amount, reason: input.reason, runId })
+
           return yield* apiClient.credits.consume({ payload: { amount: input.amount, reason: input.reason } }).pipe(
             Effect.provideService(FetchHttpClient.RequestInit, {
               headers: new Headers({ cookie: input.session.cookie })
@@ -201,7 +220,7 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           )
         })
 
-        const getCustomerId = Effect.fn(function* (session: PublicAuthSession) {
+        const getCustomerId = Effect.fn("Harness.getCustomerId")(function* (session: PublicAuthSession) {
           const account = yield* getAccount(session)
           const customerId = account.user?.id
 
@@ -212,16 +231,18 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           return customerId
         })
 
-        const getDurableState = Effect.fn(function* (session: PublicAuthSession) {
+        const getDurableState = Effect.fn("Harness.getDurableState")(function* (session: PublicAuthSession) {
           const customerId = yield* getCustomerId(session)
 
           return yield* getDurableStateForCustomer(sql, customerId)
         })
 
-        const waitForDurableSubscription = Effect.fn(function* (input: {
+        const waitForDurableSubscription = Effect.fn("Harness.waitForDurableSubscription")(function* (input: {
           readonly session: PublicAuthSession
           readonly offerId: string
         }) {
+          yield* Effect.annotateCurrentSpan({ offerId: input.offerId, runId })
+
           const customerId = yield* getCustomerId(input.session)
           let latest: DurableCommercialState | undefined
 
@@ -236,7 +257,6 @@ export class Harness extends Context.Tag("@E2E/Harness")<
                     })
                   )
             ),
-            Effect.retry(Schedule.spaced(Duration.seconds(1)).pipe(Schedule.compose(Schedule.recurs(60)))),
             Effect.mapError(
               (cause) =>
                 new E2EHarnessError({
@@ -247,7 +267,11 @@ export class Harness extends Context.Tag("@E2E/Harness")<
           )
         })
 
-        const purchaseSubscription = Effect.fn(function* (input: SubscriptionPurchaseInput) {
+        const purchaseSubscription = Effect.fn("Harness.purchaseSubscription")(function* (
+          input: SubscriptionPurchaseInput
+        ) {
+          yield* Effect.annotateCurrentSpan({ offerId: input.offerId, customerEmail: input.session.email, runId })
+
           const checkoutResult = yield* checkout({ session: input.session, offerId: input.offerId })
 
           if (!checkoutResult.url) {
@@ -317,7 +341,7 @@ export class Harness extends Context.Tag("@E2E/Harness")<
 const AppApiClient_ = HttpApiClient.make(AppApi, {
   transformClient: flow(
     HttpClient.mapRequestInputEffect(
-      Effect.fn(function* (request) {
+      Effect.fn("E2E.prepareRequest")(function* (request) {
         const baseURL = yield* Effect.serviceOption(TestConfig).pipe(
           Effect.flatMap(Option.map((_) => _.baseURL)),
           Effect.orDie
@@ -518,7 +542,12 @@ const summarizeAccount = (account: AccountOverview | undefined) => ({
   events: account?.activity?.events ?? []
 })
 
-const getDurableStateForCustomer = Effect.fn(function* (sql: SqlClient.SqlClient, customerId: string) {
+const getDurableStateForCustomer = Effect.fn("Harness.getDurableStateForCustomer")(function* (
+  sql: SqlClient.SqlClient,
+  customerId: string
+) {
+  yield* Effect.annotateCurrentSpan({ customerId })
+
   const [
     checkoutIntents,
     webhookReceipts,

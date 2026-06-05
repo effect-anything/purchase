@@ -2,9 +2,11 @@ import type * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 
 import * as HttpClient from "@effect/platform/HttpClient"
 import * as HttpClientError from "@effect/platform/HttpClientError"
+import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
+import * as Schedule from "effect/Schedule"
 
-const transientRetryStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504])
+const transientResponseStatuses = new Set([408, 429, 500, 502, 503, 504])
 
 const maxRetryAfterMillis = 30_000
 const maxBackoffMillis = 5_000
@@ -39,27 +41,22 @@ export const providerRetryDelayMillis = (attempt: number, error: HttpClientError
   return Math.min(2 ** attempt * 250, maxBackoffMillis)
 }
 
-const isTransientProviderError = (error: HttpClientError.HttpClientError) =>
-  error._tag === "RequestError" || (error._tag === "ResponseError" && transientRetryStatuses.has(error.response.status))
+const isTransientResponse = (response: HttpClientResponse.HttpClientResponse) =>
+  transientResponseStatuses.has(response.status)
 
-export const retryProviderTransient = <A, E extends HttpClientError.HttpClientError, R>(
-  effect: Effect.Effect<A, E, R>
-) =>
-  Effect.gen(function* () {
-    let attempt = 0
-    while (true) {
-      const result = yield* Effect.either(effect)
-      if (result._tag === "Right") {
-        return result.right
-      }
+const isTransientHttpError = (error: unknown) =>
+  HttpClientError.isHttpClientError(error) &&
+  ((error._tag === "RequestError" && error.reason === "Transport") ||
+    (error._tag === "ResponseError" && isTransientResponse(error.response)))
 
-      if (attempt >= retryAttempts || !isTransientProviderError(result.left)) {
-        return yield* Effect.fail(result.left)
-      }
+const isTransientError = (error: unknown) => Cause.isTimeoutException(error) || isTransientHttpError(error)
 
-      yield* Effect.sleep(providerRetryDelayMillis(attempt, result.left))
-      attempt += 1
-    }
+export const retryProviderTransient = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.retry(effect, {
+    while: isTransientError,
+    schedule: Schedule.recurs(retryAttempts).pipe(
+      Schedule.addDelay((attempt) => Math.min(2 ** attempt * 250, maxBackoffMillis))
+    )
   })
 
 export const withProviderTransientRetry = <E extends HttpClientError.HttpClientError, R>(

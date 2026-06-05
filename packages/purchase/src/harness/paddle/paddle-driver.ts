@@ -20,15 +20,33 @@ export const makePaddleTestDriver = (input: {
   readonly provider: PaymentProvider.Methods
   readonly browser?: Required<PaymentTestBrowserOptions> | undefined
 }): PaymentTestDriver => {
-  const completeCheckout = Effect.fn(
+  const completeCheckout = Effect.fn("PaddleTestDriver.completeCheckout")(
     function* (args: CompleteProviderCheckoutInput) {
+      yield* Effect.annotateCurrentSpan({
+        provider: "paddle",
+        "paddle.checkout.mode": args.mode,
+        "paddle.checkout.url.host": safeUrlHostname(args.checkoutUrl),
+        "paddle.checkout.transaction_id": readPaddleTransactionId(args.checkoutUrl),
+        "paddle.checkout.customer.email.configured": args.customer?.email !== undefined,
+        "paddle.checkout.customer.country": args.customer?.country,
+        "paddle.checkout.payment_method.configured": args.paymentMethod !== undefined
+      })
+
       const playwright = yield* Playwright
-      const browser = yield* playwright.launchScoped(chromium, { headless: input.browser?.headless ?? true })
+      const browser = yield* playwright.launchScoped(chromium, { headless: input.browser?.headless ?? true }).pipe(
+        Effect.withSpan("PaddleTestDriver.completeCheckout.launch-browser", {
+          attributes: { "browser.headless": input.browser?.headless ?? true }
+        })
+      )
       const context = yield* browser.newContext(input.browser?.userAgent ? { userAgent: input.browser.userAgent } : {})
       const page = yield* context.newPage
 
-      yield* page.use((nativePage) => gotoWithRetry(nativePage, args.checkoutUrl))
-      yield* page.use((nativePage) => waitForCheckoutSurface(nativePage)).pipe(Effect.either)
+      yield* page
+        .use((nativePage) => gotoWithRetry(nativePage, args.checkoutUrl))
+        .pipe(Effect.withSpan("PaddleTestDriver.completeCheckout.goto"))
+      yield* page
+        .use((nativePage) => waitForCheckoutSurface(nativePage))
+        .pipe(Effect.withSpan("PaddleTestDriver.completeCheckout.wait-surface"), Effect.either)
 
       const checkoutScope: Pick<typeof page, "locator" | "getByRole" | "getByLabel" | "getByText"> =
         (yield* page.locator('iframe[name="paddle_frame"]').count) > 0
@@ -123,14 +141,16 @@ export const makePaddleTestDriver = (input: {
           ? page.locator('iframe[name="paddle_frame"]').first().contentFrame()
           : page
 
-      const cardResult = yield* page.use((nativePage) =>
-        fillPaddleCardForm(nativePage, {
-          cardNumber: args.paymentMethod?.cardNumber ?? "4000056655665556",
-          cardholderName: args.paymentMethod?.cardholderName ?? args.customer?.name ?? "Purchase SDK E2E User",
-          cvv: args.paymentMethod?.cvv ?? "100",
-          expiry: args.paymentMethod?.expiry ?? "12/30"
-        })
-      )
+      const cardResult = yield* page
+        .use((nativePage) =>
+          fillPaddleCardForm(nativePage, {
+            cardNumber: args.paymentMethod?.cardNumber ?? "4000056655665556",
+            cardholderName: args.paymentMethod?.cardholderName ?? args.customer?.name ?? "Purchase SDK E2E User",
+            cvv: args.paymentMethod?.cvv ?? "100",
+            expiry: args.paymentMethod?.expiry ?? "12/30"
+          })
+        )
+        .pipe(Effect.withSpan("PaddleTestDriver.completeCheckout.fill-card-form"))
       if (cardResult._tag === "Failure") {
         const text = yield* paymentScope.locator("body").innerText({ timeout: 5_000 }).pipe(Effect.either)
         return yield* new PaymentTestError({
@@ -138,7 +158,9 @@ export const makePaddleTestDriver = (input: {
         })
       }
 
-      yield* page.use((nativePage) => waitForSubmitButton(nativePage, 10_000)).pipe(Effect.either)
+      yield* page
+        .use((nativePage) => waitForSubmitButton(nativePage, 10_000))
+        .pipe(Effect.withSpan("PaddleTestDriver.completeCheckout.wait-submit-button"), Effect.either)
 
       const submitButton = paymentScope.getByRole("button", {
         name: SUBMIT_BUTTON_PATTERN
@@ -157,6 +179,7 @@ export const makePaddleTestDriver = (input: {
           }
         })
         .pipe(
+          Effect.withSpan("PaddleTestDriver.completeCheckout.submit-card-payment"),
           Effect.mapError(
             (cause) => new PaymentTestError({ message: "Paddle submit button could not be clicked", cause })
           )
@@ -168,7 +191,11 @@ export const makePaddleTestDriver = (input: {
           transactionId,
           timeout: "45 seconds",
           interval: "1 second"
-        })
+        }).pipe(
+          Effect.withSpan("PaddleTestDriver.completeCheckout.wait-submitted-transaction", {
+            attributes: { "paddle.transaction.id": transactionId }
+          })
+        )
       }
     },
     Effect.provide(Playwright.layer),
@@ -202,7 +229,15 @@ export const makePaddleTestDriver = (input: {
       timeout: args.timeout,
       interval: args.interval,
       timeoutMessage: `Paddle transaction "${args.transactionId}" did not reach an expected status`
-    })
+    }).pipe(
+      Effect.withSpan("PaddleTestDriver.waitForTransaction", {
+        attributes: {
+          provider: "paddle",
+          "paddle.transaction.id": args.transactionId,
+          "paddle.transaction.expected_statuses": (args.expected ?? ["paid", "completed"]).join(",")
+        }
+      })
+    )
 
   const waitForSubscription = (args: WaitForSubscriptionInput) =>
     waitUntil({
@@ -228,7 +263,16 @@ export const makePaddleTestDriver = (input: {
       timeout: args.timeout,
       interval: args.interval,
       timeoutMessage: `Paddle subscription "${args.subscriptionId}" did not reach an expected status`
-    })
+    }).pipe(
+      Effect.withSpan("PaddleTestDriver.waitForSubscription", {
+        attributes: {
+          provider: "paddle",
+          "paddle.customer_provider.id": args.customerProviderId,
+          "paddle.subscription.id": args.subscriptionId,
+          "paddle.subscription.expected_statuses": (args.expected ?? ["active", "trialing"]).join(",")
+        }
+      })
+    )
 
   return {
     provider: "paddle",
@@ -251,6 +295,18 @@ const readPaddleTransactionId = (checkoutUrl: string) => {
     const transactionId = params.get("_ptxn") || params.get("transaction_id") || params.get("txn")
 
     return transactionId
+  } catch {
+    return undefined
+  }
+}
+
+const safeUrlHostname = (url: string | undefined) => {
+  if (!url) {
+    return undefined
+  }
+
+  try {
+    return new URL(url).hostname
   } catch {
     return undefined
   }

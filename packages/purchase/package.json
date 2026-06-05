@@ -86,6 +86,7 @@
     "@effect-x/purchase-provider-clients": "workspace:*",
     "@effect/experimental": "catalog:",
     "@effect/sql": "catalog:",
+    "@effect/opentelemetry": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {

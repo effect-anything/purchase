@@ -10,21 +10,23 @@ import {
   HttpLayerRouter,
   HttpServer,
   HttpServerResponse,
-  FetchHttpClient
+  FetchHttpClient,
+  type FileSystem
 } from "@effect/platform"
 import { NodeHttpServer } from "@effect/platform-node"
 import {
   Config,
   Console,
   Context,
-  Data,
   Duration,
   Effect,
   Equivalence,
   Layer,
   Redacted,
   Schedule,
-  Schema
+  Schema,
+  Match,
+  type ConfigError
 } from "effect"
 import { createServer } from "node:http"
 
@@ -92,12 +94,12 @@ class WebhookBrokerApiError extends Schema.TaggedError<WebhookBrokerApiError>()(
   })
 ) {}
 
-export class WebhookBrokerError extends Data.TaggedError("WebhookBrokerError")<{
-  readonly message: string
-  readonly cause?: unknown
-}> {}
+class WebhookBrokerError extends Schema.TaggedError<WebhookBrokerError>()("WebhookBrokerError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown)
+}) {}
 
-export const E2EBrokerApi = HttpApi.make("purchase-e2e-broker")
+export const E2EBrokerApi = HttpApi.make("e2e-broker-api")
   .add(
     HttpApiGroup.make("broker")
       .add(HttpApiEndpoint.get("health", "/health").addSuccess(WebhookBrokerHealthResponse))
@@ -204,7 +206,7 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
       provider: PaymentProviderTag
       approvedCheckoutUrl: string
       webhookUrl: string
-    }) => Effect.Effect<ProviderPrepareResult, WebhookBrokerError>
+    }) => Effect.Effect<ProviderPrepareResult, ConfigError.ConfigError, HttpClient.HttpClient | FileSystem.FileSystem>
   }
 >() {
   static Default = Layer.effect(
@@ -212,7 +214,7 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
     Effect.gen(function* () {
       const ctx = yield* Effect.context<HttpClient.HttpClient>()
 
-      const prepare_ = Effect.fn(
+      const prepare_ = Effect.fn("WebhookBroker.prepare")(
         function* (options: { provider: PaymentProviderTag; approvedCheckoutUrl: string; webhookUrl: string }) {
           const environment = "sandbox"
 
@@ -237,7 +239,10 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
         },
         Effect.scoped,
         Effect.provide(ctx),
-        Effect.orDie
+        Effect.catchTags({
+          RequestError: Effect.die,
+          ResponseError: Effect.die
+        })
       )
 
       const prepareCache = yield* Effect.cachedFunction(
@@ -259,15 +264,17 @@ export class BrokerProvider extends Context.Tag("@E2E/BrokerProvider")<
 
 const BrokerHttpLive = HttpApiBuilder.group(E2EBrokerApi, "broker", (handlers) =>
   handlers
-    .handle("health", () =>
-      Effect.gen(function* () {
+    .handle(
+      "health",
+      Effect.fn(function* () {
         const brokerState = yield* BrokerState
 
         return { routes: brokerState.routes.size }
       })
     )
-    .handle("register", ({ payload }) =>
-      Effect.gen(function* () {
+    .handle(
+      "register",
+      Effect.fn(function* ({ payload }) {
         const brokerState = yield* BrokerState
         brokerState.routes.set(routeKey(payload.provider, payload.runId), payload)
 
@@ -284,10 +291,8 @@ const BrokerHttpLive = HttpApiBuilder.group(E2EBrokerApi, "broker", (handlers) =
             webhookUrl: brokerWebhookUrl
           })
           .pipe(
-            Effect.mapError((cause) => new WebhookBrokerApiError({ message: cause.message })),
-            Effect.catchAllDefect((e) => {
-              console.log(e)
-              return new HttpApiError.BadRequest()
+            Effect.catchTags({
+              ConfigError: () => Effect.fail(new HttpApiError.BadRequest())
             })
           )
 
@@ -347,13 +352,16 @@ const CheckoutPageHttpLive = HttpApiBuilder.group(E2EBrokerApi, "checkout", (han
   handlers.handleRaw(
     "page",
     Effect.fn(function* ({ path }) {
-      if (path.provider === "paddle") {
-        const token = yield* Config.redacted("PADDLE_CLIENT_TOKEN").pipe(Effect.orDie)
+      return yield* Match.value(path).pipe(
+        Match.when({ provider: "paddle" }, ({ provider }) =>
+          Effect.gen(function* () {
+            const token = yield* Config.redacted("PADDLE_CLIENT_TOKEN").pipe(Effect.orDie)
 
-        return HttpServerResponse.html(renderPaddleCheckoutPage({ provider: path.provider, token }))
-      }
-
-      return HttpServerResponse.empty({ status: 404 })
+            return HttpServerResponse.html(renderPaddleCheckoutPage({ provider: provider, token }))
+          })
+        ),
+        Match.orElse(() => Effect.succeed(HttpServerResponse.empty({ status: 404 })))
+      )
     })
   )
 )
@@ -393,39 +401,39 @@ export const BrokerLive = WebhookBrokerRouter.pipe(
 )
 
 const forwardWebhook = (targetUrl: string, requestHeaders: Record<string, string>, body: Buffer) =>
-  Effect.tryPromise({
-    try: async () => {
-      const headers = new Headers()
-      for (const [key, value] of Object.entries(requestHeaders)) {
-        if (key === "host" || key === "content-length") {
-          continue
+  Effect.withSpan("WebhookBroker.forward-webhook")(
+    Effect.tryPromise({
+      try: async () => {
+        const headers = new Headers()
+        for (const [key, value] of Object.entries(requestHeaders)) {
+          if (key === "host" || key === "content-length") {
+            continue
+          }
+          headers.set(key, value)
         }
-        headers.set(key, value)
-      }
-      headers.set("content-length", String(body.byteLength))
+        headers.set("content-length", String(body.byteLength))
 
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: new Uint8Array(body)
-      })
-      const text = await response.text()
-
-      if (response.status >= 500) {
-        throw new WebhookBrokerError({
-          message: `Target webhook failed with ${response.status}: ${text.slice(0, 500)}`
+        const response = await fetch(targetUrl, {
+          method: "POST",
+          headers,
+          body: new Uint8Array(body)
         })
-      }
+        const text = await response.text()
 
-      return {
-        status: response.status,
-        text
-      }
-    },
-    catch: (cause) => new WebhookBrokerError({ message: "Failed to forward webhook", cause })
-  })
+        if (response.status >= 500) {
+          throw new Error(`Target webhook failed with ${response.status}: ${text.slice(0, 500)}`)
+        }
 
-export const registerWebhookTarget = Effect.fn("registerWebhookTarget")(function* (options: {
+        return {
+          status: response.status,
+          text
+        }
+      },
+      catch: (cause) => new WebhookBrokerError({ message: "Failed to forward webhook", cause })
+    })
+  )
+
+export const registerWebhookTarget = Effect.fn("E2E.register-webhook-target")(function* (options: {
   readonly provider: PaymentProviderTag
   readonly broker: BrokerEndpoint
   readonly runId: string
