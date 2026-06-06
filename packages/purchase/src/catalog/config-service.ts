@@ -32,6 +32,9 @@ export class PurchaseConfigService extends Context.Tag("@effect-x/purchase/sync/
   )
 }
 
+/**
+ * @deprecated
+ */
 export const PurchaseConfigLayer = (input: {
   readonly plans: ReadonlyArray<PurchasePlan>
   readonly products: ProductsModule | undefined
@@ -48,5 +51,8 @@ export const PurchaseConfigLayer = (input: {
   )
 }
 
+/**
+ * @deprecated
+ */
 export const syncCatalog = (input?: CommercialCatalogSyncInput | undefined) =>
   Effect.flatMap(PurchaseConfigService, (service) => service.syncCatalog(input))
